@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -59,17 +61,28 @@ fun CalendarScreen(
                 onNavigateToAddEvent = onNavigateToAddEvent
             )
         } else {
-            MonthHeader(
-                yearMonth = uiState.currentMonth,
-                onPrev = { viewModel.navigateMonth(-1) },
-                onNext = { viewModel.navigateMonth(1) }
-            )
-            MonthlyCalendar(
-                uiState = uiState,
-                onDateClick = { viewModel.selectDate(it) }
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            StatsCard(uiState)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                MonthHeader(
+                    yearMonth = uiState.currentMonth,
+                    onPrev = { viewModel.navigateMonth(-1) },
+                    onNext = { viewModel.navigateMonth(1) }
+                )
+                MonthlyCalendar(
+                    uiState = uiState,
+                    onDateClick = { viewModel.selectDate(it) }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                StatsCard(uiState)
+                Spacer(modifier = Modifier.height(4.dp))
+                UpcomingSchedule(uiState)
+                Spacer(modifier = Modifier.height(4.dp))
+                ShiftRatioBar(uiState)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
 
@@ -624,5 +637,157 @@ private fun StatItem(label: String, count: Int, color: Color) {
             style = MaterialTheme.typography.bodySmall,
             color = TextMuted
         )
+    }
+}
+
+@Composable
+private fun UpcomingSchedule(uiState: CalendarUiState) {
+    val today = LocalDate.now()
+    val upcoming = (1..7).mapNotNull { i ->
+        val d = today.plusDays(i.toLong())
+        val shift = uiState.shifts[d.toString()]?.let { ShiftType.fromString(it.type) }
+        if (shift != null) Triple(d, shift, uiState.shifts[d.toString()]?.memo) else null
+    }
+
+    if (upcoming.isEmpty()) return
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkCard)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "📋 다가오는 일정",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            upcoming.forEach { (date, shift, memo) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = date.format(DateTimeFormatter.ofPattern("M/d (E)")),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary,
+                        modifier = Modifier.width(72.dp)
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = shift.bgColor,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = shift.emoji, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = shift.label,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = shift.color
+                            )
+                            if (!memo.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = memo,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextMuted,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShiftRatioBar(uiState: CalendarUiState) {
+    val stats = remember(uiState.shifts) {
+        var day = 0; var night = 0; var nightEarly = 0; var off = 0
+        uiState.shifts.values.forEach {
+            when (ShiftType.fromString(it.type)) {
+                ShiftType.DAY -> day++
+                ShiftType.NIGHT -> night++
+                ShiftType.NIGHT_EARLY -> nightEarly++
+                ShiftType.OFF -> off++
+                null -> {}
+            }
+        }
+        listOf(
+            Triple("주간", day, ShiftDay),
+            Triple("야간", night, ShiftNight),
+            Triple("조기야간", nightEarly, ShiftNightEarly),
+            Triple("비번", off, ShiftOff)
+        )
+    }
+
+    val total = stats.sumOf { it.second }.coerceAtLeast(1)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkCard)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "📊 근무 비율",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(12.dp)
+                    .clip(RoundedCornerShape(6.dp))
+            ) {
+                stats.forEach { (_, count, color) ->
+                    if (count > 0) {
+                        Box(
+                            modifier = Modifier
+                                .weight(count.toFloat())
+                                .fillMaxHeight()
+                                .background(color)
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                stats.forEach { (label, count, color) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "$label ${(count * 100 / total)}%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextMuted
+                        )
+                    }
+                }
+            }
+        }
     }
 }
