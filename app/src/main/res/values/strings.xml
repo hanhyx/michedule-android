@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Michedule</string>
+    <string name="today_widget_label">오늘 근무</string>
+    <string name="week_widget_label">이번 주 근무</string>
+</resources>

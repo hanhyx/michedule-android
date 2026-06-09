@@ -1,0 +1,168 @@
+package com.ljh.michedule.data.sync
+
+import android.util.Log
+import com.ljh.michedule.data.PrefsManager
+import com.ljh.michedule.data.db.FriendShiftEntity
+import com.ljh.michedule.data.db.ShiftEntity
+import com.ljh.michedule.data.repository.ScheduleRepository
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.realtime.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.*
+
+private const val TAG = "SupabaseSync"
+private const val TABLE = "schedules"
+
+@Serializable
+data class ScheduleRow(
+    val room_code: String,
+    val device_id: String,
+    val user_name: String = "",
+    val shifts: JsonObject = JsonObject(emptyMap()),
+    val memos: JsonObject = JsonObject(emptyMap()),
+    val updated_at: String? = null
+)
+
+class SupabaseSync(
+    private val repo: ScheduleRepository,
+    private val prefsManager: PrefsManager
+) {
+    private var client: SupabaseClient? = null
+    private var channel: RealtimeChannel? = null
+    private var syncJob: Job? = null
+
+    private val _connected = MutableStateFlow(false)
+    val connected: StateFlow<Boolean> = _connected.asStateFlow()
+
+    private val _friendName = MutableStateFlow("")
+    val friendName: StateFlow<String> = _friendName.asStateFlow()
+
+    fun start(scope: CoroutineScope) {
+        syncJob?.cancel()
+        syncJob = scope.launch {
+            val url = prefsManager.supabaseUrl.first()
+            val key = prefsManager.supabaseKey.first()
+            val roomCode = prefsManager.roomCode.first()
+
+            if (url.isBlank() || key.isBlank() || roomCode.isBlank()) {
+                Log.d(TAG, "Sync not configured, skipping")
+                return@launch
+            }
+
+            try {
+                client = createSupabaseClient(url, key) {
+                    install(Postgrest)
+                    install(Realtime)
+                }
+
+                subscribeToChanges(roomCode)
+                _connected.value = true
+                Log.d(TAG, "Connected to room: $roomCode")
+
+                uploadCurrentData(roomCode)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to connect", e)
+                _connected.value = false
+            }
+        }
+    }
+
+    fun stop() {
+        syncJob?.cancel()
+        syncJob = null
+        channel = null
+        client = null
+        _connected.value = false
+    }
+
+    private suspend fun subscribeToChanges(roomCode: String) {
+        val supabase = client ?: return
+        channel = supabase.realtime.channel("schedules-$roomCode")
+
+        channel?.let { ch ->
+            val changeFlow = ch.postgresChangeFlow<PostgresAction>(schema = "public") {
+                table = TABLE
+            }
+
+            ch.subscribe()
+
+            CoroutineScope(Dispatchers.IO).launch {
+                changeFlow.collect { action ->
+                    when (action) {
+                        is PostgresAction.Insert -> handleRemoteChange(roomCode)
+                        is PostgresAction.Update -> handleRemoteChange(roomCode)
+                        else -> {}
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun handleRemoteChange(roomCode: String) {
+        try {
+            val deviceId = prefsManager.ensureDeviceId()
+            val rows = client?.from(TABLE)
+                ?.select { filter { eq("room_code", roomCode) } }
+                ?.decodeList<ScheduleRow>()
+                ?: return
+
+            val friendRow = rows.firstOrNull { it.device_id != deviceId } ?: return
+            _friendName.value = friendRow.user_name
+
+            val friendShifts = mutableListOf<FriendShiftEntity>()
+            friendRow.shifts.forEach { (date, value) ->
+                val type = (value as? JsonPrimitive)?.content ?: return@forEach
+                friendShifts.add(
+                    FriendShiftEntity(
+                        date = date,
+                        type = type,
+                        friendName = friendRow.user_name
+                    )
+                )
+            }
+            repo.syncFriendShifts(friendShifts)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to process remote change", e)
+        }
+    }
+
+    suspend fun uploadCurrentData(roomCode: String? = null) {
+        try {
+            val code = roomCode ?: prefsManager.roomCode.first()
+            if (code.isBlank()) return
+
+            val deviceId = prefsManager.ensureDeviceId()
+            val myName = prefsManager.myName.first()
+
+            val allShifts = repo.getAllShifts()
+            val shiftsJson = buildJsonObject {
+                allShifts.forEach { s ->
+                    if (s.type.isNotBlank()) put(s.date, s.type)
+                }
+            }
+            val memosJson = buildJsonObject {
+                allShifts.forEach { s ->
+                    if (!s.memo.isNullOrBlank()) put(s.date, s.memo)
+                }
+            }
+
+            val row = ScheduleRow(
+                room_code = code,
+                device_id = deviceId,
+                user_name = myName,
+                shifts = shiftsJson,
+                memos = memosJson
+            )
+
+            client?.from(TABLE)?.upsert(row)
+            Log.d(TAG, "Uploaded data for room $code")
+        } catch (e: Exception) {
+            Log.e(TAG, "Upload failed", e)
+        }
+    }
+}
