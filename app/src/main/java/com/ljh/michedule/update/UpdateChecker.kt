@@ -19,7 +19,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 private const val TAG = "UpdateChecker"
-private const val GITHUB_REPO = "hanhyx/michedule"
+private const val GITHUB_REPO = "hanhyx/michedule-android"
 
 @Serializable
 data class GithubRelease(
