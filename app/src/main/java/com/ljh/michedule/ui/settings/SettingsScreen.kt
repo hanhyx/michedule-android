@@ -1,5 +1,6 @@
 package com.ljh.michedule.ui.settings
 
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -20,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import com.ljh.michedule.data.PrefsManager
 import com.ljh.michedule.ui.theme.*
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
 
 @Composable
 fun SettingsScreen(
@@ -86,7 +88,7 @@ fun SettingsScreen(
         }
 
         // Supabase Sync
-        SettingsCard(title = "실시간 공유 (Supabase)") {
+        SettingsCard(title = "실시간 공유") {
             if (roomCode.isNotBlank()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -95,25 +97,42 @@ fun SettingsScreen(
                 ) {
                     Column {
                         Text("연결됨", color = StatusOnline, fontWeight = FontWeight.Bold)
-                        Text("방 코드: $roomCode", style = MaterialTheme.typography.bodyMedium)
+                        Text("방 코드: $roomCode", style = MaterialTheme.typography.bodySmall, color = TextMuted)
                     }
-                    Row {
-                        IconButton(onClick = {
-                            clipboardManager.setText(AnnotatedString(roomCode))
-                            Toast.makeText(context, "복사됨", Toast.LENGTH_SHORT).show()
-                        }) {
-                            Icon(Icons.Default.ContentCopy, "복사", tint = Purple80)
+                    IconButton(onClick = {
+                        scope.launch {
+                            prefsManager.clearSync()
+                            Toast.makeText(context, "연결 해제됨", Toast.LENGTH_SHORT).show()
                         }
-                        IconButton(onClick = {
-                            scope.launch {
-                                prefsManager.clearSync()
-                                Toast.makeText(context, "연결 해제됨", Toast.LENGTH_SHORT).show()
-                            }
-                        }) {
-                            Icon(Icons.Default.LinkOff, "해제", tint = StatusOffline)
-                        }
+                    }) {
+                        Icon(Icons.Default.LinkOff, "해제", tint = StatusOffline)
                     }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        val link = buildInviteLink(supabaseUrl, supabaseKey, roomCode)
+                        val sendIntent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            putExtra(Intent.EXTRA_TEXT, "Michedule 스케줄 공유 초대!\n아래 링크를 탭하면 자동 연결됩니다.\n\n$link")
+                            type = "text/plain"
+                        }
+                        context.startActivity(Intent.createChooser(sendIntent, "초대 링크 보내기"))
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Purple40),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("상대방에게 초대 링크 보내기")
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "카톡으로 보내면 상대방이 탭만 하면 자동 연결됩니다",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextMuted
+                )
             } else {
                 OutlinedTextField(
                     value = editUrl,
@@ -485,4 +504,10 @@ private fun PatternAutofillCard(
 private fun generateRoomCode(): String {
     val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     return (1..6).map { chars.random() }.joinToString("")
+}
+
+private fun buildInviteLink(url: String, key: String, room: String): String {
+    val encodedUrl = URLEncoder.encode(url, "UTF-8")
+    val encodedKey = URLEncoder.encode(key, "UTF-8")
+    return "michedule://join?url=$encodedUrl&key=$encodedKey&room=$room"
 }

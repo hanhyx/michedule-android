@@ -1,5 +1,6 @@
 package com.ljh.michedule
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,10 +14,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ljh.michedule.ui.navigation.MicheduleNavHost
+import com.ljh.michedule.ui.onboarding.OnboardingScreen
 import com.ljh.michedule.ui.theme.*
 import com.ljh.michedule.update.UpdateChecker
 import com.ljh.michedule.update.UpdateInfo
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+
+data class InviteData(val url: String, val key: String, val room: String)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,6 +29,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val app = application as MicheduleApp
+        val invite = parseInviteIntent()
 
         setContent {
             MicheduleTheme {
@@ -31,6 +37,15 @@ class MainActivity : ComponentActivity() {
                 val scope = rememberCoroutineScope()
                 var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
                 var showUpdateDialog by remember { mutableStateOf(false) }
+                var showOnboarding by remember { mutableStateOf(invite != null) }
+                val roomCode by app.prefsManager.roomCode.collectAsState(initial = "")
+
+                // Skip onboarding if already connected to same room
+                LaunchedEffect(roomCode, invite) {
+                    if (invite != null && roomCode == invite.room) {
+                        showOnboarding = false
+                    }
+                }
 
                 LaunchedEffect(Unit) {
                     val currentVersion = try {
@@ -46,7 +61,17 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                MicheduleNavHost(prefsManager = app.prefsManager)
+                if (showOnboarding && invite != null) {
+                    OnboardingScreen(
+                        supabaseUrl = invite.url,
+                        supabaseKey = invite.key,
+                        roomCode = invite.room,
+                        prefsManager = app.prefsManager,
+                        onComplete = { showOnboarding = false }
+                    )
+                } else {
+                    MicheduleNavHost(prefsManager = app.prefsManager)
+                }
 
                 if (showUpdateDialog && updateInfo != null) {
                     val info = updateInfo!!
@@ -105,5 +130,16 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun parseInviteIntent(): InviteData? {
+        val uri = intent?.data ?: return null
+        if (uri.scheme != "michedule" || uri.host != "join") return null
+
+        val url = uri.getQueryParameter("url") ?: return null
+        val key = uri.getQueryParameter("key") ?: return null
+        val room = uri.getQueryParameter("room") ?: return null
+
+        return InviteData(url, key, room)
     }
 }

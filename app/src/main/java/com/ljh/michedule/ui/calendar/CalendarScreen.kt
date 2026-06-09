@@ -69,7 +69,7 @@ fun CalendarScreen(
                 onDateClick = { viewModel.selectDate(it) }
             )
             Spacer(modifier = Modifier.height(8.dp))
-            StatsAndDday(viewModel)
+            StatsCard(uiState)
         }
     }
 
@@ -95,71 +95,46 @@ private fun HeroCard(viewModel: CalendarViewModel, uiState: CalendarUiState) {
     val todayShift = uiState.shifts[today.toString()]?.let { ShiftType.fromString(it.type) }
     val dday = viewModel.getDdayInfo()
 
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkCard)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = DarkCard
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Today info (left)
             Text(
-                text = today.format(DateTimeFormatter.ofPattern("M월 d일 EEEE")),
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
+                text = todayShift?.emoji ?: "📅",
+                fontSize = 22.sp
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (todayShift != null) {
-                    Text(
-                        text = todayShift.emoji,
-                        fontSize = 28.sp
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "오늘은 ${todayShift.label}",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = todayShift.timeRange,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = todayShift.color
-                        )
-                    }
-                } else {
-                    Text(
-                        text = "📅",
-                        fontSize = 28.sp
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "근무 미설정",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = TextSecondary
-                    )
-                }
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = today.format(DateTimeFormatter.ofPattern("M/d (E)")),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextMuted
+                )
+                Text(
+                    text = if (todayShift != null) "${todayShift.label} ${todayShift.timeRange}" else "근무 미설정",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = todayShift?.color ?: TextSecondary
+                )
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                DdayChip(
-                    label = "다음 비번",
+            // D-day chips (right)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                DdayMini(
                     value = dday.nextOffDays?.let { "D-$it" } ?: "-",
                     color = ShiftOff
                 )
-                DdayChip(
-                    label = "연속 근무",
-                    value = "${dday.consecutiveWorkDays}일",
+                DdayMini(
+                    value = "${dday.consecutiveWorkDays}연속",
                     color = Purple80
-                )
-                DdayChip(
-                    label = "다음 출근",
-                    value = dday.nextWorkDays?.let { "D-$it" } ?: "-",
-                    color = ShiftDay
                 )
             }
         }
@@ -167,20 +142,13 @@ private fun HeroCard(viewModel: CalendarViewModel, uiState: CalendarUiState) {
 }
 
 @Composable
-private fun DdayChip(label: String, value: String, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = color
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = TextMuted
-        )
-    }
+private fun DdayMini(value: String, color: Color) {
+    Text(
+        text = value,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.Bold,
+        color = color
+    )
 }
 
 @Composable
@@ -599,8 +567,20 @@ private fun WeekDayCard(
 }
 
 @Composable
-private fun StatsAndDday(viewModel: CalendarViewModel) {
-    val stats = viewModel.getMonthStats()
+private fun StatsCard(uiState: CalendarUiState) {
+    val stats = remember(uiState.shifts) {
+        var day = 0; var night = 0; var nightEarly = 0; var off = 0
+        uiState.shifts.values.forEach {
+            when (ShiftType.fromString(it.type)) {
+                ShiftType.DAY -> day++
+                ShiftType.NIGHT -> night++
+                ShiftType.NIGHT_EARLY -> nightEarly++
+                ShiftType.OFF -> off++
+                null -> {}
+            }
+        }
+        MonthStats(day, night, nightEarly, off)
+    }
 
     Card(
         modifier = Modifier

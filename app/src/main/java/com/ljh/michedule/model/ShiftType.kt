@@ -27,9 +27,9 @@ enum class ShiftType(
         bgColor = Color(0x33818CF8)
     ),
     NIGHT_EARLY(
-        label = "야간(조)",
+        label = "조기야간",
         shortLabel = "조",
-        emoji = "🌆",
+        emoji = "🌇",
         timeRange = "16:30 - 04:00",
         color = Color(0xFFF472B6),
         bgColor = Color(0x33F472B6)
@@ -37,7 +37,7 @@ enum class ShiftType(
     OFF(
         label = "비번",
         shortLabel = "비",
-        emoji = "🏖️",
+        emoji = "😴",
         timeRange = "종일 휴무",
         color = Color(0xFF34D399),
         bgColor = Color(0x3334D399)

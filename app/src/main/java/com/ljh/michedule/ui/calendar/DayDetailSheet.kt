@@ -85,17 +85,16 @@ fun DayDetailSheet(
                 color = TextSecondary
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 ShiftType.entries.forEach { type ->
                     val isActive = currentShift == type
                     ShiftButton(
                         type = type,
                         isActive = isActive,
-                        onClick = { onShiftSelect(type) },
-                        modifier = Modifier.weight(1f)
+                        onClick = { onShiftSelect(type) }
                     )
                 }
             }
@@ -270,28 +269,43 @@ fun DayDetailSheet(
 private fun ShiftButton(
     type: ShiftType,
     isActive: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onClick: () -> Unit
 ) {
     val bgColor = if (isActive) type.bgColor else DarkSurface
     val borderColor = if (isActive) type.color else DarkBorder
 
-    Column(
-        modifier = modifier
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(bgColor)
-            .border(1.dp, borderColor, RoundedCornerShape(12.dp))
+            .border(1.5.dp, borderColor, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = type.emoji, fontSize = 20.sp)
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = type.shortLabel,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = if (isActive) type.color else TextMuted
-        )
+        Text(text = type.emoji, fontSize = 22.sp)
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = type.label,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isActive) type.color else TextPrimary
+            )
+            Text(
+                text = type.timeRange,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isActive) type.color.copy(alpha = 0.7f) else TextMuted
+            )
+        }
+        if (isActive) {
+            Icon(
+                Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = type.color,
+                modifier = Modifier.size(22.dp)
+            )
+        }
     }
 }
