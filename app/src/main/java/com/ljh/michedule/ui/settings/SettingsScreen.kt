@@ -1,7 +1,11 @@
 package com.ljh.michedule.ui.settings
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -17,6 +21,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ljh.michedule.data.PrefsManager
 import com.ljh.michedule.ui.theme.*
@@ -38,6 +43,9 @@ fun SettingsScreen(
     val supabaseUrl by prefsManager.supabaseUrl.collectAsState(initial = "")
     val supabaseKey by prefsManager.supabaseKey.collectAsState(initial = "")
     val roomCode by prefsManager.roomCode.collectAsState(initial = "")
+
+    val alarmEnabled by prefsManager.alarmEnabled.collectAsState(initial = false)
+    val alarmHoursBefore by prefsManager.alarmHoursBefore.collectAsState(initial = 2)
 
     var editName by remember(myName) { mutableStateOf(myName) }
     var editUrl by remember(supabaseUrl) { mutableStateOf(supabaseUrl) }
@@ -84,6 +92,77 @@ fun SettingsScreen(
                 modifier = Modifier.align(Alignment.End)
             ) {
                 Text("저장")
+            }
+        }
+
+        // Alarm settings
+        SettingsCard(title = "⏰ 출근 알람") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("출근 전 알람", fontWeight = FontWeight.Medium, color = TextPrimary)
+                    Text(
+                        text = if (alarmEnabled) "출근 ${alarmHoursBefore}시간 전 알림" else "꺼짐",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextMuted
+                    )
+                }
+                Switch(
+                    checked = alarmEnabled,
+                    onCheckedChange = { enabled ->
+                        scope.launch {
+                            prefsManager.setAlarmEnabled(enabled)
+                            if (enabled) {
+                                Toast.makeText(context, "알람이 설정되었습니다", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Purple80,
+                        checkedTrackColor = Purple40,
+                        uncheckedThumbColor = TextMuted,
+                        uncheckedTrackColor = DarkSurface
+                    )
+                )
+            }
+            if (alarmEnabled) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("출근 몇 시간 전?", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(1, 2, 3, 4).forEach { hours ->
+                        val isSelected = alarmHoursBefore == hours
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) Purple40 else DarkSurface,
+                            onClick = {
+                                scope.launch { prefsManager.setAlarmHoursBefore(hours) }
+                            }
+                        ) {
+                            Text(
+                                text = "${hours}시간",
+                                modifier = Modifier.padding(vertical = 10.dp),
+                                textAlign = TextAlign.Center,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) Purple80 else TextMuted,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "예: 야간(18:00) → ${alarmHoursBefore}시간 전 = ${18 - alarmHoursBefore}:00 알림",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextMuted
+                )
             }
         }
 

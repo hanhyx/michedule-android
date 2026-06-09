@@ -6,14 +6,15 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [ShiftEntity::class, EventEntity::class, FriendShiftEntity::class],
-    version = 1,
+    entities = [ShiftEntity::class, EventEntity::class, FriendShiftEntity::class, TodoEntity::class],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun shiftDao(): ShiftDao
     abstract fun eventDao(): EventDao
     abstract fun friendShiftDao(): FriendShiftDao
+    abstract fun todoDao(): TodoDao
 
     companion object {
         @Volatile
@@ -25,7 +26,8 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "michedule.db"
-                ).build().also { INSTANCE = it }
+                ).fallbackToDestructiveMigration()
+                .build().also { INSTANCE = it }
             }
         }
     }

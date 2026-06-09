@@ -4,12 +4,15 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ljh.michedule.MicheduleApp
+import com.ljh.michedule.alarm.ShiftAlarmManager
 import com.ljh.michedule.data.db.EventEntity
 import com.ljh.michedule.data.db.FriendShiftEntity
 import com.ljh.michedule.data.db.ShiftEntity
+import com.ljh.michedule.data.db.TodoEntity
 import com.ljh.michedule.model.ShiftType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
@@ -20,6 +23,7 @@ data class CalendarUiState(
     val shifts: Map<String, ShiftEntity> = emptyMap(),
     val events: Map<String, List<EventEntity>> = emptyMap(),
     val friendShifts: Map<String, FriendShiftEntity> = emptyMap(),
+    val todos: List<TodoEntity> = emptyList(),
     val isWeeklyView: Boolean = false,
     val showDayDetail: Boolean = false
 )
@@ -66,6 +70,15 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                     }
                 }
         }
+
+        viewModelScope.launch {
+            _uiState.map { it.selectedDate }
+                .distinctUntilChanged()
+                .flatMapLatest { date -> repo.getTodosForDate(date) }
+                .collect { todos ->
+                    _uiState.update { state -> state.copy(todos = todos) }
+                }
+        }
     }
 
     fun navigateMonth(delta: Int) {
@@ -87,6 +100,13 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     fun setShift(date: LocalDate, type: ShiftType) {
         viewModelScope.launch {
             repo.setShift(date, ShiftType.toDbString(type))
+            try {
+                val enabled = app.prefsManager.alarmEnabled.first()
+                if (enabled) {
+                    val hours = app.prefsManager.alarmHoursBefore.first()
+                    ShiftAlarmManager.scheduleAlarm(app, date, type, hours)
+                }
+            } catch (_: Exception) {}
         }
     }
 
@@ -112,6 +132,27 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             repo.deleteEvent(id)
         }
+    }
+
+    fun addTodo(title: String, time: String? = null, isHabit: Boolean = false) {
+        viewModelScope.launch {
+            repo.addTodo(
+                TodoEntity(
+                    date = _uiState.value.selectedDate.toString(),
+                    title = title,
+                    time = time,
+                    isHabit = isHabit
+                )
+            )
+        }
+    }
+
+    fun toggleTodo(id: Long, done: Boolean) {
+        viewModelScope.launch { repo.toggleTodo(id, done) }
+    }
+
+    fun deleteTodo(id: Long) {
+        viewModelScope.launch { repo.deleteTodo(id) }
     }
 
     fun autofillPattern(patternCodes: List<String>, startDate: LocalDate, endDate: LocalDate) {

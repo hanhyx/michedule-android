@@ -20,6 +20,8 @@ class PrefsManager(private val context: Context) {
         private val KEY_ROOM_CODE = stringPreferencesKey("room_code")
         private val KEY_PATTERN = stringPreferencesKey("shift_pattern")
         private val KEY_PATTERN_START = stringPreferencesKey("pattern_start_date")
+        private val KEY_ALARM_ENABLED = booleanPreferencesKey("alarm_enabled")
+        private val KEY_ALARM_HOURS_BEFORE = intPreferencesKey("alarm_hours_before")
     }
 
     val deviceId: Flow<String> = context.dataStore.data.map { prefs ->
@@ -34,6 +36,8 @@ class PrefsManager(private val context: Context) {
     val roomCode: Flow<String> = context.dataStore.data.map { it[KEY_ROOM_CODE] ?: "" }
     val shiftPattern: Flow<String> = context.dataStore.data.map { it[KEY_PATTERN] ?: "" }
     val patternStartDate: Flow<String> = context.dataStore.data.map { it[KEY_PATTERN_START] ?: "" }
+    val alarmEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_ALARM_ENABLED] ?: false }
+    val alarmHoursBefore: Flow<Int> = context.dataStore.data.map { it[KEY_ALARM_HOURS_BEFORE] ?: 2 }
 
     suspend fun setMyName(name: String) {
         context.dataStore.edit { it[KEY_MY_NAME] = name }
@@ -67,6 +71,14 @@ class PrefsManager(private val context: Context) {
             }
         }
         return id
+    }
+
+    suspend fun setAlarmEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_ALARM_ENABLED] = enabled }
+    }
+
+    suspend fun setAlarmHoursBefore(hours: Int) {
+        context.dataStore.edit { it[KEY_ALARM_HOURS_BEFORE] = hours }
     }
 
     suspend fun clearSync() {

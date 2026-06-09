@@ -1,12 +1,8 @@
 package com.ljh.michedule.ui.calendar
 
 import androidx.compose.animation.*
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -73,7 +69,13 @@ fun CalendarScreen(
                 )
                 MonthlyCalendar(
                     uiState = uiState,
-                    onDateClick = { viewModel.selectDate(it) }
+                    onShiftCycle = { date ->
+                        val current = uiState.shifts[date.toString()]?.let { ShiftType.fromString(it.type) }
+                        val next = cycleShift(current)
+                        if (next != null) viewModel.setShift(date, next)
+                        else viewModel.clearShift(date)
+                    },
+                    onDateLongPress = { viewModel.selectDate(it) }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 StatsCard(uiState)
@@ -92,12 +94,16 @@ fun CalendarScreen(
             shift = uiState.shifts[uiState.selectedDate.toString()],
             events = uiState.events[uiState.selectedDate.toString()] ?: emptyList(),
             friendShift = uiState.friendShifts[uiState.selectedDate.toString()],
+            todos = uiState.todos,
             onDismiss = { viewModel.closeDayDetail() },
             onShiftSelect = { type -> viewModel.setShift(uiState.selectedDate, type) },
             onShiftClear = { viewModel.clearShift(uiState.selectedDate) },
             onMemoChange = { memo -> viewModel.setMemo(uiState.selectedDate, memo) },
             onAddEvent = { onNavigateToAddEvent(uiState.selectedDate.toString()) },
-            onDeleteEvent = { viewModel.deleteEvent(it) }
+            onDeleteEvent = { viewModel.deleteEvent(it) },
+            onAddTodo = { title, time, isHabit -> viewModel.addTodo(title, time, isHabit) },
+            onToggleTodo = { id, done -> viewModel.toggleTodo(id, done) },
+            onDeleteTodo = { viewModel.deleteTodo(it) }
         )
     }
 }
@@ -246,8 +252,21 @@ private fun MonthHeader(
     }
 }
 
+private fun cycleShift(current: ShiftType?): ShiftType? = when (current) {
+    null -> ShiftType.DAY
+    ShiftType.DAY -> ShiftType.NIGHT
+    ShiftType.NIGHT -> ShiftType.NIGHT_EARLY
+    ShiftType.NIGHT_EARLY -> ShiftType.OFF
+    ShiftType.OFF -> null
+}
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun MonthlyCalendar(uiState: CalendarUiState, onDateClick: (LocalDate) -> Unit) {
+fun MonthlyCalendar(
+    uiState: CalendarUiState,
+    onShiftCycle: (LocalDate) -> Unit,
+    onDateLongPress: (LocalDate) -> Unit
+) {
     val yearMonth = uiState.currentMonth
     val firstDay = yearMonth.atDay(1)
     val daysInMonth = yearMonth.lengthOfMonth()
@@ -303,7 +322,8 @@ fun MonthlyCalendar(uiState: CalendarUiState, onDateClick: (LocalDate) -> Unit) 
                             isSelected = isSelected,
                             isSunday = col == 0,
                             isSaturday = col == 6,
-                            onClick = { onDateClick(date) },
+                            onClick = { onShiftCycle(date) },
+                            onLongClick = { onDateLongPress(date) },
                             modifier = Modifier.weight(1f)
                         )
                     } else {
@@ -315,6 +335,7 @@ fun MonthlyCalendar(uiState: CalendarUiState, onDateClick: (LocalDate) -> Unit) 
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DayCell(
     day: Int,
@@ -327,6 +348,7 @@ private fun DayCell(
     isSunday: Boolean,
     isSaturday: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val bgColor = when {
@@ -344,7 +366,10 @@ private fun DayCell(
             .then(borderMod)
             .clip(RoundedCornerShape(10.dp))
             .background(bgColor)
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {

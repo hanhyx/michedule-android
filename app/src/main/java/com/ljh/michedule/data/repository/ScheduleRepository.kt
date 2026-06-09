@@ -10,6 +10,7 @@ class ScheduleRepository(private val db: AppDatabase) {
     private val shiftDao = db.shiftDao()
     private val eventDao = db.eventDao()
     private val friendShiftDao = db.friendShiftDao()
+    private val todoDao = db.todoDao()
 
     fun getShiftsForMonth(yearMonth: YearMonth): Flow<List<ShiftEntity>> {
         val start = yearMonth.atDay(1).toString()
@@ -106,4 +107,15 @@ class ScheduleRepository(private val db: AppDatabase) {
         friendShiftDao.deleteAll()
         friendShiftDao.upsertAll(shifts)
     }
+
+    // Todos
+    fun getTodosForDate(date: LocalDate): Flow<List<TodoEntity>> {
+        return todoDao.getTodosForDate(date.toString())
+    }
+
+    suspend fun addTodo(todo: TodoEntity): Long = todoDao.insert(todo)
+
+    suspend fun toggleTodo(id: Long, done: Boolean) = todoDao.setDone(id, done)
+
+    suspend fun deleteTodo(id: Long) = todoDao.deleteById(id)
 }

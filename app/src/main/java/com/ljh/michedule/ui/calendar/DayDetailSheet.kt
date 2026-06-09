@@ -17,9 +17,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.ljh.michedule.data.db.EventEntity
 import com.ljh.michedule.data.db.FriendShiftEntity
 import com.ljh.michedule.data.db.ShiftEntity
+import com.ljh.michedule.data.db.TodoEntity
 import com.ljh.michedule.model.ShiftType
 import com.ljh.michedule.ui.theme.*
 import java.time.LocalDate
@@ -32,12 +35,16 @@ fun DayDetailSheet(
     shift: ShiftEntity?,
     events: List<EventEntity>,
     friendShift: FriendShiftEntity?,
+    todos: List<TodoEntity>,
     onDismiss: () -> Unit,
     onShiftSelect: (ShiftType) -> Unit,
     onShiftClear: () -> Unit,
     onMemoChange: (String?) -> Unit,
     onAddEvent: () -> Unit,
-    onDeleteEvent: (Long) -> Unit
+    onDeleteEvent: (Long) -> Unit,
+    onAddTodo: (String, String?, Boolean) -> Unit,
+    onToggleTodo: (Long, Boolean) -> Unit,
+    onDeleteTodo: (Long) -> Unit
 ) {
     var memoText by remember(date, shift) {
         mutableStateOf(shift?.memo ?: "")
@@ -67,6 +74,7 @@ fun DayDetailSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 16.dp)
                 .navigationBarsPadding()
         ) {
@@ -235,6 +243,15 @@ fun DayDetailSheet(
                 }
             }
 
+            // Todo checklist
+            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 12.dp))
+            TodoSection(
+                todos = todos,
+                onAdd = onAddTodo,
+                onToggle = onToggleTodo,
+                onDelete = onDeleteTodo
+            )
+
             // Friend shift
             if (friendShift != null) {
                 val fType = ShiftType.fromString(friendShift.type)
@@ -262,6 +279,135 @@ fun DayDetailSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+}
+
+@Composable
+private fun TodoSection(
+    todos: List<TodoEntity>,
+    onAdd: (String, String?, Boolean) -> Unit,
+    onToggle: (Long, Boolean) -> Unit,
+    onDelete: (Long) -> Unit
+) {
+    var newTodoText by remember { mutableStateOf("") }
+    var isHabit by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "✅ 할 일",
+            style = MaterialTheme.typography.labelLarge,
+            color = TextSecondary
+        )
+        val doneCount = todos.count { it.isDone }
+        if (todos.isNotEmpty()) {
+            Text(
+                text = "$doneCount/${todos.size} 완료",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (doneCount == todos.size) ShiftOff else TextMuted
+            )
+        }
+    }
+    Spacer(modifier = Modifier.height(8.dp))
+
+    todos.forEach { todo ->
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (todo.isDone) DarkSurface.copy(alpha = 0.5f) else DarkSurface)
+                .clickable { onToggle(todo.id, !todo.isDone) }
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                if (todo.isDone) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                contentDescription = null,
+                tint = if (todo.isDone) ShiftOff else TextMuted,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = (if (todo.isHabit) "🔄 " else "") + todo.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (todo.isDone) TextMuted else TextPrimary,
+                    fontWeight = if (todo.isDone) FontWeight.Normal else FontWeight.Medium
+                )
+                if (todo.time != null) {
+                    Text(
+                        text = todo.time,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextMuted
+                    )
+                }
+            }
+            IconButton(
+                onClick = { onDelete(todo.id) },
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "삭제",
+                    modifier = Modifier.size(14.dp),
+                    tint = TextMuted
+                )
+            }
+        }
+    }
+
+    Spacer(modifier = Modifier.height(8.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        OutlinedTextField(
+            value = newTodoText,
+            onValueChange = { newTodoText = it },
+            modifier = Modifier.weight(1f),
+            placeholder = { Text("할 일 추가...", color = TextMuted) },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Purple80,
+                unfocusedBorderColor = DarkBorder,
+                cursorColor = Purple80,
+                focusedTextColor = TextPrimary,
+                unfocusedTextColor = TextPrimary
+            ),
+            shape = RoundedCornerShape(12.dp),
+            singleLine = true
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        IconButton(
+            onClick = {
+                if (newTodoText.isNotBlank()) {
+                    onAdd(newTodoText.trim(), null, isHabit)
+                    newTodoText = ""
+                    isHabit = false
+                }
+            }
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "추가", tint = Purple80)
+        }
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(top = 4.dp)
+    ) {
+        Checkbox(
+            checked = isHabit,
+            onCheckedChange = { isHabit = it },
+            colors = CheckboxDefaults.colors(
+                checkedColor = Purple80,
+                uncheckedColor = TextMuted
+            ),
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text("매일 반복 (습관)", style = MaterialTheme.typography.bodySmall, color = TextMuted)
     }
 }
 
