@@ -32,10 +32,10 @@ class MicheduleApp : Application() {
         startSync()
 
         val prefs = getSharedPreferences("michedule_init", MODE_PRIVATE)
-        if (!prefs.getBoolean("seeded_june_2026", false)) {
+        if (!prefs.getBoolean("seeded_june_2026_v2", false)) {
             CoroutineScope(Dispatchers.IO).launch {
                 seedJune2026()
-                prefs.edit().putBoolean("seeded_june_2026", true).apply()
+                prefs.edit().putBoolean("seeded_june_2026_v2", true).apply()
             }
         }
     }
@@ -76,7 +76,7 @@ class MicheduleApp : Application() {
             "2026-06-27" to "off",
             "2026-06-28" to "off",
             "2026-06-29" to "day",
-            "2026-06-30" to "day",
+            "2026-06-30" to "day"
         )
         val entities = schedule.map { (date, type) -> ShiftEntity(date = date, type = type) }
         repository.bulkSetShifts(entities)

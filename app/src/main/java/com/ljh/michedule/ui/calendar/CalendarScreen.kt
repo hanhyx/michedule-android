@@ -48,10 +48,25 @@ fun CalendarScreen(
     ) {
         TodayHeroBanner(uiState)
 
-        ViewModeToggle(
-            mode = uiState.viewMode,
-            onModeChange = { viewModel.setViewMode(it) }
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                ViewModeToggle(
+                    mode = uiState.viewMode,
+                    onModeChange = { viewModel.setViewMode(it) }
+                )
+            }
+            IconButton(onClick = { viewModel.toggleLock() }) {
+                Icon(
+                    imageVector = if (uiState.isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
+                    contentDescription = if (uiState.isLocked) "잠금 해제" else "잠금",
+                    tint = if (uiState.isLocked) Color(0xFFF87171) else TextMuted,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
 
         when (uiState.viewMode) {
             ViewMode.MONTHLY -> MonthlyScreen(viewModel, uiState, onNavigateToAddEvent)
@@ -246,10 +261,12 @@ private fun MonthlyScreen(
         MonthlyCalendarGrid(
             uiState = uiState,
             onShiftCycle = { date ->
-                val current = uiState.shifts[date.toString()]?.let { ShiftType.fromString(it.type) }
-                val next = cycleShift(current)
-                if (next != null) viewModel.setShift(date, next)
-                else viewModel.clearShift(date)
+                if (!uiState.isLocked) {
+                    val current = uiState.shifts[date.toString()]?.let { ShiftType.fromString(it.type) }
+                    val next = cycleShift(current)
+                    if (next != null) viewModel.setShift(date, next)
+                    else viewModel.clearShift(date)
+                }
             },
             onDateLongPress = { viewModel.selectDate(it) },
             modifier = Modifier.weight(1f)

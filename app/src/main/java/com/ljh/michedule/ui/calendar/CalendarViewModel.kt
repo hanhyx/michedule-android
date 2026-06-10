@@ -28,7 +28,8 @@ data class CalendarUiState(
     val viewMode: ViewMode = ViewMode.MONTHLY,
     val showDayDetail: Boolean = false,
     val myName: String = "",
-    val partnerName: String = ""
+    val partnerName: String = "",
+    val isLocked: Boolean = false
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -105,6 +106,12 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         }
 
         viewModelScope.launch {
+            app.prefsManager.calendarLocked.collect { locked ->
+                _uiState.update { it.copy(isLocked = locked) }
+            }
+        }
+
+        viewModelScope.launch {
             app.supabaseSync?.friendName?.collect { name ->
                 _uiState.update { it.copy(partnerName = name) }
             }
@@ -125,6 +132,13 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     fun setViewMode(mode: ViewMode) {
         _uiState.update { it.copy(viewMode = mode) }
+    }
+
+    fun toggleLock() {
+        viewModelScope.launch {
+            val newLocked = !_uiState.value.isLocked
+            app.prefsManager.setCalendarLocked(newLocked)
+        }
     }
 
     fun setShift(date: LocalDate, type: ShiftType) {
