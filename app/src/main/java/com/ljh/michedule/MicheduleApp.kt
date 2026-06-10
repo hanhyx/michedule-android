@@ -63,6 +63,15 @@ class MicheduleApp : Application() {
         supabaseSync = null
     }
 
+    fun disconnectRoom() {
+        appScope.launch {
+            supabaseSync?.stop()
+            supabaseSync = null
+            prefsManager.clearSync()
+            repository.clearAllFriendData()
+        }
+    }
+
     fun triggerUpload() {
         appScope.launch {
             if (prefsManager.syncPaused.first()) return@launch

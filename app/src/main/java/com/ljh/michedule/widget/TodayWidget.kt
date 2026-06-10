@@ -58,7 +58,7 @@ class TodayWidget : GlanceAppWidget() {
                 ),
                 memo = myEntity?.memo,
                 mood = myMood?.emoji,
-                todoTexts = myTodos.take(2).map { (if (it.isDone) "✅" else "⬜") + it.title }
+                todoTexts = myTodos.take(4).map { (if (it.isDone) "✅" else "⬜") + it.title }
             )
 
             val partner = try {

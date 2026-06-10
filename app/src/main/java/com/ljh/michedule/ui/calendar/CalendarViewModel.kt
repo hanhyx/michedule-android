@@ -72,7 +72,8 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                     _uiState.update { state ->
                         state.copy(
                             friendShifts = shifts.associateBy { s -> s.date },
-                            partnerName = if (state.partnerName.isBlank()) nameFromDb else state.partnerName
+                            partnerName = if (state.partnerName.isBlank()) nameFromDb else state.partnerName,
+                            viewingPartner = if (shifts.isEmpty()) false else state.viewingPartner
                         )
                     }
                 }

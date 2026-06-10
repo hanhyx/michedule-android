@@ -329,8 +329,9 @@ fun SettingsScreen(
                             onClick = {
                                 if (changeCode.isNotBlank()) {
                                     scope.launch {
-                                        prefsManager.setRoomCode(changeCode.trim())
                                         val app = context.applicationContext as MicheduleApp
+                                        app.repository.clearAllFriendData()
+                                        prefsManager.setRoomCode(changeCode.trim())
                                         app.startSync()
                                         showChangeInput = false
                                         changeCode = ""
@@ -357,12 +358,9 @@ fun SettingsScreen(
                         }
                         OutlinedButton(
                             onClick = {
-                                scope.launch {
-                                    prefsManager.clearSync()
-                                    val app = context.applicationContext as MicheduleApp
-                                    app.stopSync()
-                                    Toast.makeText(context, "연결이 해제되었습니다", Toast.LENGTH_SHORT).show()
-                                }
+                                val app = context.applicationContext as MicheduleApp
+                                app.disconnectRoom()
+                                Toast.makeText(context, "연결이 해제되었습니다", Toast.LENGTH_SHORT).show()
                             },
                             shape = RoundedCornerShape(12.dp),
                             border = BorderStroke(1.dp, Color(0xFFF87171).copy(alpha = 0.5f))
@@ -409,8 +407,10 @@ fun SettingsScreen(
                         onClick = {
                             if (joinCode.isNotBlank()) {
                                 scope.launch {
+                                    val app = context.applicationContext as MicheduleApp
+                                    app.repository.clearAllFriendData()
                                     prefsManager.setRoomCode(joinCode.trim())
-                                    (context.applicationContext as MicheduleApp).startSync()
+                                    app.startSync()
                                     Toast.makeText(context, "연결되었습니다!", Toast.LENGTH_SHORT).show()
                                 }
                             }
@@ -432,9 +432,11 @@ fun SettingsScreen(
                 Button(
                     onClick = {
                         scope.launch {
+                            val app = context.applicationContext as MicheduleApp
+                            app.repository.clearAllFriendData()
                             val code = generateRoomCode()
                             prefsManager.setRoomCode(code)
-                            (context.applicationContext as MicheduleApp).startSync()
+                            app.startSync()
                             Toast.makeText(context, "공유가 활성화되었습니다", Toast.LENGTH_SHORT).show()
                         }
                     },

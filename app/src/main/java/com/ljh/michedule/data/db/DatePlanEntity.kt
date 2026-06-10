@@ -30,4 +30,7 @@ interface DatePlanDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(plans: List<DatePlanEntity>)
+
+    @Query("DELETE FROM date_plans")
+    suspend fun deleteAll()
 }

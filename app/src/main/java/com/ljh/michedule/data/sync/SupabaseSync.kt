@@ -80,6 +80,7 @@ class SupabaseSync(
                 Log.d(TAG, "Connected to room: $roomCode")
 
                 uploadCurrentData(roomCode)
+                handleRemoteChange(roomCode)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to connect", e)
                 _connected.value = false

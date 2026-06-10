@@ -78,7 +78,6 @@ fun CalendarScreen(
             date = uiState.selectedDate,
             shift = uiState.shifts[uiState.selectedDate.toString()],
             events = uiState.events[uiState.selectedDate.toString()] ?: emptyList(),
-            friendShift = uiState.friendShifts[uiState.selectedDate.toString()],
             todos = uiState.todos,
             mood = uiState.currentMood,
             shiftHistory = uiState.shiftHistory,

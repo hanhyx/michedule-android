@@ -151,6 +151,11 @@ class ScheduleRepository(private val db: AppDatabase) {
         friendShiftDao.upsertAll(shifts)
     }
 
+    suspend fun clearAllFriendData() {
+        friendShiftDao.deleteAll()
+        datePlanDao.deleteAll()
+    }
+
     // Todos
     fun getTodosForDate(date: LocalDate): Flow<List<TodoEntity>> {
         return todoDao.getTodosForDate(date.toString())

@@ -136,6 +136,7 @@ class PrefsManager(private val context: Context) {
     suspend fun clearSync() {
         context.dataStore.edit {
             it.remove(KEY_ROOM_CODE)
+            it.remove(KEY_SYNC_PAUSED)
         }
     }
 }
