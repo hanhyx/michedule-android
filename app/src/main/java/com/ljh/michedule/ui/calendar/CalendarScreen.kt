@@ -2,8 +2,6 @@ package com.ljh.michedule.ui.calendar
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -48,6 +46,8 @@ fun CalendarScreen(
             .fillMaxSize()
             .background(DarkBg)
     ) {
+        TodayHeroBanner(uiState)
+
         ViewModeToggle(
             mode = uiState.viewMode,
             onModeChange = { viewModel.setViewMode(it) }
@@ -80,6 +80,96 @@ fun CalendarScreen(
             onDeleteTodo = { viewModel.deleteTodo(it) },
             onMoodSelect = { emoji, note -> viewModel.setMood(emoji, note) }
         )
+    }
+}
+
+// ── Today's Schedule Compact Banner ──
+
+@Composable
+private fun TodayHeroBanner(uiState: CalendarUiState) {
+    val today = LocalDate.now()
+    val todayStr = today.toString()
+    val myShift = uiState.shifts[todayStr]?.let { ShiftType.fromString(it.type) }
+    val partnerShift = uiState.friendShifts[todayStr]?.let { ShiftType.fromString(it.type) }
+    val mood = uiState.moods[todayStr]
+    val todayMemo = uiState.shifts[todayStr]?.memo
+    val todayEvents = uiState.events[todayStr]?.size ?: 0
+
+    val accentColor = myShift?.color ?: Purple80
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = DarkCard,
+        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.3f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = today.format(DateTimeFormatter.ofPattern("M월 d일 EEEE")),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TextMuted
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (myShift != null) {
+                        Text(myShift.emoji, fontSize = 18.sp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${myShift.label} ${myShift.timeRange}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = myShift.color
+                        )
+                    } else {
+                        Text("오늘 근무 미설정", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                if (!todayMemo.isNullOrBlank() || todayEvents > 0) {
+                    Text(
+                        text = buildString {
+                            if (!todayMemo.isNullOrBlank()) append("📝 $todayMemo")
+                            if (todayEvents > 0) {
+                                if (isNotEmpty()) append(" · ")
+                                append("📅 일정 ${todayEvents}개")
+                            }
+                        },
+                        fontSize = 11.sp,
+                        color = TextMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            if (partnerShift != null) {
+                VerticalDivider(
+                    modifier = Modifier.height(36.dp).padding(horizontal = 8.dp),
+                    color = DarkBorder
+                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("상대", fontSize = 9.sp, color = TextMuted)
+                    Text(partnerShift.emoji, fontSize = 16.sp)
+                    Text(
+                        partnerShift.shortLabel,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = partnerShift.color
+                    )
+                }
+            }
+
+            if (mood != null) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(mood.emoji, fontSize = 18.sp)
+            }
+        }
     }
 }
 
@@ -134,11 +224,7 @@ private fun MonthlyScreen(
     uiState: CalendarUiState,
     onNavigateToAddEvent: (String) -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
+    Column(modifier = Modifier.fillMaxSize()) {
         MonthHeader(
             yearMonth = uiState.currentMonth,
             onPrev = { viewModel.navigateMonth(-1) },
@@ -152,13 +238,10 @@ private fun MonthlyScreen(
                 if (next != null) viewModel.setShift(date, next)
                 else viewModel.clearShift(date)
             },
-            onDateLongPress = { viewModel.selectDate(it) }
+            onDateLongPress = { viewModel.selectDate(it) },
+            modifier = Modifier.weight(1f)
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        StatsCard(uiState)
-        Spacer(modifier = Modifier.height(4.dp))
-        UpcomingSchedule(uiState)
-        Spacer(modifier = Modifier.height(16.dp))
+        CompactStatsBar(uiState)
     }
 }
 
@@ -198,15 +281,18 @@ private fun cycleShift(current: ShiftType?): ShiftType? = when (current) {
 private fun MonthlyCalendarGrid(
     uiState: CalendarUiState,
     onShiftCycle: (LocalDate) -> Unit,
-    onDateLongPress: (LocalDate) -> Unit
+    onDateLongPress: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val yearMonth = uiState.currentMonth
     val firstDay = yearMonth.atDay(1)
     val daysInMonth = yearMonth.lengthOfMonth()
     val startDow = firstDay.dayOfWeek.value % 7
     val today = LocalDate.now()
+    val totalCells = startDow + daysInMonth
+    val rows = (totalCells + 6) / 7
 
-    Column(modifier = Modifier.padding(horizontal = 4.dp)) {
+    Column(modifier = modifier.padding(horizontal = 4.dp)) {
         Row(modifier = Modifier.fillMaxWidth()) {
             listOf("일", "월", "화", "수", "목", "금", "토").forEach { dow ->
                 Text(
@@ -225,10 +311,12 @@ private fun MonthlyCalendarGrid(
         }
         Spacer(modifier = Modifier.height(2.dp))
 
-        val totalCells = startDow + daysInMonth
-        val rows = (totalCells + 6) / 7
         for (row in 0 until rows) {
-            Row(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
                 for (col in 0..6) {
                     val dayNum = row * 7 + col - startDow + 1
                     if (dayNum in 1..daysInMonth) {
@@ -252,7 +340,9 @@ private fun MonthlyCalendarGrid(
                             isSaturday = col == 6,
                             onClick = { onShiftCycle(date) },
                             onLongClick = { onDateLongPress(date) },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
                         )
                     } else {
                         Spacer(modifier = Modifier.weight(1f))
@@ -284,34 +374,34 @@ private fun CoupleCell(
         else -> Color.Transparent
     }
     val borderMod = if (isToday) {
-        Modifier.border(2.dp, Purple80, RoundedCornerShape(8.dp))
+        Modifier.border(2.dp, Purple80, RoundedCornerShape(6.dp))
     } else Modifier
 
     val partnerBarColor = partnerShift?.color?.copy(alpha = 0.6f)
 
     Column(
         modifier = modifier
-            .padding(1.dp)
+            .padding(0.5.dp)
             .then(borderMod)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(6.dp))
             .background(bgColor)
             .then(
                 if (partnerBarColor != null) {
                     Modifier.drawBehind {
                         drawRoundRect(
                             color = partnerBarColor,
-                            topLeft = Offset(0f, size.height - 4.dp.toPx()),
-                            size = Size(size.width, 4.dp.toPx()),
-                            cornerRadius = CornerRadius(4.dp.toPx())
+                            topLeft = Offset(0f, size.height - 3.dp.toPx()),
+                            size = Size(size.width, 3.dp.toPx()),
+                            cornerRadius = CornerRadius(3.dp.toPx())
                         )
                     }
                 } else Modifier
             )
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 2.dp, vertical = 3.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 2.dp, vertical = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // Date number + mood
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
@@ -331,44 +421,45 @@ private fun CoupleCell(
             }
         }
 
-        // My shift label
+        Spacer(modifier = Modifier.weight(1f))
+
         if (myShift != null) {
+            Text(myShift.emoji, fontSize = 16.sp)
             Text(
-                text = "${myShift.emoji}${myShift.shortLabel}",
-                fontSize = 10.sp,
+                text = myShift.shortLabel,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = myShift.color,
                 maxLines = 1
             )
         }
 
-        // Partner shift (small)
         if (partnerShift != null) {
             Text(
-                text = partnerShift.shortLabel,
-                fontSize = 8.sp,
-                color = partnerShift.color.copy(alpha = 0.7f),
+                text = "♥ ${partnerShift.shortLabel}",
+                fontSize = 9.sp,
+                color = partnerShift.color.copy(alpha = 0.8f),
                 maxLines = 1
             )
         }
 
-        // Memo or event text (instead of dots)
         val infoText = when {
             !memo.isNullOrBlank() -> memo
-            eventCount > 0 -> "일정${eventCount}개"
+            eventCount > 0 -> "📅${eventCount}"
             else -> null
         }
         if (infoText != null) {
             Text(
                 text = infoText,
-                fontSize = 7.sp,
+                fontSize = 8.sp,
                 color = TextMuted,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
 
-        // Bottom padding for partner bar
+        Spacer(modifier = Modifier.weight(0.5f))
+
         if (partnerShift != null) {
             Spacer(modifier = Modifier.height(2.dp))
         }
@@ -722,11 +813,11 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
 }
 
 // ══════════════════════════════════════════════
-//  Stats & Upcoming (below monthly calendar)
+//  Compact Stats Bar (bottom of monthly view)
 // ══════════════════════════════════════════════
 
 @Composable
-private fun StatsCard(uiState: CalendarUiState) {
+private fun CompactStatsBar(uiState: CalendarUiState) {
     val stats = remember(uiState.shifts) {
         var day = 0; var night = 0; var nightEarly = 0; var off = 0
         uiState.shifts.values.forEach {
@@ -741,31 +832,33 @@ private fun StatsCard(uiState: CalendarUiState) {
         MonthStats(day, night, nightEarly, off)
     }
 
-    val total = (stats.totalWork + stats.offCount).coerceAtLeast(1)
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkCard)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = DarkCard,
+        shadowElevation = 4.dp
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                StatChip("주간", stats.dayCount, ShiftDay)
-                StatChip("야간", stats.nightCount, ShiftNight)
-                StatChip("조기", stats.nightEarlyCount, ShiftNightEarly)
-                StatChip("비번", stats.offCount, ShiftOff)
+                StatChip("☀️주", stats.dayCount, ShiftDay)
+                StatChip("🌙야", stats.nightCount, ShiftNight)
+                StatChip("🌇조", stats.nightEarlyCount, ShiftNightEarly)
+                StatChip("😴비", stats.offCount, ShiftOff)
+                Text(
+                    text = "총 ${stats.totalWork + stats.offCount}일",
+                    fontSize = 11.sp,
+                    color = TextMuted
+                )
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp))
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
             ) {
                 listOf(
                     stats.dayCount to ShiftDay,
@@ -785,44 +878,11 @@ private fun StatsCard(uiState: CalendarUiState) {
 @Composable
 private fun StatChip(label: String, count: Int, color: Color) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
-        Spacer(modifier = Modifier.width(4.dp))
-        Text("$label $count", style = MaterialTheme.typography.bodySmall, color = TextMuted)
-    }
-}
-
-@Composable
-private fun UpcomingSchedule(uiState: CalendarUiState) {
-    val today = LocalDate.now()
-    val upcoming = (1..5).mapNotNull { i ->
-        val d = today.plusDays(i.toLong())
-        val shift = uiState.shifts[d.toString()]?.let { ShiftType.fromString(it.type) }
-        if (shift != null) d to shift else null
-    }
-    if (upcoming.isEmpty()) return
-
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkCard)
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            upcoming.forEach { (date, shift) ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = date.format(DateTimeFormatter.ofPattern("M/d(E)")),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextMuted,
-                        modifier = Modifier.width(56.dp)
-                    )
-                    Text(shift.emoji, fontSize = 12.sp)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(shift.label, fontSize = 12.sp, color = shift.color, fontWeight = FontWeight.Medium)
-                }
-            }
-        }
+        Text(
+            "$label $count",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = color
+        )
     }
 }
