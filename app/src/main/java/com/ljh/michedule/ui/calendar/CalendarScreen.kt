@@ -452,21 +452,53 @@ private fun SoloCell(
         Modifier.border(0.5.dp, DarkBorder.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
     }
 
-    val cellContent: @Composable ColumnScope.() -> Unit = {
-        // 날짜
+    Column(
+        modifier = modifier
+            .padding(0.5.dp)
+            .then(borderMod)
+            .clip(RoundedCornerShape(6.dp))
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(horizontal = 3.dp, vertical = 2.dp)
+    ) {
+        // 날짜 + 감정 이모지 (가로)
         val dayColor = when {
             isToday -> Purple80
             isSunday -> Color(0xFFF87171)
             isSaturday -> Color(0xFF60A5FA)
             else -> TextPrimary
         }
-        Text(
-            "$day",
-            fontSize = if (isToday) 13.sp else 11.sp,
-            fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Bold,
-            color = dayColor,
-            lineHeight = 14.sp
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "$day",
+                fontSize = if (isToday) 13.sp else 11.sp,
+                fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Bold,
+                color = dayColor,
+                lineHeight = 14.sp
+            )
+            if (mood != null) {
+                Spacer(modifier = Modifier.width(2.dp))
+                Text(mood, fontSize = 10.sp, lineHeight = 12.sp)
+            }
+        }
+
+        // 만나요 배너 (날짜 바로 아래, 가로)
+        if (datePlan != null) {
+            Spacer(modifier = Modifier.height(1.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(Color(0xFFEC4899).copy(alpha = 0.2f))
+                    .padding(horizontal = 3.dp, vertical = 1.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("💕", fontSize = 8.sp, lineHeight = 10.sp)
+                if (datePlan.memo.isNotBlank()) {
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(datePlan.memo, fontSize = 7.sp, color = Color(0xFFF9A8D4), maxLines = 1, overflow = TextOverflow.Ellipsis, lineHeight = 9.sp)
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(2.dp))
 
@@ -504,16 +536,9 @@ private fun SoloCell(
             }
         }
 
-        // 감정 (이모지 + 메모)
-        if (mood != null) {
-            Spacer(modifier = Modifier.height(2.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(mood, fontSize = 12.sp, lineHeight = 14.sp)
-                if (!moodNote.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text(moodNote, fontSize = 8.sp, color = Color(0xFFD4B896), maxLines = 1, overflow = TextOverflow.Ellipsis, lineHeight = 10.sp)
-                }
-            }
+        // 감정 메모
+        if (!moodNote.isNullOrBlank()) {
+            Text(moodNote, fontSize = 8.sp, color = Color(0xFFD4B896), maxLines = 1, overflow = TextOverflow.Ellipsis, lineHeight = 10.sp, modifier = Modifier.padding(top = 1.dp))
         }
 
         // 메모
@@ -529,45 +554,6 @@ private fun SoloCell(
         // 할일
         if (todoCount > 0) {
             Text("📋$todoCount", fontSize = 8.sp, color = Color(0xFF6EE7B7), lineHeight = 10.sp)
-        }
-    }
-
-    if (datePlan != null) {
-        Row(
-            modifier = modifier
-                .padding(0.5.dp)
-                .then(borderMod)
-                .clip(RoundedCornerShape(6.dp))
-                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-                .padding(horizontal = 3.dp, vertical = 2.dp)
-        ) {
-            Column(modifier = Modifier.weight(7f)) { cellContent() }
-            Column(
-                modifier = Modifier
-                    .weight(3f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(Color(0xFFEC4899).copy(alpha = 0.15f))
-                    .padding(horizontal = 2.dp, vertical = 2.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text("💕", fontSize = 12.sp, lineHeight = 14.sp)
-                if (datePlan.memo.isNotBlank()) {
-                    Text(datePlan.memo, fontSize = 7.sp, color = Color(0xFFF9A8D4), maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 8.sp, textAlign = TextAlign.Center)
-                }
-            }
-        }
-    } else {
-        Column(
-            modifier = modifier
-                .padding(0.5.dp)
-                .then(borderMod)
-                .clip(RoundedCornerShape(6.dp))
-                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-                .padding(horizontal = 3.dp, vertical = 2.dp)
-        ) {
-            cellContent()
         }
     }
 }
