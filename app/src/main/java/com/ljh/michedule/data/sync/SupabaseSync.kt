@@ -255,26 +255,46 @@ class SupabaseSync(
             val deviceId = prefsManager.ensureDeviceId()
             val myName = prefsManager.myName.first()
 
-            // room 안에 3개 이상 row가 있으면 orphan 정리 (앱 재설치로 device_id 변경된 경우)
+            // orphan 정리: 같은 user_name의 옛 device_id row 삭제, room에 최대 2 row만 유지
             try {
                 val existing = client?.from(TABLE)
                     ?.select { filter { eq("room_code", code) } }
                     ?.decodeList<ScheduleRow>() ?: emptyList()
 
                 if (existing.size >= 2) {
-                    val myOldRows = existing.filter { it.device_id != deviceId }
-                    // room에 이미 2명이 있고, 그 중 현재 device_id가 없으면 → 재설치 case
-                    // 이름이 같은 기존 row가 있으면 그것을 삭제 (내가 재설치한 것)
-                    if (existing.none { it.device_id == deviceId } && myOldRows.size >= 2) {
-                        val orphan = myOldRows.firstOrNull { it.user_name == myName }
-                            ?: myOldRows.last()
+                    val otherRows = existing.filter { it.device_id != deviceId }
+                    // 나와 같은 이름의 옛 row → 재설치 고아
+                    val sameNameOrphans = otherRows.filter {
+                        it.user_name.isNotBlank() && it.user_name == myName
+                    }
+                    for (orphan in sameNameOrphans) {
                         client?.from(TABLE)?.delete {
                             filter {
                                 eq("room_code", code)
                                 eq("device_id", orphan.device_id)
                             }
                         }
-                        Log.d(TAG, "Cleaned orphan row: ${orphan.device_id}")
+                        Log.d(TAG, "Cleaned same-name orphan: ${orphan.device_id}")
+                    }
+
+                    // 정리 후에도 3+ row면 가장 오래된 것 제거 (비정상 케이스 방어)
+                    val afterClean = client?.from(TABLE)
+                        ?.select { filter { eq("room_code", code) } }
+                        ?.decodeList<ScheduleRow>() ?: emptyList()
+                    if (afterClean.size > 2) {
+                        val myRow = afterClean.find { it.device_id == deviceId }
+                        val extras = afterClean.filter { it.device_id != deviceId }
+                            .sortedByDescending { it.updated_at ?: "" }
+                            .drop(1) // 상대 최신 1개만 유지
+                        for (extra in extras) {
+                            client?.from(TABLE)?.delete {
+                                filter {
+                                    eq("room_code", code)
+                                    eq("device_id", extra.device_id)
+                                }
+                            }
+                            Log.d(TAG, "Cleaned extra orphan: ${extra.device_id}")
+                        }
                     }
                 }
             } catch (e: Exception) {
