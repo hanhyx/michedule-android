@@ -9,7 +9,6 @@ import androidx.core.app.NotificationCompat
 import com.ljh.michedule.data.PrefsManager
 import com.ljh.michedule.data.db.DatePlanEntity
 import com.ljh.michedule.data.db.FriendShiftEntity
-import com.ljh.michedule.data.db.ShiftEntity
 import com.ljh.michedule.data.repository.ScheduleRepository
 import com.ljh.michedule.model.ShiftType
 import io.github.jan.supabase.SupabaseClient
@@ -23,13 +22,13 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 
 private const val TAG = "SupabaseSync"
-private const val TABLE = "schedules"
+private const val TABLE = "user_schedules"
 
 @Serializable
 data class ScheduleRow(
-    val room_code: String,
-    val device_id: String,
+    val user_code: String,
     val user_name: String = "",
+    val partner_code: String? = null,
     val shifts: JsonObject = JsonObject(emptyMap()),
     val memos: JsonObject = JsonObject(emptyMap()),
     val albas: JsonObject = JsonObject(emptyMap()),
@@ -51,9 +50,6 @@ class SupabaseSync(
     private val _connected = MutableStateFlow(false)
     val connected: StateFlow<Boolean> = _connected.asStateFlow()
 
-    private val _friendName = MutableStateFlow("")
-    val friendName: StateFlow<String> = _friendName.asStateFlow()
-
     private var lastKnownFriendShifts: Map<String, String> = emptyMap()
     private var isFirstSync = true
 
@@ -62,9 +58,10 @@ class SupabaseSync(
         syncJob = scope.launch {
             val url = prefsManager.supabaseUrl.first()
             val key = prefsManager.supabaseKey.first()
-            val roomCode = prefsManager.roomCode.first()
+            val myCode = prefsManager.ensureMyCode()
+            val partnerCode = prefsManager.partnerCode.first()
 
-            if (url.isBlank() || key.isBlank() || roomCode.isBlank()) {
+            if (url.isBlank() || key.isBlank() || myCode.isBlank()) {
                 Log.d(TAG, "Sync not configured, skipping")
                 return@launch
             }
@@ -75,12 +72,14 @@ class SupabaseSync(
                     install(Realtime)
                 }
 
-                subscribeToChanges(roomCode)
+                uploadCurrentData()
                 _connected.value = true
-                Log.d(TAG, "Connected to room: $roomCode")
+                Log.d(TAG, "Connected as: $myCode")
 
-                uploadCurrentData(roomCode)
-                handleRemoteChange(roomCode)
+                if (partnerCode.isNotBlank()) {
+                    subscribeToPartner(partnerCode)
+                    handleRemoteChange(partnerCode)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to connect", e)
                 _connected.value = false
@@ -96,9 +95,9 @@ class SupabaseSync(
         _connected.value = false
     }
 
-    private suspend fun subscribeToChanges(roomCode: String) {
+    private suspend fun subscribeToPartner(partnerCode: String) {
         val supabase = client ?: return
-        channel = supabase.realtime.channel("schedules-$roomCode")
+        channel = supabase.realtime.channel("partner-$partnerCode")
 
         channel?.let { ch ->
             val changeFlow = ch.postgresChangeFlow<PostgresAction>(schema = "public") {
@@ -110,8 +109,8 @@ class SupabaseSync(
             CoroutineScope(Dispatchers.IO).launch {
                 changeFlow.collect { action ->
                     when (action) {
-                        is PostgresAction.Insert -> handleRemoteChange(roomCode)
-                        is PostgresAction.Update -> handleRemoteChange(roomCode)
+                        is PostgresAction.Insert -> handleRemoteChange(partnerCode)
+                        is PostgresAction.Update -> handleRemoteChange(partnerCode)
                         else -> {}
                     }
                 }
@@ -119,18 +118,13 @@ class SupabaseSync(
         }
     }
 
-    private suspend fun handleRemoteChange(roomCode: String) {
+    private suspend fun handleRemoteChange(partnerCode: String) {
         try {
-            val deviceId = prefsManager.ensureDeviceId()
-            val rows = client?.from(TABLE)
-                ?.select { filter { eq("room_code", roomCode) } }
+            val friendRow = client?.from(TABLE)
+                ?.select { filter { eq("user_code", partnerCode) } }
                 ?.decodeList<ScheduleRow>()
-                ?: return
+                ?.firstOrNull() ?: return
 
-            // room 안에서 나의 row가 아닌 것 중 가장 최근 것을 상대로 판단
-            val otherRows = rows.filter { it.device_id != deviceId }
-            val friendRow = otherRows.firstOrNull() ?: return
-            _friendName.value = friendRow.user_name
             if (friendRow.user_name.isNotBlank()) {
                 prefsManager.setPartnerName(friendRow.user_name)
             }
@@ -169,7 +163,6 @@ class SupabaseSync(
                 )
             }
 
-            // 상대의 date_plans를 로컬에 동기화
             val remotePlans = friendRow.date_plans.mapNotNull { (date, value) ->
                 val obj = value as? kotlinx.serialization.json.JsonObject ?: return@mapNotNull null
                 val memo = (obj["memo"] as? JsonPrimitive)?.content ?: ""
@@ -239,7 +232,7 @@ class SupabaseSync(
 
         val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("📅 ${partnerName}님 일정 변경")
+            .setContentTitle("${partnerName}님 일정 변경")
             .setContentText("${changes.size}건의 일정이 변경되었습니다")
             .setStyle(NotificationCompat.BigTextStyle().bigText(summary + extra))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -250,37 +243,13 @@ class SupabaseSync(
         nm.notify(9999, notification)
     }
 
-    suspend fun uploadCurrentData(roomCode: String? = null) {
+    suspend fun uploadCurrentData() {
         try {
-            val code = roomCode ?: prefsManager.roomCode.first()
-            if (code.isBlank()) return
+            val myCode = prefsManager.ensureMyCode()
+            if (myCode.isBlank()) return
 
-            val deviceId = prefsManager.ensureDeviceId()
             val myName = prefsManager.myName.first()
-
-            // orphan 정리: 3개 이상 row면 내 row + 상대 최신 1개만 남기고 삭제
-            try {
-                val existing = client?.from(TABLE)
-                    ?.select { filter { eq("room_code", code) } }
-                    ?.decodeList<ScheduleRow>() ?: emptyList()
-
-                if (existing.size > 2) {
-                    val extras = existing.filter { it.device_id != deviceId }
-                        .sortedByDescending { it.updated_at ?: "" }
-                        .drop(1)
-                    for (extra in extras) {
-                        client?.from(TABLE)?.delete {
-                            filter {
-                                eq("room_code", code)
-                                eq("device_id", extra.device_id)
-                            }
-                        }
-                        Log.d(TAG, "Cleaned orphan: ${extra.device_id} (${extra.user_name})")
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Orphan cleanup skipped", e)
-            }
+            val partnerCode = prefsManager.partnerCode.first()
 
             val allShifts = repo.getAllShifts()
             val shiftsJson = buildJsonObject {
@@ -325,9 +294,9 @@ class SupabaseSync(
             }
 
             val row = ScheduleRow(
-                room_code = code,
-                device_id = deviceId,
+                user_code = myCode,
                 user_name = myName,
+                partner_code = partnerCode.ifBlank { null },
                 shifts = shiftsJson,
                 memos = memosJson,
                 albas = albasJson,
@@ -337,7 +306,7 @@ class SupabaseSync(
             )
 
             client?.from(TABLE)?.upsert(row)
-            Log.d(TAG, "Uploaded data for room $code")
+            Log.d(TAG, "Uploaded data for $myCode")
         } catch (e: Exception) {
             Log.e(TAG, "Upload failed", e)
         }

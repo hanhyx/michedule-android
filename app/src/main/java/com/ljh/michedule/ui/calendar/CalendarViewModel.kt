@@ -123,7 +123,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         }
 
         viewModelScope.launch {
-            app.prefsManager.roomCode.collect { code ->
+            app.prefsManager.partnerCode.collect { code ->
                 if (code.isBlank()) {
                     _uiState.update { it.copy(viewingPartner = false, friendShifts = emptyMap()) }
                 }

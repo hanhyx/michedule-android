@@ -4,7 +4,6 @@ import android.app.Application
 import com.ljh.michedule.data.PrefsManager
 import com.ljh.michedule.data.parseTimeRanges
 import com.ljh.michedule.data.db.AppDatabase
-import com.ljh.michedule.data.db.ShiftEntity
 import com.ljh.michedule.data.repository.ScheduleRepository
 import com.ljh.michedule.data.sync.SupabaseSync
 import com.ljh.michedule.model.ShiftType
@@ -32,6 +31,7 @@ class MicheduleApp : Application() {
         repository = ScheduleRepository(database)
         prefsManager = PrefsManager(this)
 
+        appScope.launch { prefsManager.ensureMyCode() }
         startSync()
         loadCustomTimeRanges()
 
@@ -63,12 +63,22 @@ class MicheduleApp : Application() {
         supabaseSync = null
     }
 
-    fun disconnectRoom() {
+    fun connectPartner(partnerCode: String) {
+        appScope.launch {
+            repository.clearAllFriendData()
+            prefsManager.setPartnerCode(partnerCode)
+            prefsManager.setPartnerName("")
+            startSync()
+        }
+    }
+
+    fun disconnectPartner() {
         appScope.launch {
             supabaseSync?.stop()
             supabaseSync = null
-            prefsManager.clearSync()
+            prefsManager.clearPartner()
             repository.clearAllFriendData()
+            startSync()
         }
     }
 

@@ -19,9 +19,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun OnboardingScreen(
-    supabaseUrl: String,
-    supabaseKey: String,
-    roomCode: String,
+    partnerCode: String,
     prefsManager: PrefsManager,
     onComplete: () -> Unit
 ) {
@@ -80,9 +78,7 @@ fun OnboardingScreen(
             onClick = {
                 scope.launch {
                     prefsManager.setMyName(name.trim())
-                    prefsManager.setSupabaseUrl(supabaseUrl)
-                    prefsManager.setSupabaseKey(supabaseKey)
-                    prefsManager.setRoomCode(roomCode)
+                    prefsManager.setPartnerCode(partnerCode)
                     Toast.makeText(context, "연결 완료!", Toast.LENGTH_SHORT).show()
                     onComplete()
                 }

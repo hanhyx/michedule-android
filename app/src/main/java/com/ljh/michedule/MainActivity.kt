@@ -1,6 +1,5 @@
 package com.ljh.michedule
 
-import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,7 +20,7 @@ import com.ljh.michedule.update.UpdateInfo
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-data class InviteData(val url: String, val key: String, val room: String)
+data class InviteData(val url: String, val key: String, val partnerCode: String)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,11 +37,10 @@ class MainActivity : ComponentActivity() {
                 var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
                 var showUpdateDialog by remember { mutableStateOf(false) }
                 var showOnboarding by remember { mutableStateOf(invite != null) }
-                val roomCode by app.prefsManager.roomCode.collectAsState(initial = "")
+                val currentPartner by app.prefsManager.partnerCode.collectAsState(initial = "")
 
-                // Skip onboarding if already connected to same room
-                LaunchedEffect(roomCode, invite) {
-                    if (invite != null && roomCode == invite.room) {
+                LaunchedEffect(currentPartner, invite) {
+                    if (invite != null && currentPartner == invite.partnerCode) {
                         showOnboarding = false
                     }
                 }
@@ -63,11 +61,12 @@ class MainActivity : ComponentActivity() {
 
                 if (showOnboarding && invite != null) {
                     OnboardingScreen(
-                        supabaseUrl = invite.url,
-                        supabaseKey = invite.key,
-                        roomCode = invite.room,
+                        partnerCode = invite.partnerCode,
                         prefsManager = app.prefsManager,
-                        onComplete = { showOnboarding = false }
+                        onComplete = {
+                            showOnboarding = false
+                            app.startSync()
+                        }
                     )
                 } else {
                     MicheduleNavHost(prefsManager = app.prefsManager)
@@ -138,8 +137,8 @@ class MainActivity : ComponentActivity() {
 
         val url = uri.getQueryParameter("url") ?: return null
         val key = uri.getQueryParameter("key") ?: return null
-        val room = uri.getQueryParameter("room") ?: return null
+        val code = uri.getQueryParameter("code") ?: uri.getQueryParameter("room") ?: return null
 
-        return InviteData(url, key, room)
+        return InviteData(url, key, code)
     }
 }

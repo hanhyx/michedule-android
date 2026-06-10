@@ -1,12 +1,8 @@
 package com.ljh.michedule.ui.settings
 
-import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,9 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -42,10 +36,11 @@ fun SettingsScreen(
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
 
     val myName by prefsManager.myName.collectAsState(initial = "")
-    val roomCode by prefsManager.roomCode.collectAsState(initial = "")
+    val myCode by prefsManager.myCode.collectAsState(initial = "")
+    val partnerCode by prefsManager.partnerCode.collectAsState(initial = "")
+    val partnerName by prefsManager.partnerName.collectAsState(initial = "")
     val syncPaused by prefsManager.syncPaused.collectAsState(initial = false)
 
     val alarmEnabled by prefsManager.alarmEnabled.collectAsState(initial = false)
@@ -54,6 +49,10 @@ fun SettingsScreen(
 
     var editName by remember(myName) { mutableStateOf(myName) }
     var showClearConfirm by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        prefsManager.ensureMyCode()
+    }
 
     Column(
         modifier = modifier
@@ -99,7 +98,7 @@ fun SettingsScreen(
         }
 
         // Alarm settings
-        SettingsCard(title = "⏰ 출근 알람") {
+        SettingsCard(title = "출근 알람") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -206,9 +205,66 @@ fun SettingsScreen(
             }
         }
 
-        // Supabase Sync
-        SettingsCard(title = "실시간 공유") {
-            if (roomCode.isNotBlank()) {
+        // My Code (always visible)
+        SettingsCard(title = "일정 공유") {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                color = DarkSurface,
+                border = BorderStroke(1.dp, DarkBorder)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("🔑", fontSize = 16.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("내 코드", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+                        Text(
+                            myCode.ifBlank { "..." },
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                            color = Purple80,
+                            letterSpacing = 2.sp,
+                            modifier = Modifier.clickable {
+                                if (myCode.isNotBlank()) {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("my_code", myCode))
+                                    Toast.makeText(context, "코드가 복사되었습니다", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        )
+                    }
+                    Text("탭하면 복사", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    val sendIntent = Intent().apply {
+                        action = Intent.ACTION_SEND
+                        putExtra(Intent.EXTRA_TEXT, "Michedule 스케줄 공유!\n\n내 코드: $myCode\n\n앱 설정 → 일정 공유 → 상대방 코드에 위 코드를 입력하면 연결돼!")
+                        type = "text/plain"
+                    }
+                    context.startActivity(Intent.createChooser(sendIntent, "내 코드 보내기"))
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Purple40),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+                enabled = myCode.isNotBlank()
+            ) {
+                Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("내 코드 보내기")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = DarkBorder)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (partnerCode.isNotBlank()) {
+                // connected state
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -224,12 +280,12 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Column {
                             Text(
-                                if (syncPaused) "동기화 일시정지" else "동기화 활성",
+                                if (syncPaused) "동기화 일시정지" else "${partnerName.ifBlank { partnerCode }}와 연결됨",
                                 color = if (syncPaused) Color(0xFFFBBF24) else StatusOnline,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                if (syncPaused) "일정 입력 후 다시 켜주세요" else "변경사항이 자동으로 공유됩니다",
+                                if (syncPaused) "일정 입력 후 다시 켜주세요" else "상대 코드: $partnerCode",
                                 style = MaterialTheme.typography.bodySmall, color = TextMuted
                             )
                         }
@@ -251,59 +307,14 @@ fun SettingsScreen(
                         )
                     )
                 }
-                Spacer(modifier = Modifier.height(10.dp))
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    color = DarkSurface,
-                    border = BorderStroke(1.dp, DarkBorder)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("🔑", fontSize = 16.sp)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text("내 공유 코드", style = MaterialTheme.typography.bodySmall, color = TextMuted)
-                            Text(roomCode, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Purple80,
-                                modifier = Modifier.clickable {
-                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("room_code", roomCode))
-                                    Toast.makeText(context, "코드가 복사되었습니다", Toast.LENGTH_SHORT).show()
-                                })
-                        }
-                        Text("탭하면 복사", style = MaterialTheme.typography.bodySmall, color = TextMuted)
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = {
-                        val sendIntent = Intent().apply {
-                            action = Intent.ACTION_SEND
-                            putExtra(Intent.EXTRA_TEXT, "Michedule 스케줄 공유 초대!\n\n공유 코드: $roomCode\n\n앱 설정 → 실시간 공유 → 코드 입력에 위 코드를 넣으면 연결돼!")
-                            type = "text/plain"
-                        }
-                        context.startActivity(Intent.createChooser(sendIntent, "초대 코드 보내기"))
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Purple40),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("상대방에게 초대 코드 보내기")
-                }
 
                 Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider(color = DarkBorder)
-                Spacer(modifier = Modifier.height(8.dp))
 
                 var changeCode by remember { mutableStateOf("") }
                 var showChangeInput by remember { mutableStateOf(false) }
 
                 if (showChangeInput) {
-                    Text("상대방 코드로 연결", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                    Text("다른 상대 코드 입력", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -311,37 +322,31 @@ fun SettingsScreen(
                     ) {
                         OutlinedTextField(
                             value = changeCode,
-                            onValueChange = { changeCode = it.uppercase().take(8) },
+                            onValueChange = { changeCode = it.uppercase().take(6) },
                             modifier = Modifier.weight(1f),
-                            placeholder = { Text("코드 입력", color = TextMuted) },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Purple80,
-                                unfocusedBorderColor = DarkBorder,
-                                cursorColor = Purple80,
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary
-                            ),
+                            placeholder = { Text("6자리 코드", color = TextMuted) },
+                            colors = settingsFieldColors(),
                             shape = RoundedCornerShape(12.dp),
                             singleLine = true
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(
                             onClick = {
-                                if (changeCode.isNotBlank()) {
+                                if (changeCode.isNotBlank() && changeCode != myCode) {
                                     scope.launch {
                                         val app = context.applicationContext as MicheduleApp
-                                        app.repository.clearAllFriendData()
-                                        prefsManager.setRoomCode(changeCode.trim())
-                                        app.startSync()
+                                        app.connectPartner(changeCode.trim())
                                         showChangeInput = false
                                         changeCode = ""
                                         Toast.makeText(context, "연결되었습니다!", Toast.LENGTH_SHORT).show()
                                     }
+                                } else if (changeCode == myCode) {
+                                    Toast.makeText(context, "내 코드는 입력할 수 없습니다", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Purple40),
                             shape = RoundedCornerShape(12.dp),
-                            enabled = changeCode.length >= 4
+                            enabled = changeCode.length == 6
                         ) { Text("연결") }
                     }
                 } else {
@@ -354,12 +359,12 @@ fun SettingsScreen(
                         ) {
                             Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp), tint = TextSecondary)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("다른 코드로 연결", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                            Text("다른 상대 연결", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                         }
                         OutlinedButton(
                             onClick = {
                                 val app = context.applicationContext as MicheduleApp
-                                app.disconnectRoom()
+                                app.disconnectPartner()
                                 Toast.makeText(context, "연결이 해제되었습니다", Toast.LENGTH_SHORT).show()
                             },
                             shape = RoundedCornerShape(12.dp),
@@ -372,16 +377,17 @@ fun SettingsScreen(
                     }
                 }
             } else {
+                // not connected
                 var joinCode by remember { mutableStateOf("") }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.CloudOff, contentDescription = null, tint = TextMuted, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.PersonAdd, contentDescription = null, tint = TextMuted, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("아직 연결되지 않았습니다", color = TextMuted)
+                    Text("상대방 코드를 입력하면 연결됩니다", color = TextMuted)
                 }
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text("초대 코드가 있나요?", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                Text("상대방 코드 입력", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -389,71 +395,38 @@ fun SettingsScreen(
                 ) {
                     OutlinedTextField(
                         value = joinCode,
-                        onValueChange = { joinCode = it.uppercase().take(8) },
+                        onValueChange = { joinCode = it.uppercase().take(6) },
                         modifier = Modifier.weight(1f),
-                        placeholder = { Text("코드 입력", color = TextMuted) },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Purple80,
-                            unfocusedBorderColor = DarkBorder,
-                            cursorColor = Purple80,
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary
-                        ),
+                        placeholder = { Text("6자리 코드", color = TextMuted) },
+                        colors = settingsFieldColors(),
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
-                            if (joinCode.isNotBlank()) {
+                            if (joinCode.isNotBlank() && joinCode != myCode) {
                                 scope.launch {
                                     val app = context.applicationContext as MicheduleApp
-                                    app.repository.clearAllFriendData()
-                                    prefsManager.setRoomCode(joinCode.trim())
-                                    app.startSync()
+                                    app.connectPartner(joinCode.trim())
                                     Toast.makeText(context, "연결되었습니다!", Toast.LENGTH_SHORT).show()
                                 }
+                            } else if (joinCode == myCode) {
+                                Toast.makeText(context, "내 코드는 입력할 수 없습니다", Toast.LENGTH_SHORT).show()
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Purple40),
                         shape = RoundedCornerShape(12.dp),
-                        enabled = joinCode.length >= 4
+                        enabled = joinCode.length == 6
                     ) {
                         Text("연결")
                     }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = DarkBorder)
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text("처음이라면?", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
-                Spacer(modifier = Modifier.height(6.dp))
-                Button(
-                    onClick = {
-                        scope.launch {
-                            val app = context.applicationContext as MicheduleApp
-                            app.repository.clearAllFriendData()
-                            val code = generateRoomCode()
-                            prefsManager.setRoomCode(code)
-                            app.startSync()
-                            Toast.makeText(context, "공유가 활성화되었습니다", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = DarkSurface),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, DarkBorder),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = Purple80)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("새 공유 방 만들기", color = TextPrimary)
-                }
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "방을 만든 후 상대에게 코드를 보낼 수 있어요",
+                    text = "서로의 코드를 입력하면 일정이 공유됩니다",
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted,
-                    modifier = Modifier.padding(top = 4.dp)
+                    color = TextMuted
                 )
             }
         }
@@ -567,7 +540,6 @@ private fun PatternAutofillCard(
     var pattern by remember { mutableStateOf(listOf<String>()) }
     var startDay by remember { mutableStateOf("1") }
     var endDay by remember { mutableStateOf("") }
-    var expanded by remember { mutableStateOf(false) }
 
     val patternDisplay = pattern.joinToString(" → ") { code ->
         when (code) {
@@ -588,7 +560,6 @@ private fun PatternAutofillCard(
         )
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Current pattern display
         if (pattern.isNotEmpty()) {
             Surface(
                 shape = RoundedCornerShape(12.dp),
@@ -617,7 +588,6 @@ private fun PatternAutofillCard(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // Add shift buttons
         Text(
             text = "근무 추가 (순서대로 탭)",
             style = MaterialTheme.typography.labelLarge,
@@ -652,7 +622,6 @@ private fun PatternAutofillCard(
         }
         Spacer(modifier = Modifier.height(4.dp))
 
-        // Undo / Clear
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
@@ -675,7 +644,6 @@ private fun PatternAutofillCard(
 
         HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 4.dp))
 
-        // Date range
         Text(
             text = "채울 범위 (이번 달 기준)",
             style = MaterialTheme.typography.labelLarge,
@@ -711,7 +679,6 @@ private fun PatternAutofillCard(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Apply button
         Button(
             onClick = {
                 if (pattern.isEmpty()) {
@@ -747,9 +714,3 @@ private fun PatternAutofillCard(
         }
     }
 }
-
-private fun generateRoomCode(): String {
-    val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    return (1..6).map { chars.random() }.joinToString("")
-}
-
