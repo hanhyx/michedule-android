@@ -86,6 +86,7 @@ fun SettingsScreen(
                 onClick = {
                     scope.launch {
                         prefsManager.setMyName(editName.trim())
+                        (context.applicationContext as MicheduleApp).triggerUpload()
                         Toast.makeText(context, "저장됨", Toast.LENGTH_SHORT).show()
                     }
                 },

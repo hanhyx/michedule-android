@@ -300,9 +300,9 @@ private fun MonthHeader(yearMonth: YearMonth, onPrev: () -> Unit, onNext: () -> 
 private fun cycleShift(current: ShiftType?): ShiftType? = when (current) {
     null -> ShiftType.DAY
     ShiftType.DAY -> ShiftType.NIGHT
-    ShiftType.NIGHT -> ShiftType.NIGHT_EARLY
-    ShiftType.NIGHT_EARLY -> ShiftType.OFF
-    ShiftType.OFF -> null
+    ShiftType.NIGHT -> ShiftType.OFF
+    ShiftType.OFF -> ShiftType.NIGHT_EARLY
+    ShiftType.NIGHT_EARLY -> null
     ShiftType.ALBA -> null
 }
 
@@ -555,51 +555,50 @@ private fun CellPartnerTag(
     partnerName: String = ""
 ) {
     if (partnerShift != null) {
-        val displayName = partnerName.take(1).ifBlank { "♡" }
-        Column(modifier = Modifier.fillMaxWidth()) {
+        val displayName = partnerName.take(2).ifBlank { "♡" }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(3.dp))
+                .background(partnerShift.bgColor.copy(alpha = 0.3f))
+                .padding(horizontal = 3.dp, vertical = 2.dp)
+        ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Text("💑", fontSize = 6.sp, lineHeight = 7.sp)
                 Text(
                     text = displayName,
-                    fontSize = 6.sp,
+                    fontSize = 8.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextMuted,
-                    lineHeight = 7.sp
+                    lineHeight = 9.sp
                 )
                 Text(
-                    text = partnerShift.shortLabel,
-                    fontSize = 7.sp,
+                    text = partnerShift.label,
+                    fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
                     color = partnerShift.color,
-                    lineHeight = 8.sp,
-                    modifier = Modifier
-                        .background(partnerShift.bgColor.copy(alpha = 0.7f), RoundedCornerShape(2.dp))
-                        .padding(horizontal = 2.dp)
+                    lineHeight = 10.sp
                 )
                 if (partnerHasAlba) {
                     Text(
-                        text = "알",
-                        fontSize = 7.sp,
+                        text = "+알",
+                        fontSize = 8.sp,
                         fontWeight = FontWeight.Bold,
                         color = ShiftAlba,
-                        lineHeight = 8.sp,
-                        modifier = Modifier
-                            .background(ShiftAlba.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
-                            .padding(horizontal = 2.dp)
+                        lineHeight = 9.sp
                     )
                 }
             }
             if (!partnerMemo.isNullOrBlank()) {
                 Text(
-                    text = "💬${partnerMemo}",
-                    fontSize = 6.sp,
+                    text = "💬$partnerMemo",
+                    fontSize = 7.sp,
                     color = TextSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    lineHeight = 7.sp
+                    lineHeight = 8.sp
                 )
             }
         }

@@ -76,6 +76,7 @@ private fun WeekWidgetContent(
     val saturdayBlue = Color(0xFF60A5FA)
     val todayBg = Color(0xFF2D2640)
     val albaColor = Color(0xFFF97316)
+    val divider = Color(0xFF2A2A3D)
     val dayNames = listOf("일", "월", "화", "수", "목", "금", "토")
 
     Box(
@@ -84,83 +85,103 @@ private fun WeekWidgetContent(
             .background(ColorProvider(darkBg, darkBg))
             .cornerRadius(16.dp)
             .clickable(actionStartActivity<MainActivity>())
-            .padding(horizontal = 2.dp, vertical = 4.dp)
+            .padding(horizontal = 4.dp, vertical = 6.dp)
     ) {
-        Row(
-            modifier = GlanceModifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            for (i in 0..6) {
-                val date = weekStart.plusDays(i.toLong())
-                val dateStr = date.toString()
-                val myInfo = myShifts[dateStr]
-                val partnerInfo = partnerShifts[dateStr]
-                val isToday = date == today
-
-                val dayColor = when {
-                    isToday -> purple
-                    i == 0 -> sundayRed
-                    i == 6 -> saturdayBlue
-                    else -> muted
-                }
-
-                val colModifier = if (isToday) {
-                    GlanceModifier
-                        .defaultWeight()
-                        .background(ColorProvider(todayBg, todayBg))
-                        .cornerRadius(8.dp)
-                        .padding(vertical = 2.dp)
-                } else {
-                    GlanceModifier
-                        .defaultWeight()
-                        .padding(vertical = 2.dp)
-                }
-
-                Column(
-                    modifier = colModifier,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // 요일 + 날짜 한 줄
-                    Text(
-                        text = "${dayNames[i]}${date.dayOfMonth}",
-                        style = TextStyle(
-                            fontSize = 9.sp,
-                            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                            color = ColorProvider(dayColor, dayColor)
-                        )
-                    )
-
-                    Spacer(modifier = GlanceModifier.height(1.dp))
-
-                    // 내 일정 (크게)
-                    Text(
-                        text = myInfo?.type?.shortLabel ?: "─",
-                        style = TextStyle(
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ColorProvider(
-                                myInfo?.type?.color ?: muted.copy(alpha = 0.3f),
-                                myInfo?.type?.color ?: muted.copy(alpha = 0.3f)
+        Column(modifier = GlanceModifier.fillMaxSize()) {
+            // 요일 헤더 Row
+            Row(modifier = GlanceModifier.fillMaxWidth()) {
+                for (i in 0..6) {
+                    val date = weekStart.plusDays(i.toLong())
+                    val isToday = date == today
+                    val dayColor = when {
+                        isToday -> purple
+                        i == 0 -> sundayRed
+                        i == 6 -> saturdayBlue
+                        else -> muted
+                    }
+                    Column(
+                        modifier = GlanceModifier.defaultWeight(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(dayNames[i], style = TextStyle(fontSize = 9.sp, color = ColorProvider(dayColor, dayColor)))
+                        Text(
+                            "${date.dayOfMonth}",
+                            style = TextStyle(
+                                fontSize = 11.sp,
+                                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                                color = ColorProvider(if (isToday) purple else textPrimary, if (isToday) purple else textPrimary)
                             )
                         )
-                    )
-                    if (myInfo?.hasAlba == true) {
-                        Text("알", style = TextStyle(fontSize = 7.sp, fontWeight = FontWeight.Bold, color = ColorProvider(albaColor, albaColor)))
+                    }
+                }
+            }
+
+            Spacer(modifier = GlanceModifier.height(4.dp))
+
+            // 내 일정 Row (크게)
+            Row(modifier = GlanceModifier.fillMaxWidth()) {
+                for (i in 0..6) {
+                    val date = weekStart.plusDays(i.toLong())
+                    val dateStr = date.toString()
+                    val myInfo = myShifts[dateStr]
+                    val isToday = date == today
+
+                    val colMod = if (isToday) {
+                        GlanceModifier.defaultWeight().background(ColorProvider(todayBg, todayBg)).cornerRadius(6.dp).padding(vertical = 2.dp)
+                    } else {
+                        GlanceModifier.defaultWeight().padding(vertical = 2.dp)
                     }
 
-                    // 상대 일정 (작게)
-                    val pLabel = partnerInfo?.type?.shortLabel
-                    if (pLabel != null) {
+                    Column(modifier = colMod, horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = pLabel,
+                            text = myInfo?.type?.shortLabel ?: "─",
                             style = TextStyle(
-                                fontSize = 8.sp,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
                                 color = ColorProvider(
-                                    partnerInfo.type?.color?.copy(alpha = 0.5f) ?: Color.Transparent,
-                                    partnerInfo.type?.color?.copy(alpha = 0.5f) ?: Color.Transparent
+                                    myInfo?.type?.color ?: muted.copy(alpha = 0.3f),
+                                    myInfo?.type?.color ?: muted.copy(alpha = 0.3f)
                                 )
                             )
                         )
+                        if (myInfo?.hasAlba == true) {
+                            Text("+알", style = TextStyle(fontSize = 8.sp, fontWeight = FontWeight.Bold, color = ColorProvider(albaColor, albaColor)))
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = GlanceModifier.height(2.dp))
+
+            // 구분선
+            Box(modifier = GlanceModifier.fillMaxWidth().height(1.dp).background(ColorProvider(divider, divider))) {}
+
+            Spacer(modifier = GlanceModifier.height(2.dp))
+
+            // 상대 일정 Row (작게)
+            Row(modifier = GlanceModifier.fillMaxWidth()) {
+                for (i in 0..6) {
+                    val date = weekStart.plusDays(i.toLong())
+                    val dateStr = date.toString()
+                    val partnerInfo = partnerShifts[dateStr]
+
+                    Column(
+                        modifier = GlanceModifier.defaultWeight(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = partnerInfo?.type?.shortLabel ?: "",
+                            style = TextStyle(
+                                fontSize = 10.sp,
+                                color = ColorProvider(
+                                    partnerInfo?.type?.color?.copy(alpha = 0.6f) ?: Color.Transparent,
+                                    partnerInfo?.type?.color?.copy(alpha = 0.6f) ?: Color.Transparent
+                                )
+                            )
+                        )
+                        if (partnerInfo?.hasAlba == true) {
+                            Text("+알", style = TextStyle(fontSize = 7.sp, color = ColorProvider(albaColor.copy(alpha = 0.6f), albaColor.copy(alpha = 0.6f))))
+                        }
                     }
                 }
             }

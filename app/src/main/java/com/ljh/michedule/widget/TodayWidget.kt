@@ -75,6 +75,7 @@ private fun TodayWidgetContent(
     val muted = Color(0xFF6B7280)
     val purple = Color(0xFFA78BFA)
     val albaColor = Color(0xFFF97316)
+    val divider = Color(0xFF2A2A3D)
     val myShift = myInfo.type
     val partnerShift = partnerInfo.type
 
@@ -84,50 +85,98 @@ private fun TodayWidgetContent(
             .background(ColorProvider(darkBg, darkBg))
             .cornerRadius(16.dp)
             .clickable(actionStartActivity<MainActivity>())
-            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .padding(12.dp)
     ) {
         Column(modifier = GlanceModifier.fillMaxSize()) {
-            // 날짜
+            // 날짜 헤더
             Text(
-                text = today.format(DateTimeFormatter.ofPattern("M/d (E)")),
-                style = TextStyle(color = ColorProvider(purple, purple), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                text = today.format(DateTimeFormatter.ofPattern("M월 d일 (E)")),
+                style = TextStyle(color = ColorProvider(purple, purple), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             )
-            Spacer(modifier = GlanceModifier.height(2.dp))
 
-            // 내 일정 (메인, 크게)
-            Row(
-                modifier = GlanceModifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Spacer(modifier = GlanceModifier.height(8.dp))
+
+            // 내 일정 (메인)
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = myShift?.label ?: "미설정",
-                    style = TextStyle(
-                        color = ColorProvider(myShift?.color ?: muted, myShift?.color ?: muted),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    text = myShift?.emoji ?: "📋",
+                    style = TextStyle(fontSize = 22.sp)
                 )
-                if (myInfo.hasAlba) {
-                    Spacer(modifier = GlanceModifier.width(3.dp))
-                    Text("+알바", style = TextStyle(color = ColorProvider(albaColor, albaColor), fontSize = 10.sp, fontWeight = FontWeight.Bold))
+                Spacer(modifier = GlanceModifier.width(8.dp))
+                Column {
+                    Text(
+                        text = myShift?.label ?: "미설정",
+                        style = TextStyle(
+                            color = ColorProvider(myShift?.color ?: muted, myShift?.color ?: muted),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                    if (myShift != null) {
+                        Text(
+                            text = myShift.timeRange,
+                            style = TextStyle(
+                                color = ColorProvider(myShift.color.copy(alpha = 0.6f), myShift.color.copy(alpha = 0.6f)),
+                                fontSize = 10.sp
+                            )
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = GlanceModifier.height(1.dp))
+            // 알바 표시
+            if (myInfo.hasAlba) {
+                Spacer(modifier = GlanceModifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(modifier = GlanceModifier.width(30.dp))
+                    Text(
+                        text = "+ 알바 ${ShiftType.ALBA.timeRange}",
+                        style = TextStyle(
+                            color = ColorProvider(albaColor, albaColor),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                }
+            }
 
-            // 상대 일정 (작게, 한 줄)
+            Spacer(modifier = GlanceModifier.defaultWeight())
+
+            // 구분선
+            Box(
+                modifier = GlanceModifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(ColorProvider(divider, divider))
+            ) {}
+            Spacer(modifier = GlanceModifier.height(6.dp))
+
+            // 상대 일정 (작게 한 줄)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("👤", style = TextStyle(fontSize = 9.sp))
-                Spacer(modifier = GlanceModifier.width(2.dp))
+                Text("👤", style = TextStyle(fontSize = 12.sp))
+                Spacer(modifier = GlanceModifier.width(6.dp))
                 Text(
-                    text = partnerShift?.label ?: "─",
+                    text = "상대",
+                    style = TextStyle(color = ColorProvider(muted, muted), fontSize = 10.sp)
+                )
+                Spacer(modifier = GlanceModifier.width(6.dp))
+                Text(
+                    text = partnerShift?.label ?: "미설정",
                     style = TextStyle(
-                        color = ColorProvider(partnerShift?.color?.copy(alpha = 0.7f) ?: muted.copy(alpha = 0.5f), partnerShift?.color?.copy(alpha = 0.7f) ?: muted.copy(alpha = 0.5f)),
-                        fontSize = 9.sp
+                        color = ColorProvider(partnerShift?.color ?: muted.copy(alpha = 0.5f), partnerShift?.color ?: muted.copy(alpha = 0.5f)),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 )
                 if (partnerInfo.hasAlba) {
-                    Text("+알", style = TextStyle(color = ColorProvider(albaColor.copy(alpha = 0.7f), albaColor.copy(alpha = 0.7f)), fontSize = 8.sp))
+                    Spacer(modifier = GlanceModifier.width(4.dp))
+                    Text(
+                        text = "+알바",
+                        style = TextStyle(
+                            color = ColorProvider(albaColor.copy(alpha = 0.7f), albaColor.copy(alpha = 0.7f)),
+                            fontSize = 10.sp
+                        )
+                    )
                 }
             }
         }
