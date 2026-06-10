@@ -113,89 +113,46 @@ private fun TodayHeroBanner(uiState: CalendarUiState) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(14.dp),
+            .padding(horizontal = 12.dp, vertical = 3.dp),
+        shape = RoundedCornerShape(10.dp),
         color = DarkCard,
         border = BorderStroke(1.dp, DarkBorder)
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp)
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = today.format(DateTimeFormatter.ofPattern("M월 d일 EEEE")),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = TextSecondary
-                )
-                if (mood != null) {
-                    Text(mood.emoji, fontSize = 16.sp)
-                }
+            Text(
+                text = today.format(DateTimeFormatter.ofPattern("M/d")),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextSecondary
+            )
+            if (mood != null) {
+                Text(mood.emoji, fontSize = 12.sp, modifier = Modifier.padding(start = 2.dp))
             }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (myShift != null) {
-                    Text(myShift.emoji, fontSize = 15.sp)
-                    Spacer(modifier = Modifier.width(4.dp))
-                }
-                Text(
-                    text = myDisplayName,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-                Text(" : ", fontSize = 12.sp, color = TextMuted)
-                if (myShift != null) {
-                    Text(
-                        text = "${myShift.label} (${myShift.timeRange})",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = myShift.color
-                    )
-                } else {
-                    Text("미설정", fontSize = 12.sp, color = TextMuted)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (partnerShift != null) {
-                    Text(partnerShift.emoji, fontSize = 15.sp)
-                    Spacer(modifier = Modifier.width(4.dp))
-                }
-                Text(
-                    text = partnerDisplayName,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-                Text(" : ", fontSize = 12.sp, color = TextMuted)
-                if (partnerShift != null) {
-                    Text(
-                        text = "${partnerShift.label} (${partnerShift.timeRange})",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = partnerShift.color
-                    )
-                } else {
-                    Text("미설정", fontSize = 12.sp, color = TextMuted)
-                }
-            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(myDisplayName, fontSize = 11.sp, color = TextMuted)
+            Text(":", fontSize = 11.sp, color = TextMuted)
+            Text(
+                text = myShift?.label ?: "─",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = myShift?.color ?: TextMuted,
+                modifier = Modifier.padding(start = 2.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(partnerDisplayName, fontSize = 11.sp, color = TextMuted)
+            Text(":", fontSize = 11.sp, color = TextMuted)
+            Text(
+                text = partnerShift?.label ?: "─",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = partnerShift?.color ?: TextMuted,
+                modifier = Modifier.padding(start = 2.dp)
+            )
         }
     }
 }
@@ -207,13 +164,13 @@ private fun ViewModeToggle(mode: ViewMode, onModeChange: (ViewMode) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.Center
     ) {
         Surface(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(8.dp),
             color = DarkSurface,
-            modifier = Modifier.border(1.dp, DarkBorder, RoundedCornerShape(12.dp))
+            modifier = Modifier.border(1.dp, DarkBorder, RoundedCornerShape(8.dp))
         ) {
             Row {
                 listOf(
@@ -224,14 +181,14 @@ private fun ViewModeToggle(mode: ViewMode, onModeChange: (ViewMode) -> Unit) {
                     Surface(
                         modifier = Modifier
                             .clickable { onModeChange(m) }
-                            .padding(2.dp),
-                        shape = RoundedCornerShape(10.dp),
+                            .padding(1.dp),
+                        shape = RoundedCornerShape(7.dp),
                         color = if (mode == m) Purple40 else Color.Transparent
                     ) {
                         Text(
                             text = label,
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                            style = MaterialTheme.typography.labelLarge,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 5.dp),
+                            style = MaterialTheme.typography.labelMedium,
                             color = if (mode == m) Color.White else TextMuted
                         )
                     }
@@ -279,20 +236,20 @@ private fun MonthHeader(yearMonth: YearMonth, onPrev: () -> Unit, onNext: () -> 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        IconButton(onClick = onPrev) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "이전", tint = TextPrimary)
+        IconButton(onClick = onPrev, modifier = Modifier.size(32.dp)) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "이전", tint = TextPrimary, modifier = Modifier.size(20.dp))
         }
         Text(
             text = "${yearMonth.year}년 ${yearMonth.monthValue}월",
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
-        IconButton(onClick = onNext) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "다음", tint = TextPrimary)
+        IconButton(onClick = onNext, modifier = Modifier.size(32.dp)) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "다음", tint = TextPrimary, modifier = Modifier.size(20.dp))
         }
     }
 }
@@ -977,52 +934,25 @@ private fun CompactStatsBar(uiState: CalendarUiState) {
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = DarkCard,
-        shadowElevation = 4.dp
+        color = DarkCard
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                StatChip("☀️주", stats.dayCount, ShiftDay)
-                StatChip("🌙야", stats.nightCount, ShiftNight)
-                StatChip("🌇조", stats.nightEarlyCount, ShiftNightEarly)
-                StatChip("😴비", stats.offCount, ShiftOff)
-                StatChip("💼알", stats.albaCount, ShiftAlba)
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-            ) {
-                listOf(
-                    stats.dayCount to ShiftDay,
-                    stats.nightCount to ShiftNight,
-                    stats.nightEarlyCount to ShiftNightEarly,
-                    stats.offCount to ShiftOff,
-                    stats.albaCount to ShiftAlba
-                ).forEach { (count, color) ->
-                    if (count > 0) {
-                        Box(modifier = Modifier.weight(count.toFloat()).fillMaxHeight().background(color))
-                    }
-                }
-            }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StatChip("주", stats.dayCount, ShiftDay)
+            StatChip("야", stats.nightCount, ShiftNight)
+            StatChip("조", stats.nightEarlyCount, ShiftNightEarly)
+            StatChip("비", stats.offCount, ShiftOff)
+            StatChip("알", stats.albaCount, ShiftAlba)
         }
     }
 }
 
 @Composable
 private fun StatChip(label: String, count: Int, color: Color) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            "$label $count",
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            color = color
-        )
-    }
+    Text("$label$count", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = color)
 }
