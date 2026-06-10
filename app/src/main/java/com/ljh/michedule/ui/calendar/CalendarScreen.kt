@@ -556,32 +556,47 @@ private fun CellPartnerTag(
 ) {
     if (partnerShift != null) {
         val displayName = partnerName.take(1).ifBlank { "♡" }
-        val albaTag = if (partnerHasAlba) "+알" else ""
-        Column {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Row(
-                modifier = Modifier
-                    .background(
-                        partnerShift.bgColor.copy(alpha = 0.6f),
-                        RoundedCornerShape(3.dp)
-                    )
-                    .padding(horizontal = 2.dp, vertical = 0.5.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text("💑", fontSize = 6.sp, lineHeight = 7.sp)
                 Text(
-                    text = "${displayName}:${partnerShift.shortLabel}${albaTag}",
+                    text = displayName,
+                    fontSize = 6.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextMuted,
+                    lineHeight = 7.sp
+                )
+                Text(
+                    text = partnerShift.shortLabel,
                     fontSize = 7.sp,
                     fontWeight = FontWeight.Bold,
-                    color = partnerShift.color.copy(alpha = 0.9f),
-                    maxLines = 1,
-                    lineHeight = 8.sp
+                    color = partnerShift.color,
+                    lineHeight = 8.sp,
+                    modifier = Modifier
+                        .background(partnerShift.bgColor.copy(alpha = 0.7f), RoundedCornerShape(2.dp))
+                        .padding(horizontal = 2.dp)
                 )
+                if (partnerHasAlba) {
+                    Text(
+                        text = "알",
+                        fontSize = 7.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ShiftAlba,
+                        lineHeight = 8.sp,
+                        modifier = Modifier
+                            .background(ShiftAlba.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
+                            .padding(horizontal = 2.dp)
+                    )
+                }
             }
             if (!partnerMemo.isNullOrBlank()) {
                 Text(
-                    text = "${displayName}:${partnerMemo}",
+                    text = "💬${partnerMemo}",
                     fontSize = 6.sp,
-                    color = TextMuted,
+                    color = TextSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     lineHeight = 7.sp
