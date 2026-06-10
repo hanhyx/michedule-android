@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ljh.michedule.data.db.EventEntity
+import com.ljh.michedule.data.db.DatePlanEntity
 import com.ljh.michedule.data.db.FriendShiftEntity
 import com.ljh.michedule.model.ShiftType
 import com.ljh.michedule.ui.theme.*
@@ -92,7 +93,10 @@ fun CalendarScreen(
             onAddTodo = { title, time, isHabit -> viewModel.addTodo(title, time, isHabit) },
             onToggleTodo = { id, done -> viewModel.toggleTodo(id, done) },
             onDeleteTodo = { viewModel.deleteTodo(it) },
-            onMoodSelect = { emoji, note -> viewModel.setMood(emoji, note) }
+            onMoodSelect = { emoji, note -> viewModel.setMood(emoji, note) },
+            datePlan = uiState.currentDatePlan,
+            onDatePlanSet = { memo -> viewModel.setDatePlan(uiState.selectedDate, memo) },
+            onDatePlanDelete = { viewModel.deleteDatePlan(uiState.selectedDate) }
         )
     }
 }
@@ -373,6 +377,8 @@ private fun MonthlyCalendarGrid(
                         val friendShiftEntity = uiState.friendShifts[dateStr]
                         val mood = uiState.moods[dateStr]
 
+                        val datePlan = uiState.datePlans[dateStr]
+
                         if (uiState.viewingPartner) {
                             SoloCell(
                                 day = dayNum,
@@ -382,6 +388,7 @@ private fun MonthlyCalendarGrid(
                                 mood = friendShiftEntity?.mood,
                                 todoCount = friendShiftEntity?.todoCount ?: 0,
                                 events = emptyList(),
+                                datePlan = datePlan,
                                 isToday = date == today,
                                 isSunday = col == 0,
                                 isSaturday = col == 6,
@@ -396,8 +403,10 @@ private fun MonthlyCalendarGrid(
                                 hasAlba = shiftEntity?.hasAlba ?: false,
                                 memo = shiftEntity?.memo,
                                 mood = mood?.emoji,
+                                moodNote = mood?.note,
                                 todoCount = uiState.todos.count { it.date == dateStr },
                                 events = uiState.events[dateStr] ?: emptyList(),
+                                datePlan = datePlan,
                                 isToday = date == today,
                                 isSunday = col == 0,
                                 isSaturday = col == 6,
@@ -427,8 +436,10 @@ private fun SoloCell(
     hasAlba: Boolean,
     memo: String?,
     mood: String?,
+    moodNote: String? = null,
     todoCount: Int,
     events: List<EventEntity> = emptyList(),
+    datePlan: DatePlanEntity? = null,
     isToday: Boolean,
     isSunday: Boolean,
     isSaturday: Boolean,
@@ -442,85 +453,122 @@ private fun SoloCell(
         Modifier.border(0.5.dp, DarkBorder.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
     }
 
-    Column(
-        modifier = modifier
-            .padding(0.5.dp)
-            .then(borderMod)
-            .clip(RoundedCornerShape(6.dp))
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 2.dp, vertical = 1.dp)
-    ) {
-        // 날짜 + 감정
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val dayColor = when {
-                isToday -> Purple80
-                isSunday -> Color(0xFFF87171)
-                isSaturday -> Color(0xFF60A5FA)
-                else -> TextPrimary
-            }
-            Text(
-                "$day",
-                fontSize = if (isToday) 12.sp else 10.sp,
-                fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Medium,
-                color = dayColor,
-                lineHeight = 12.sp
-            )
-            if (mood != null) {
-                Spacer(modifier = Modifier.width(2.dp))
-                Text(mood, fontSize = 9.sp, lineHeight = 10.sp)
-            }
+    val cellContent: @Composable ColumnScope.() -> Unit = {
+        // 날짜
+        val dayColor = when {
+            isToday -> Purple80
+            isSunday -> Color(0xFFF87171)
+            isSaturday -> Color(0xFF60A5FA)
+            else -> TextPrimary
         }
+        Text(
+            "$day",
+            fontSize = if (isToday) 13.sp else 11.sp,
+            fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Bold,
+            color = dayColor,
+            lineHeight = 14.sp
+        )
+
+        Spacer(modifier = Modifier.height(2.dp))
 
         // 근무유형
         if (shift != null) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(3.dp))
+                    .clip(RoundedCornerShape(4.dp))
                     .background(shift.bgColor.copy(alpha = 0.5f))
-                    .padding(horizontal = 2.dp, vertical = 1.dp)
+                    .padding(horizontal = 3.dp, vertical = 2.dp)
             ) {
-                Text(shift.label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = shift.color, maxLines = 1, lineHeight = 12.sp)
+                Text(shift.label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = shift.color, maxLines = 1, lineHeight = 14.sp)
                 if (shift != ShiftType.OFF) {
-                    Text(shift.timeRange.replace(" - ", "~"), fontSize = 7.sp, color = shift.color.copy(alpha = 0.7f), maxLines = 1, lineHeight = 8.sp)
+                    Text(shift.timeRange.replace(" - ", "~"), fontSize = 8.sp, color = shift.color.copy(alpha = 0.7f), maxLines = 1, lineHeight = 10.sp)
                 }
             }
         }
 
         // 알바
         if (hasAlba) {
-            Spacer(modifier = Modifier.height(1.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(3.dp))
+                    .clip(RoundedCornerShape(4.dp))
                     .background(ShiftAlba.copy(alpha = 0.15f))
-                    .padding(horizontal = 2.dp, vertical = 1.dp)
+                    .padding(horizontal = 3.dp, vertical = 2.dp)
             ) {
-                Text("알바", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = ShiftAlba, maxLines = 1, lineHeight = 10.sp)
+                Text("알바", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = ShiftAlba, maxLines = 1, lineHeight = 12.sp)
                 val albaTime = ShiftType.ALBA.timeRange
                 if (albaTime != "시간 미정") {
-                    Text(albaTime.replace(" - ", "~"), fontSize = 7.sp, color = ShiftAlba.copy(alpha = 0.7f), maxLines = 1, lineHeight = 8.sp)
+                    Text(albaTime.replace(" - ", "~"), fontSize = 8.sp, color = ShiftAlba.copy(alpha = 0.7f), maxLines = 1, lineHeight = 10.sp)
+                }
+            }
+        }
+
+        // 감정 (이모지 + 메모)
+        if (mood != null) {
+            Spacer(modifier = Modifier.height(2.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(mood, fontSize = 12.sp, lineHeight = 14.sp)
+                if (!moodNote.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(moodNote, fontSize = 8.sp, color = Color(0xFFD4B896), maxLines = 1, overflow = TextOverflow.Ellipsis, lineHeight = 10.sp)
                 }
             }
         }
 
         // 메모
         if (!memo.isNullOrBlank()) {
-            Text("💬$memo", fontSize = 7.sp, color = Color(0xFF93C5FD), maxLines = 1, overflow = TextOverflow.Ellipsis, lineHeight = 8.sp, modifier = Modifier.padding(top = 1.dp))
+            Text("💬$memo", fontSize = 8.sp, color = Color(0xFF93C5FD), maxLines = 1, overflow = TextOverflow.Ellipsis, lineHeight = 10.sp, modifier = Modifier.padding(top = 1.dp))
         }
 
         // 이벤트
         events.take(1).forEach { event ->
-            Text(event.title, fontSize = 7.sp, fontWeight = FontWeight.Medium, color = Color(event.color), maxLines = 1, overflow = TextOverflow.Ellipsis, lineHeight = 8.sp)
+            Text(event.title, fontSize = 8.sp, fontWeight = FontWeight.Medium, color = Color(event.color), maxLines = 1, overflow = TextOverflow.Ellipsis, lineHeight = 10.sp)
         }
 
         // 할일
         if (todoCount > 0) {
-            Text("📋$todoCount", fontSize = 7.sp, color = Color(0xFF6EE7B7), lineHeight = 8.sp)
+            Text("📋$todoCount", fontSize = 8.sp, color = Color(0xFF6EE7B7), lineHeight = 10.sp)
+        }
+    }
+
+    if (datePlan != null) {
+        Row(
+            modifier = modifier
+                .padding(0.5.dp)
+                .then(borderMod)
+                .clip(RoundedCornerShape(6.dp))
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                .padding(horizontal = 3.dp, vertical = 2.dp)
+        ) {
+            Column(modifier = Modifier.weight(7f)) { cellContent() }
+            Column(
+                modifier = Modifier
+                    .weight(3f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(Color(0xFFEC4899).copy(alpha = 0.15f))
+                    .padding(horizontal = 2.dp, vertical = 2.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("💕", fontSize = 12.sp, lineHeight = 14.sp)
+                if (datePlan.memo.isNotBlank()) {
+                    Text(datePlan.memo, fontSize = 7.sp, color = Color(0xFFF9A8D4), maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 8.sp, textAlign = TextAlign.Center)
+                }
+            }
+        }
+    } else {
+        Column(
+            modifier = modifier
+                .padding(0.5.dp)
+                .then(borderMod)
+                .clip(RoundedCornerShape(6.dp))
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                .padding(horizontal = 3.dp, vertical = 2.dp)
+        ) {
+            cellContent()
         }
     }
 }

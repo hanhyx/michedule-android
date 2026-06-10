@@ -42,6 +42,7 @@ fun DayDetailSheet(
     todos: List<TodoEntity>,
     mood: MoodEntity?,
     shiftHistory: List<ShiftHistoryEntity>,
+    datePlan: DatePlanEntity? = null,
     onDismiss: () -> Unit,
     onShiftSelect: (ShiftType) -> Unit,
     onShiftClear: () -> Unit,
@@ -53,7 +54,9 @@ fun DayDetailSheet(
     onAddTodo: (String, String?, Boolean) -> Unit,
     onToggleTodo: (Long, Boolean) -> Unit,
     onDeleteTodo: (Long) -> Unit,
-    onMoodSelect: (String, String) -> Unit
+    onMoodSelect: (String, String) -> Unit,
+    onDatePlanSet: (String) -> Unit = {},
+    onDatePlanDelete: () -> Unit = {}
 ) {
     var memoText by remember(date, shift) { mutableStateOf(shift?.memo ?: "") }
     val currentShift = shift?.let { ShiftType.fromString(it.type) }
@@ -279,7 +282,12 @@ fun DayDetailSheet(
 
             HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
 
-            // ── 6. 근무 유형 설정 (최하단) ──
+            // ── 6. 우리 만나요 ──
+            DatePlanSection(datePlan = datePlan, onDatePlanSet = onDatePlanSet, onDatePlanDelete = onDatePlanDelete)
+
+            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
+
+            // ── 7. 근무 유형 설정 (최하단) ──
             Text("근무 유형", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
             Spacer(modifier = Modifier.height(4.dp))
             Text(
@@ -664,4 +672,82 @@ private fun TimeRangeEditDialog(
             }
         }
     )
+}
+
+// ── Date Plan Section ──
+
+@Composable
+private fun DatePlanSection(
+    datePlan: DatePlanEntity?,
+    onDatePlanSet: (String) -> Unit,
+    onDatePlanDelete: () -> Unit
+) {
+    var planMemo by remember(datePlan) { mutableStateOf(datePlan?.memo ?: "") }
+    val heartColor = Color(0xFFEC4899)
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("💕", fontSize = 18.sp)
+        Spacer(modifier = Modifier.width(6.dp))
+        Text("우리 만나요", style = MaterialTheme.typography.labelLarge, color = heartColor)
+    }
+    Spacer(modifier = Modifier.height(8.dp))
+
+    if (datePlan != null) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(10.dp),
+            color = heartColor.copy(alpha = 0.1f),
+            border = BorderStroke(1.dp, heartColor.copy(alpha = 0.3f))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("💕 데이트 예정!", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = heartColor)
+                    Spacer(modifier = Modifier.weight(1f))
+                    Text(
+                        "취소",
+                        fontSize = 12.sp,
+                        color = TextMuted,
+                        modifier = Modifier.clickable { onDatePlanDelete() }
+                    )
+                }
+                if (datePlan.memo.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(datePlan.memo, fontSize = 13.sp, color = TextPrimary)
+                }
+                if (datePlan.createdBy.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text("by ${datePlan.createdBy}", fontSize = 10.sp, color = TextMuted)
+                }
+            }
+        }
+    }
+
+    Spacer(modifier = Modifier.height(6.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        OutlinedTextField(
+            value = planMemo,
+            onValueChange = { planMemo = it },
+            modifier = Modifier.weight(1f),
+            placeholder = { Text("메모 (선택)", fontSize = 13.sp) },
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = heartColor,
+                unfocusedBorderColor = DarkBorder,
+                cursorColor = heartColor
+            ),
+            textStyle = LocalTextStyle.current.copy(fontSize = 13.sp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Button(
+            onClick = { onDatePlanSet(planMemo) },
+            colors = ButtonDefaults.buttonColors(containerColor = heartColor),
+            shape = RoundedCornerShape(10.dp),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+        ) {
+            Text("💕 만나요!", fontSize = 13.sp)
+        }
+    }
 }

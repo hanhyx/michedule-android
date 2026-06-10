@@ -13,6 +13,7 @@ class ScheduleRepository(private val db: AppDatabase) {
     private val todoDao = db.todoDao()
     private val moodDao = db.moodDao()
     private val historyDao = db.shiftHistoryDao()
+    private val datePlanDao = db.datePlanDao()
 
     fun getShiftsForMonth(yearMonth: YearMonth): Flow<List<ShiftEntity>> {
         val start = yearMonth.atDay(1).toString()
@@ -31,6 +32,29 @@ class ScheduleRepository(private val db: AppDatabase) {
     suspend fun getAllShifts(): List<ShiftEntity> = shiftDao.getAllShifts()
     suspend fun getAllMoods(): List<MoodEntity> = moodDao.getAllMoods()
     suspend fun getAllTodos(): List<TodoEntity> = todoDao.getAllTodos()
+    suspend fun getAllDatePlans(): List<DatePlanEntity> = datePlanDao.getAllPlans()
+
+    fun getDatePlansForMonth(yearMonth: YearMonth): Flow<List<DatePlanEntity>> {
+        val start = yearMonth.atDay(1).toString()
+        val end = yearMonth.atEndOfMonth().toString()
+        return datePlanDao.getPlansInRange(start, end)
+    }
+
+    fun getDatePlanForDate(date: LocalDate): Flow<DatePlanEntity?> {
+        return datePlanDao.getPlanForDate(date.toString())
+    }
+
+    suspend fun setDatePlan(date: LocalDate, memo: String, createdBy: String) {
+        datePlanDao.upsert(DatePlanEntity(date = date.toString(), memo = memo, createdBy = createdBy))
+    }
+
+    suspend fun deleteDatePlan(date: LocalDate) {
+        datePlanDao.deleteForDate(date.toString())
+    }
+
+    suspend fun syncDatePlans(plans: List<DatePlanEntity>) {
+        plans.forEach { datePlanDao.upsert(it) }
+    }
 
     suspend fun setShift(date: LocalDate, type: String) {
         val existing = shiftDao.getShift(date.toString())

@@ -30,7 +30,9 @@ data class CalendarUiState(
     val myName: String = "",
     val partnerName: String = "",
     val isLocked: Boolean = false,
-    val viewingPartner: Boolean = false
+    val viewingPartner: Boolean = false,
+    val datePlans: Map<String, DatePlanEntity> = emptyMap(),
+    val currentDatePlan: DatePlanEntity? = null
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -66,7 +68,13 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 .distinctUntilChanged()
                 .flatMapLatest { month -> repo.getFriendShiftsForMonth(month) }
                 .collect { shifts ->
-                    _uiState.update { it.copy(friendShifts = shifts.associateBy { s -> s.date }) }
+                    val nameFromDb = shifts.firstOrNull { it.friendName.isNotBlank() }?.friendName ?: ""
+                    _uiState.update { state ->
+                        state.copy(
+                            friendShifts = shifts.associateBy { s -> s.date },
+                            partnerName = if (state.partnerName.isBlank()) nameFromDb else state.partnerName
+                        )
+                    }
                 }
         }
 
@@ -117,6 +125,24 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 _uiState.update { it.copy(partnerName = name) }
             }
         }
+
+        viewModelScope.launch {
+            _uiState.map { it.currentMonth }
+                .distinctUntilChanged()
+                .flatMapLatest { month -> repo.getDatePlansForMonth(month) }
+                .collect { plans ->
+                    _uiState.update { it.copy(datePlans = plans.associateBy { p -> p.date }) }
+                }
+        }
+
+        viewModelScope.launch {
+            _uiState.map { it.selectedDate }
+                .distinctUntilChanged()
+                .flatMapLatest { date -> repo.getDatePlanForDate(date) }
+                .collect { plan ->
+                    _uiState.update { it.copy(currentDatePlan = plan) }
+                }
+        }
     }
 
     fun navigateMonth(delta: Int) {
@@ -144,6 +170,21 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     fun toggleViewingPartner() {
         _uiState.update { it.copy(viewingPartner = !it.viewingPartner) }
+    }
+
+    fun setDatePlan(date: LocalDate, memo: String) {
+        viewModelScope.launch {
+            val myName = _uiState.value.myName.ifBlank { "나" }
+            repo.setDatePlan(date, memo, myName)
+            app.triggerUpload()
+        }
+    }
+
+    fun deleteDatePlan(date: LocalDate) {
+        viewModelScope.launch {
+            repo.deleteDatePlan(date)
+            app.triggerUpload()
+        }
     }
 
     fun setShift(date: LocalDate, type: ShiftType) {

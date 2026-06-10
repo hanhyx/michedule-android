@@ -7,6 +7,7 @@ import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.ljh.michedule.data.PrefsManager
+import com.ljh.michedule.data.db.DatePlanEntity
 import com.ljh.michedule.data.db.FriendShiftEntity
 import com.ljh.michedule.data.db.ShiftEntity
 import com.ljh.michedule.data.repository.ScheduleRepository
@@ -34,6 +35,7 @@ data class ScheduleRow(
     val albas: JsonObject = JsonObject(emptyMap()),
     val moods: JsonObject = JsonObject(emptyMap()),
     val todo_counts: JsonObject = JsonObject(emptyMap()),
+    val date_plans: JsonObject = JsonObject(emptyMap()),
     val updated_at: String? = null
 )
 
@@ -124,7 +126,9 @@ class SupabaseSync(
                 ?.decodeList<ScheduleRow>()
                 ?: return
 
-            val friendRow = rows.firstOrNull { it.device_id != deviceId } ?: return
+            // room 안에서 나의 row가 아닌 것 중 가장 최근 것을 상대로 판단
+            val otherRows = rows.filter { it.device_id != deviceId }
+            val friendRow = otherRows.firstOrNull() ?: return
             _friendName.value = friendRow.user_name
 
             val newShiftsMap = mutableMapOf<String, String>()
@@ -159,6 +163,17 @@ class SupabaseSync(
                         todoCount = todoCountMap[date] ?: 0
                     )
                 )
+            }
+
+            // 상대의 date_plans를 로컬에 동기화
+            val remotePlans = friendRow.date_plans.mapNotNull { (date, value) ->
+                val obj = value as? kotlinx.serialization.json.JsonObject ?: return@mapNotNull null
+                val memo = (obj["memo"] as? JsonPrimitive)?.content ?: ""
+                val by = (obj["by"] as? JsonPrimitive)?.content ?: friendRow.user_name
+                DatePlanEntity(date = date, memo = memo, createdBy = by)
+            }
+            if (remotePlans.isNotEmpty()) {
+                repo.syncDatePlans(remotePlans)
             }
 
             if (!isFirstSync && appContext != null) {
@@ -239,6 +254,32 @@ class SupabaseSync(
             val deviceId = prefsManager.ensureDeviceId()
             val myName = prefsManager.myName.first()
 
+            // room 안에 3개 이상 row가 있으면 orphan 정리 (앱 재설치로 device_id 변경된 경우)
+            try {
+                val existing = client?.from(TABLE)
+                    ?.select { filter { eq("room_code", code) } }
+                    ?.decodeList<ScheduleRow>() ?: emptyList()
+
+                if (existing.size >= 2) {
+                    val myOldRows = existing.filter { it.device_id != deviceId }
+                    // room에 이미 2명이 있고, 그 중 현재 device_id가 없으면 → 재설치 case
+                    // 이름이 같은 기존 row가 있으면 그것을 삭제 (내가 재설치한 것)
+                    if (existing.none { it.device_id == deviceId } && myOldRows.size >= 2) {
+                        val orphan = myOldRows.firstOrNull { it.user_name == myName }
+                            ?: myOldRows.last()
+                        client?.from(TABLE)?.delete {
+                            filter {
+                                eq("room_code", code)
+                                eq("device_id", orphan.device_id)
+                            }
+                        }
+                        Log.d(TAG, "Cleaned orphan row: ${orphan.device_id}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Orphan cleanup skipped", e)
+            }
+
             val allShifts = repo.getAllShifts()
             val shiftsJson = buildJsonObject {
                 allShifts.forEach { s ->
@@ -271,6 +312,16 @@ class SupabaseSync(
                 }
             }
 
+            val allDatePlans = repo.getAllDatePlans()
+            val datePlansJson = buildJsonObject {
+                allDatePlans.forEach { plan ->
+                    put(plan.date, buildJsonObject {
+                        put("memo", plan.memo)
+                        put("by", plan.createdBy)
+                    })
+                }
+            }
+
             val row = ScheduleRow(
                 room_code = code,
                 device_id = deviceId,
@@ -279,7 +330,8 @@ class SupabaseSync(
                 memos = memosJson,
                 albas = albasJson,
                 moods = moodsJson,
-                todo_counts = todoCountsJson
+                todo_counts = todoCountsJson,
+                date_plans = datePlansJson
             )
 
             client?.from(TABLE)?.upsert(row)
