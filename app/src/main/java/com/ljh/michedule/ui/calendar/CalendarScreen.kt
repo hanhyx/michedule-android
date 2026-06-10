@@ -456,12 +456,10 @@ private fun CoupleCell(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
-
             if (myShift != null) {
-                Text(myShift.emoji, fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(1.dp))
                 Text(
-                    text = myShift.label,
+                    text = "${myShift.emoji} ${myShift.label}",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     color = myShift.color,
@@ -484,15 +482,17 @@ private fun CoupleCell(
                     maxLines = 1
                 )
             } else if (hasAlba && myShift == null) {
-                Text("💼", fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(1.dp))
                 Text(
-                    text = "알바",
+                    text = "💼 알바",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     color = ShiftAlba,
                     maxLines = 1
                 )
             }
+
+            Spacer(modifier = Modifier.weight(1f))
 
             events.take(1).forEach { event ->
                 Text(
@@ -518,8 +518,6 @@ private fun CoupleCell(
             if (events.size > 1) {
                 Text("+${events.size - 1}", fontSize = 7.sp, color = TextMuted)
             }
-
-            Spacer(modifier = Modifier.weight(0.5f))
         }
 
         // ── 하단 40%: 상대 영역 ──
