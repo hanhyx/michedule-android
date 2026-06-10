@@ -20,6 +20,7 @@ import androidx.glance.text.TextStyle
 import com.ljh.michedule.MainActivity
 import com.ljh.michedule.data.db.AppDatabase
 import com.ljh.michedule.model.ShiftType
+import com.ljh.michedule.widget.WidgetShiftInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
@@ -40,15 +41,15 @@ class WeekWidget : GlanceAppWidget() {
         val (myShifts, partnerShifts) = withContext(Dispatchers.IO) {
             val mine = db.shiftDao().getAllShifts()
                 .filter { it.date in weekStartStr..weekEndStr }
-                .associate { it.date to ShiftType.fromString(it.type) }
+                .associate { it.date to WidgetShiftInfo(ShiftType.fromString(it.type), it.hasAlba) }
 
             val partner = try {
                 val friends = db.friendShiftDao()
                     .getShiftsInRange(weekStartStr, weekEndStr)
                     .firstOrNull() ?: emptyList()
-                friends.associate { it.date to ShiftType.fromString(it.type) }
+                friends.associate { it.date to WidgetShiftInfo(ShiftType.fromString(it.type), it.hasAlba) }
             } catch (_: Exception) {
-                emptyMap<String, ShiftType?>()
+                emptyMap<String, WidgetShiftInfo>()
             }
 
             mine to partner
@@ -64,8 +65,8 @@ class WeekWidget : GlanceAppWidget() {
 private fun WeekWidgetContent(
     today: LocalDate,
     weekStart: LocalDate,
-    myShifts: Map<String, ShiftType?>,
-    partnerShifts: Map<String, ShiftType?>
+    myShifts: Map<String, WidgetShiftInfo>,
+    partnerShifts: Map<String, WidgetShiftInfo>
 ) {
     val darkBg = Color(0xFF0F0F1A)
     val purple = Color(0xFFA78BFA)
@@ -74,6 +75,7 @@ private fun WeekWidgetContent(
     val sundayRed = Color(0xFFF87171)
     val saturdayBlue = Color(0xFF60A5FA)
     val todayBg = Color(0xFF2D2640)
+    val albaColor = Color(0xFFF97316)
     val dayNames = listOf("일", "월", "화", "수", "목", "금", "토")
 
     Box(
@@ -91,8 +93,8 @@ private fun WeekWidgetContent(
             for (i in 0..6) {
                 val date = weekStart.plusDays(i.toLong())
                 val dateStr = date.toString()
-                val myShift = myShifts[dateStr]
-                val partnerShift = partnerShifts[dateStr]
+                val myInfo = myShifts[dateStr]
+                val partnerInfo = partnerShifts[dateStr]
                 val isToday = date == today
 
                 val dayColor = when {
@@ -137,32 +139,56 @@ private fun WeekWidgetContent(
                         )
                     )
 
-                    Spacer(modifier = GlanceModifier.height(3.dp))
+                    Spacer(modifier = GlanceModifier.height(2.dp))
 
                     Text(
-                        text = myShift?.shortLabel ?: "─",
+                        text = myInfo?.type?.shortLabel ?: "─",
                         style = TextStyle(
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = ColorProvider(
-                                myShift?.color ?: muted.copy(alpha = 0.3f),
-                                myShift?.color ?: muted.copy(alpha = 0.3f)
+                                myInfo?.type?.color ?: muted.copy(alpha = 0.3f),
+                                myInfo?.type?.color ?: muted.copy(alpha = 0.3f)
                             )
                         )
                     )
+                    if (myInfo?.hasAlba == true) {
+                        Text(
+                            text = "알",
+                            style = TextStyle(
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorProvider(albaColor, albaColor)
+                            )
+                        )
+                    }
 
                     Spacer(modifier = GlanceModifier.height(1.dp))
 
-                    Text(
-                        text = partnerShift?.shortLabel ?: "",
-                        style = TextStyle(
-                            fontSize = 9.sp,
-                            color = ColorProvider(
-                                partnerShift?.color?.copy(alpha = 0.7f) ?: Color.Transparent,
-                                partnerShift?.color?.copy(alpha = 0.7f) ?: Color.Transparent
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = partnerInfo?.type?.shortLabel ?: "",
+                            style = TextStyle(
+                                fontSize = 9.sp,
+                                color = ColorProvider(
+                                    partnerInfo?.type?.color?.copy(alpha = 0.7f) ?: Color.Transparent,
+                                    partnerInfo?.type?.color?.copy(alpha = 0.7f) ?: Color.Transparent
+                                )
                             )
                         )
-                    )
+                        if (partnerInfo?.hasAlba == true) {
+                            Text(
+                                text = "+알",
+                                style = TextStyle(
+                                    fontSize = 7.sp,
+                                    color = ColorProvider(
+                                        albaColor.copy(alpha = 0.7f),
+                                        albaColor.copy(alpha = 0.7f)
+                                    )
+                                )
+                            )
+                        }
+                    }
                 }
             }
         }
