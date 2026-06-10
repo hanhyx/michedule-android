@@ -5,30 +5,97 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     <group
-        android:translateX="24"
-        android:translateY="24">
+        android:translateX="20"
+        android:translateY="20">
+
+        <!-- calendar body -->
         <path
-            android:fillColor="#A78BFA"
-            android:pathData="M30,5 L30,10 M30,50 L30,55 M5,30 L10,30 M50,30 L55,30"
-            android:strokeWidth="3"
-            android:strokeColor="#A78BFA"/>
+            android:fillColor="#1E1B2E"
+            android:pathData="M8,12 Q8,8 12,8 L56,8 Q60,8 60,12 L60,56 Q60,60 56,60 L12,60 Q8,60 8,56 Z"/>
         <path
-            android:fillColor="#A78BFA"
-            android:pathData="M10,10 L50,10 Q55,10 55,15 L55,50 Q55,55 50,55 L10,55 Q5,55 5,50 L5,15 Q5,10 10,10 Z"
+            android:pathData="M8,12 Q8,8 12,8 L56,8 Q60,8 60,12 L60,56 Q60,60 56,60 L12,60 Q8,60 8,56 Z"
+            android:strokeWidth="2"
+            android:strokeColor="#C4B5FD"
+            android:fillColor="#00000000"/>
+
+        <!-- calendar header bar -->
+        <path
+            android:fillColor="#7C3AED"
+            android:pathData="M8,12 Q8,8 12,8 L56,8 Q60,8 60,12 L60,20 L8,20 Z"/>
+
+        <!-- calendar pins -->
+        <path
+            android:pathData="M22,5 L22,12"
             android:strokeWidth="2.5"
+            android:strokeColor="#C4B5FD"
+            android:strokeLineCap="round"/>
+        <path
+            android:pathData="M46,5 L46,12"
+            android:strokeWidth="2.5"
+            android:strokeColor="#C4B5FD"
+            android:strokeLineCap="round"/>
+
+        <!-- dots on header -->
+        <path
+            android:fillColor="#DDD6FE"
+            android:pathData="M18,14 A1.5,1.5 0 1,1 21,14 A1.5,1.5 0 1,1 18,14"/>
+        <path
+            android:fillColor="#DDD6FE"
+            android:pathData="M32.5,14 A1.5,1.5 0 1,1 35.5,14 A1.5,1.5 0 1,1 32.5,14"/>
+        <path
+            android:fillColor="#DDD6FE"
+            android:pathData="M47,14 A1.5,1.5 0 1,1 50,14 A1.5,1.5 0 1,1 47,14"/>
+
+        <!-- heart (couple symbol) -->
+        <path
+            android:fillColor="#F472B6"
+            android:pathData="M34,30
+                C34,27 30,24 26,27
+                C22,30 26,36 34,44
+                C42,36 46,30 42,27
+                C38,24 34,27 34,30 Z"/>
+
+        <!-- small sparkle left -->
+        <path
+            android:pathData="M16,28 L16,34"
+            android:strokeWidth="1.5"
             android:strokeColor="#A78BFA"
-            android:fillAlpha="0"/>
+            android:strokeLineCap="round"/>
+        <path
+            android:pathData="M13,31 L19,31"
+            android:strokeWidth="1.5"
+            android:strokeColor="#A78BFA"
+            android:strokeLineCap="round"/>
+
+        <!-- small sparkle right -->
+        <path
+            android:pathData="M52,28 L52,34"
+            android:strokeWidth="1.5"
+            android:strokeColor="#A78BFA"
+            android:strokeLineCap="round"/>
+        <path
+            android:pathData="M49,31 L55,31"
+            android:strokeWidth="1.5"
+            android:strokeColor="#A78BFA"
+            android:strokeLineCap="round"/>
+
+        <!-- small hearts bottom -->
         <path
             android:fillColor="#A78BFA"
-            android:pathData="M5,20 L55,20"/>
+            android:fillAlpha="0.6"
+            android:pathData="M19,48
+                C19,47 18,46 17,47
+                C16,47.5 17,49 19,51
+                C21,49 22,47.5 21,47
+                C20,46 19,47 19,48 Z"/>
         <path
-            android:fillColor="#6D28D9"
-            android:pathData="M15,28 L25,28 L25,35 L15,35 Z"/>
-        <path
-            android:fillColor="#818CF8"
-            android:pathData="M30,28 L40,28 L40,35 L30,35 Z"/>
-        <path
-            android:fillColor="#6D28D9"
-            android:pathData="M15,40 L25,40 L25,47 L15,47 Z"/>
+            android:fillColor="#A78BFA"
+            android:fillAlpha="0.6"
+            android:pathData="M49,48
+                C49,47 48,46 47,47
+                C46,47.5 47,49 49,51
+                C51,49 52,47.5 51,47
+                C50,46 49,47 49,48 Z"/>
+
     </group>
 </vector>

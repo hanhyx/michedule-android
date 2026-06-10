@@ -211,7 +211,7 @@ private fun MonthlyScreen(
     uiState: CalendarUiState,
     onNavigateToAddEvent: (String) -> Unit
 ) {
-    val hasFriendData = uiState.friendShifts.isNotEmpty()
+    val hasPartner = uiState.partnerName.isNotBlank()
 
     Column(modifier = Modifier.fillMaxSize()) {
         MonthHeader(
@@ -220,7 +220,7 @@ private fun MonthlyScreen(
             onNext = { viewModel.navigateMonth(1) }
         )
 
-        if (hasFriendData) {
+        if (hasPartner) {
             PartnerViewToggle(
                 viewingPartner = uiState.viewingPartner,
                 myName = uiState.myName.ifBlank { "나" },
