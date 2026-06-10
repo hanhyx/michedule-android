@@ -36,10 +36,10 @@ class MicheduleApp : Application() {
         loadCustomTimeRanges()
 
         val prefs = getSharedPreferences("michedule_init", MODE_PRIVATE)
-        if (!prefs.getBoolean("seeded_june_2026_v3", false)) {
+        if (!prefs.getBoolean("cleared_june_seed_v1", false)) {
             CoroutineScope(Dispatchers.IO).launch {
-                seedJune2026()
-                prefs.edit().putBoolean("seeded_june_2026_v3", true).apply()
+                clearJuneSeed()
+                prefs.edit().putBoolean("cleared_june_seed_v1", true).apply()
             }
         }
     }
@@ -70,32 +70,10 @@ class MicheduleApp : Application() {
         }
     }
 
-    private suspend fun seedJune2026() {
-        val schedule = mapOf(
-            "2026-06-09" to "night",
-            "2026-06-10" to "off",
-            "2026-06-11" to "day",
-            "2026-06-12" to "day",
-            "2026-06-13" to "day",
-            "2026-06-14" to "off",
-            "2026-06-15" to "night",
-            "2026-06-16" to "off",
-            "2026-06-17" to "night",
-            "2026-06-18" to "off",
-            "2026-06-19" to "day",
-            "2026-06-20" to "day",
-            "2026-06-21" to "off",
-            "2026-06-22" to "day",
-            "2026-06-23" to "day",
-            "2026-06-24" to "night",
-            "2026-06-25" to "off",
-            "2026-06-26" to "night",
-            "2026-06-27" to "off",
-            "2026-06-28" to "off",
-            "2026-06-29" to "day",
-            "2026-06-30" to "day"
-        )
-        val entities = schedule.map { (date, type) -> ShiftEntity(date = date, type = type) }
-        repository.bulkSetShifts(entities)
+    private suspend fun clearJuneSeed() {
+        val juneDates = (1..30).map { "2026-06-%02d".format(it) }
+        juneDates.forEach { date ->
+            repository.clearShift(java.time.LocalDate.parse(date))
+        }
     }
 }

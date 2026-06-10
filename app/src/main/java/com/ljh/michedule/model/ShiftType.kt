@@ -47,8 +47,8 @@ enum class ShiftType(
         shortLabel = "알",
         emoji = "💼",
         defaultTimeRange = "시간 미정",
-        color = Color(0xFF14B8A6),
-        bgColor = Color(0x3314B8A6)
+        color = Color(0xFFF97316),
+        bgColor = Color(0x33F97316)
     );
 
     val timeRange: String get() = customTimeRanges[this] ?: defaultTimeRange
