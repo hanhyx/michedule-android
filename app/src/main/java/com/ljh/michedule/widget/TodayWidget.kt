@@ -49,10 +49,17 @@ class TodayWidget : GlanceAppWidget() {
         val db = AppDatabase.getInstance(context)
 
         val (myDetail, partnerDetail) = withContext(Dispatchers.IO) {
-            val typeConfigs = try { db.shiftTypeConfigDao().getAll().associateBy { it.id } } catch (_: Exception) { emptyMap() }
+            val typeConfigs = try {
+                db.shiftTypeConfigDao().getAll().associateBy { it.id }
+            } catch (_: Exception) { emptyMap() }
+
             val myEntity = db.shiftDao().getShift(todayStr)
-            val myMood = try { db.moodDao().getMoodForDate(todayStr).firstOrNull() } catch (_: Exception) { null }
-            val myTodos = try { db.todoDao().getTodosForDate(todayStr).firstOrNull() ?: emptyList() } catch (_: Exception) { emptyList() }
+            val myMood = try {
+                db.moodDao().getMoodForDate(todayStr).firstOrNull()
+            } catch (_: Exception) { null }
+            val myTodos = try {
+                db.todoDao().getTodosForDate(todayStr).firstOrNull() ?: emptyList()
+            } catch (_: Exception) { emptyList() }
 
             val my = WidgetDayDetail(
                 shift = WidgetShiftInfo(
@@ -62,7 +69,7 @@ class TodayWidget : GlanceAppWidget() {
                 ),
                 memo = myEntity?.memo,
                 mood = myMood?.emoji,
-                todoTexts = myTodos.take(4).map { (if (it.isDone) "✅" else "⬜") + it.title }
+                todoTexts = myTodos.take(3).map { (if (it.isDone) "✅ " else "☐ ") + it.title }
             )
 
             val partner = try {
@@ -76,7 +83,7 @@ class TodayWidget : GlanceAppWidget() {
                     ),
                     memo = fe?.memo,
                     mood = fe?.mood,
-                    name = fe?.friendName ?: "상대"
+                    name = fe?.friendName ?: ""
                 )
             } catch (_: Exception) { WidgetDayDetail(WidgetShiftInfo(null)) }
 
@@ -95,132 +102,179 @@ private fun TodayWidgetContent(
     myDetail: WidgetDayDetail,
     partnerDetail: WidgetDayDetail
 ) {
-    val darkBg = Color(0xFF0F0F1A)
+    val darkBg = Color(0xFF13131E)
+    val cardBg = Color(0xFF1C1C2E)
+    val accent = Color(0xFFB794F6)
     val muted = Color(0xFF6B7280)
-    val purple = Color(0xFFA78BFA)
-    val albaColor = Color(0xFFF97316)
-    val divider = Color(0xFF2A2A3D)
-    val memoColor = Color(0xFF60A5FA)
-    val todoColor = Color(0xFF34D399)
-    val myShift = myDetail.shift.type
+    val albaColor = Color(0xFFFB923C)
+    val divider = Color(0xFF2E2E42)
+    val memoColor = Color(0xFF7DD3FC)
+    val todoColor = Color(0xFF6EE7B7)
+
     val myConfig = myDetail.shift.config
-    val partnerShift = partnerDetail.shift.type
-    val partnerConfig = partnerDetail.shift.config
+    val myShift = myDetail.shift.type
+    val myColor = myConfig?.color ?: myShift?.color ?: muted
+    val myLabel = myConfig?.label ?: myShift?.label ?: "미설정"
+    val myEmoji = myConfig?.emoji ?: myShift?.emoji ?: "📋"
+    val myTime = myConfig?.defaultTimeRange ?: myShift?.defaultTimeRange ?: ""
+
+    val hasPartner = partnerDetail.name.isNotBlank()
 
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(ColorProvider(darkBg, darkBg))
-            .cornerRadius(16.dp)
+            .cornerRadius(20.dp)
             .clickable(actionStartActivity<MainActivity>())
             .padding(10.dp)
     ) {
         Column(modifier = GlanceModifier.fillMaxSize()) {
-            // 날짜 헤더
-            Text(
-                text = today.format(DateTimeFormatter.ofPattern("M월 d일 (E)")),
-                style = TextStyle(color = ColorProvider(purple, purple), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-            )
-            Spacer(modifier = GlanceModifier.height(4.dp))
-
-            // ── 내 영역 (7) ──
-            Column(modifier = GlanceModifier.defaultWeight()) {
-                // 근무
-                val myColor = myConfig?.color ?: myShift?.color ?: muted
-                val myLabel = myConfig?.label ?: myShift?.label ?: "미설정"
-                val myEmoji = myConfig?.emoji ?: myShift?.emoji ?: "📋"
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(myEmoji, style = TextStyle(fontSize = 14.sp))
-                    Spacer(modifier = GlanceModifier.width(4.dp))
-                    Text(
-                        text = myLabel,
-                        style = TextStyle(color = ColorProvider(myColor, myColor), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    )
-                    if (myShift != null || myConfig != null) {
-                        val timeRange = myConfig?.defaultTimeRange ?: myShift?.timeRange ?: ""
-                        if (timeRange.isNotBlank()) {
-                            Spacer(modifier = GlanceModifier.width(4.dp))
-                            Text(timeRange, style = TextStyle(color = ColorProvider(myColor.copy(alpha = 0.5f), myColor.copy(alpha = 0.5f)), fontSize = 9.sp))
-                        }
-                    }
-                }
-
-                // 알바
-                if (myDetail.shift.hasAlba) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("💼", style = TextStyle(fontSize = 10.sp))
-                        Spacer(modifier = GlanceModifier.width(4.dp))
-                        Text("알바", style = TextStyle(color = ColorProvider(albaColor, albaColor), fontSize = 11.sp, fontWeight = FontWeight.Bold))
-                    }
-                }
-
-                // 메모
-                if (!myDetail.memo.isNullOrBlank()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("📝", style = TextStyle(fontSize = 10.sp))
-                        Spacer(modifier = GlanceModifier.width(4.dp))
-                        Text(myDetail.memo, style = TextStyle(color = ColorProvider(memoColor, memoColor), fontSize = 10.sp))
-                    }
-                }
-
-                // 할일
-                myDetail.todoTexts.forEach { todo ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(todo, style = TextStyle(color = ColorProvider(todoColor, todoColor), fontSize = 9.sp))
-                    }
-                }
-
-                // 감정
+            // 날짜 + 감정
+            Row(
+                modifier = GlanceModifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = today.format(DateTimeFormatter.ofPattern("M/d (E)")),
+                    style = TextStyle(color = ColorProvider(accent, accent), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                )
                 if (myDetail.mood != null) {
+                    Spacer(modifier = GlanceModifier.width(4.dp))
                     Text(myDetail.mood, style = TextStyle(fontSize = 12.sp))
                 }
             }
 
-            // 구분선
-            Box(modifier = GlanceModifier.fillMaxWidth().height(1.dp).background(ColorProvider(divider, divider))) {}
-            Spacer(modifier = GlanceModifier.height(3.dp))
+            Spacer(modifier = GlanceModifier.height(6.dp))
 
-            // ── 상대 영역 (3) ──
-            val partnerName = partnerDetail.name.ifBlank { "상대" }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("👤 $partnerName", style = TextStyle(color = ColorProvider(muted, muted), fontSize = 9.sp))
-            }
-            Spacer(modifier = GlanceModifier.height(2.dp))
-            // 근무
-            val pColor = partnerConfig?.color ?: partnerShift?.color
-            val pLabel = partnerConfig?.label ?: partnerShift?.label
-            if (pColor != null && pLabel != null) {
-                Box(
-                    modifier = GlanceModifier
-                        .cornerRadius(4.dp)
-                        .background(ColorProvider(pColor.copy(alpha = 0.85f), pColor.copy(alpha = 0.85f)))
-                        .padding(horizontal = 6.dp, vertical = 1.dp)
-                ) {
-                    Text(pLabel, style = TextStyle(color = ColorProvider(Color.White, Color.White), fontSize = 10.sp, fontWeight = FontWeight.Bold))
+            // 내 근무 카드
+            Box(
+                modifier = GlanceModifier
+                    .fillMaxWidth()
+                    .cornerRadius(12.dp)
+                    .background(ColorProvider(cardBg, cardBg))
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(myEmoji, style = TextStyle(fontSize = 18.sp))
+                        Spacer(modifier = GlanceModifier.width(6.dp))
+                        Column {
+                            Text(
+                                text = myLabel,
+                                style = TextStyle(
+                                    color = ColorProvider(myColor, myColor),
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                            if (myTime.isNotBlank()) {
+                                Text(
+                                    myTime,
+                                    style = TextStyle(
+                                        color = ColorProvider(muted, muted),
+                                        fontSize = 9.sp
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    if (myDetail.shift.hasAlba) {
+                        Spacer(modifier = GlanceModifier.height(3.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("💼", style = TextStyle(fontSize = 10.sp))
+                            Spacer(modifier = GlanceModifier.width(3.dp))
+                            Text(
+                                "알바",
+                                style = TextStyle(
+                                    color = ColorProvider(albaColor, albaColor),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                        }
+                    }
                 }
             }
-            // 알바
-            if (partnerDetail.shift.hasAlba) {
-                Spacer(modifier = GlanceModifier.height(2.dp))
-                Box(
-                    modifier = GlanceModifier
-                        .cornerRadius(4.dp)
-                        .background(ColorProvider(albaColor.copy(alpha = 0.85f), albaColor.copy(alpha = 0.85f)))
-                        .padding(horizontal = 6.dp, vertical = 1.dp)
-                ) {
-                    Text("알바", style = TextStyle(color = ColorProvider(Color.White, Color.White), fontSize = 9.sp, fontWeight = FontWeight.Bold))
-                }
-            }
+
+            Spacer(modifier = GlanceModifier.height(4.dp))
+
             // 메모
-            if (!partnerDetail.memo.isNullOrBlank()) {
+            if (!myDetail.memo.isNullOrBlank()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("📝", style = TextStyle(fontSize = 9.sp))
+                    Spacer(modifier = GlanceModifier.width(3.dp))
+                    Text(
+                        myDetail.memo.take(20),
+                        style = TextStyle(color = ColorProvider(memoColor, memoColor), fontSize = 9.sp)
+                    )
+                }
                 Spacer(modifier = GlanceModifier.height(2.dp))
+            }
+
+            // 할일
+            myDetail.todoTexts.forEach { todo ->
+                Text(
+                    todo.take(18),
+                    style = TextStyle(color = ColorProvider(todoColor, todoColor), fontSize = 9.sp)
+                )
+            }
+
+            // 하단: 상대 정보
+            if (hasPartner) {
+                Spacer(modifier = GlanceModifier.defaultWeight())
                 Box(
                     modifier = GlanceModifier
-                        .cornerRadius(4.dp)
-                        .background(ColorProvider(memoColor.copy(alpha = 0.7f), memoColor.copy(alpha = 0.7f)))
-                        .padding(horizontal = 6.dp, vertical = 1.dp)
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(ColorProvider(divider, divider))
+                ) {}
+                Spacer(modifier = GlanceModifier.height(4.dp))
+
+                val pConfig = partnerDetail.shift.config
+                val pShift = partnerDetail.shift.type
+                val pColor = pConfig?.color ?: pShift?.color ?: muted
+                val pLabel = pConfig?.shortLabel ?: pShift?.shortLabel ?: "─"
+                val pEmoji = pConfig?.emoji ?: pShift?.emoji ?: ""
+
+                Row(
+                    modifier = GlanceModifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(partnerDetail.memo, style = TextStyle(color = ColorProvider(Color.White, Color.White), fontSize = 9.sp))
+                    Text(
+                        "💕 ${partnerDetail.name}",
+                        style = TextStyle(color = ColorProvider(muted, muted), fontSize = 9.sp)
+                    )
+                    Spacer(modifier = GlanceModifier.width(6.dp))
+                    Box(
+                        modifier = GlanceModifier
+                            .cornerRadius(6.dp)
+                            .background(ColorProvider(pColor.copy(alpha = 0.2f), pColor.copy(alpha = 0.2f)))
+                            .padding(horizontal = 6.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            "$pEmoji $pLabel",
+                            style = TextStyle(
+                                color = ColorProvider(pColor, pColor),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                    }
+                    if (partnerDetail.shift.hasAlba) {
+                        Spacer(modifier = GlanceModifier.width(4.dp))
+                        Box(
+                            modifier = GlanceModifier
+                                .cornerRadius(6.dp)
+                                .background(ColorProvider(albaColor.copy(alpha = 0.2f), albaColor.copy(alpha = 0.2f)))
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                "💼",
+                                style = TextStyle(fontSize = 9.sp)
+                            )
+                        }
+                    }
                 }
             }
         }
