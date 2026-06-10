@@ -131,13 +131,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             app.prefsManager.roomCode.collect { code ->
                 if (code.isBlank()) {
-                    _uiState.update { it.copy(partnerName = "", viewingPartner = false) }
-                } else {
-                    app.supabaseSync?.friendName?.collect { name ->
-                        if (name.isNotBlank()) {
-                            _uiState.update { it.copy(partnerName = name) }
-                        }
-                    }
+                    _uiState.update { it.copy(partnerName = "", viewingPartner = false, friendShifts = emptyMap()) }
                 }
             }
         }

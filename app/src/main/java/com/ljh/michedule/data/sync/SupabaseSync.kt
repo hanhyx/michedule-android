@@ -255,46 +255,24 @@ class SupabaseSync(
             val deviceId = prefsManager.ensureDeviceId()
             val myName = prefsManager.myName.first()
 
-            // orphan 정리: 같은 user_name의 옛 device_id row 삭제, room에 최대 2 row만 유지
+            // orphan 정리: 3개 이상 row면 내 row + 상대 최신 1개만 남기고 삭제
             try {
                 val existing = client?.from(TABLE)
                     ?.select { filter { eq("room_code", code) } }
                     ?.decodeList<ScheduleRow>() ?: emptyList()
 
-                if (existing.size >= 2) {
-                    val otherRows = existing.filter { it.device_id != deviceId }
-                    // 나와 같은 이름의 옛 row → 재설치 고아
-                    val sameNameOrphans = otherRows.filter {
-                        it.user_name.isNotBlank() && it.user_name == myName
-                    }
-                    for (orphan in sameNameOrphans) {
+                if (existing.size > 2) {
+                    val extras = existing.filter { it.device_id != deviceId }
+                        .sortedByDescending { it.updated_at ?: "" }
+                        .drop(1)
+                    for (extra in extras) {
                         client?.from(TABLE)?.delete {
                             filter {
                                 eq("room_code", code)
-                                eq("device_id", orphan.device_id)
+                                eq("device_id", extra.device_id)
                             }
                         }
-                        Log.d(TAG, "Cleaned same-name orphan: ${orphan.device_id}")
-                    }
-
-                    // 정리 후에도 3+ row면 가장 오래된 것 제거 (비정상 케이스 방어)
-                    val afterClean = client?.from(TABLE)
-                        ?.select { filter { eq("room_code", code) } }
-                        ?.decodeList<ScheduleRow>() ?: emptyList()
-                    if (afterClean.size > 2) {
-                        val myRow = afterClean.find { it.device_id == deviceId }
-                        val extras = afterClean.filter { it.device_id != deviceId }
-                            .sortedByDescending { it.updated_at ?: "" }
-                            .drop(1) // 상대 최신 1개만 유지
-                        for (extra in extras) {
-                            client?.from(TABLE)?.delete {
-                                filter {
-                                    eq("room_code", code)
-                                    eq("device_id", extra.device_id)
-                                }
-                            }
-                            Log.d(TAG, "Cleaned extra orphan: ${extra.device_id}")
-                        }
+                        Log.d(TAG, "Cleaned orphan: ${extra.device_id} (${extra.user_name})")
                     }
                 }
             } catch (e: Exception) {
