@@ -502,63 +502,68 @@ private fun CellPartnerTag(
             // 닉네임
             val displayName = partnerName.ifBlank { "상대" }
             Text(
-                displayName.take(3),
+                displayName.take(4),
                 fontSize = 7.sp,
                 color = TextMuted,
                 lineHeight = 8.sp,
                 maxLines = 1
             )
-            // 근무유형 배지
-            Text(
-                partnerShift.shortLabel,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                lineHeight = 10.sp,
-                maxLines = 1,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(partnerShift.color.copy(alpha = 0.85f))
-                    .padding(horizontal = 3.dp)
-            )
-            // 알바 배지
-            if (partnerHasAlba) {
+            // 근무 + 알바 한 줄
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    "알바",
-                    fontSize = 8.sp,
+                    partnerShift.shortLabel,
+                    fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
-                    lineHeight = 9.sp,
+                    lineHeight = 10.sp,
                     maxLines = 1,
                     modifier = Modifier
                         .clip(RoundedCornerShape(2.dp))
-                        .background(ShiftAlba.copy(alpha = 0.85f))
+                        .background(partnerShift.color.copy(alpha = 0.85f))
                         .padding(horizontal = 3.dp)
                 )
+                if (partnerHasAlba) {
+                    Text(
+                        "알",
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        lineHeight = 9.sp,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(ShiftAlba.copy(alpha = 0.85f))
+                            .padding(horizontal = 2.dp)
+                    )
+                }
             }
-            // 메모 배지
+            // 메모
             if (!partnerMemo.isNullOrBlank()) {
                 Text(
-                    partnerMemo,
+                    "💬$partnerMemo",
                     fontSize = 7.sp,
-                    color = Color.White,
+                    color = Color(0xFF93C5FD),
                     lineHeight = 8.sp,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(Color(0xFF60A5FA).copy(alpha = 0.7f))
-                        .padding(horizontal = 3.dp)
+                    overflow = TextOverflow.Ellipsis
                 )
             }
-            // 감정 + 할일
-            if (partnerMood != null || partnerTodoCount > 0) {
+            // 할일 + 감정
+            if (partnerTodoCount > 0 || partnerMood != null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     if (partnerMood != null) {
                         Text(partnerMood, fontSize = 8.sp, lineHeight = 9.sp)
                     }
                     if (partnerTodoCount > 0) {
-                        Text("📋$partnerTodoCount", fontSize = 7.sp, color = TextMuted, lineHeight = 8.sp)
+                        Text(
+                            "📋$partnerTodoCount",
+                            fontSize = 7.sp,
+                            color = Color(0xFF6EE7B7),
+                            lineHeight = 8.sp
+                        )
                     }
                 }
             }
