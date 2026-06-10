@@ -9,5 +9,7 @@ data class FriendShiftEntity(
     val type: String,
     val friendName: String = "",
     val hasAlba: Boolean = false,
-    val memo: String? = null
+    val memo: String? = null,
+    val mood: String? = null,
+    val todoCount: Int = 0
 )

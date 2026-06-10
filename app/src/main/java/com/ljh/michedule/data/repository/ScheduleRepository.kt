@@ -29,6 +29,8 @@ class ScheduleRepository(private val db: AppDatabase) {
     }
 
     suspend fun getAllShifts(): List<ShiftEntity> = shiftDao.getAllShifts()
+    suspend fun getAllMoods(): List<MoodEntity> = moodDao.getAllMoods()
+    suspend fun getAllTodos(): List<TodoEntity> = todoDao.getAllTodos()
 
     suspend fun setShift(date: LocalDate, type: String) {
         val existing = shiftDao.getShift(date.toString())

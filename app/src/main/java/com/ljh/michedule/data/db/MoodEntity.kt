@@ -14,6 +14,9 @@ data class MoodEntity(
 
 @Dao
 interface MoodDao {
+    @Query("SELECT * FROM moods ORDER BY date")
+    suspend fun getAllMoods(): List<MoodEntity>
+
     @Query("SELECT * FROM moods WHERE date = :date ORDER BY createdAt DESC LIMIT 1")
     fun getMoodForDate(date: String): Flow<MoodEntity?>
 

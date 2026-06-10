@@ -32,6 +32,8 @@ data class ScheduleRow(
     val shifts: JsonObject = JsonObject(emptyMap()),
     val memos: JsonObject = JsonObject(emptyMap()),
     val albas: JsonObject = JsonObject(emptyMap()),
+    val moods: JsonObject = JsonObject(emptyMap()),
+    val todo_counts: JsonObject = JsonObject(emptyMap()),
     val updated_at: String? = null
 )
 
@@ -134,6 +136,14 @@ class SupabaseSync(
                 val m = (value as? JsonPrimitive)?.content
                 if (!m.isNullOrBlank()) date to m else null
             }.toMap()
+            val moodMap = friendRow.moods.mapNotNull { (date, value) ->
+                val m = (value as? JsonPrimitive)?.content
+                if (!m.isNullOrBlank()) date to m else null
+            }.toMap()
+            val todoCountMap = friendRow.todo_counts.mapNotNull { (date, value) ->
+                val c = (value as? JsonPrimitive)?.intOrNull
+                if (c != null && c > 0) date to c else null
+            }.toMap()
 
             friendRow.shifts.forEach { (date, value) ->
                 val type = (value as? JsonPrimitive)?.content ?: return@forEach
@@ -144,7 +154,9 @@ class SupabaseSync(
                         type = type,
                         friendName = friendRow.user_name,
                         hasAlba = date in albaSet,
-                        memo = memoMap[date]
+                        memo = memoMap[date],
+                        mood = moodMap[date],
+                        todoCount = todoCountMap[date] ?: 0
                     )
                 )
             }
@@ -244,13 +256,30 @@ class SupabaseSync(
                 }
             }
 
+            val allMoods = repo.getAllMoods()
+            val moodsJson = buildJsonObject {
+                allMoods.forEach { m ->
+                    put(m.date, m.emoji)
+                }
+            }
+
+            val allTodos = repo.getAllTodos()
+            val todoCounts = allTodos.groupBy { it.date }.mapValues { it.value.size }
+            val todoCountsJson = buildJsonObject {
+                todoCounts.forEach { (date, count) ->
+                    put(date, count)
+                }
+            }
+
             val row = ScheduleRow(
                 room_code = code,
                 device_id = deviceId,
                 user_name = myName,
                 shifts = shiftsJson,
                 memos = memosJson,
-                albas = albasJson
+                albas = albasJson,
+                moods = moodsJson,
+                todo_counts = todoCountsJson
             )
 
             client?.from(TABLE)?.upsert(row)

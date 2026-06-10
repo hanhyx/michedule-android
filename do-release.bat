@@ -1,8 +1,10 @@
 @echo off
 cd /d C:\Users\ljh\AndroidStudioProjects\Michedule
 git add -A
-git commit -m "v2.3.1: compact UI, maximize calendar area"
-git push origin master
-git tag -a v2.3.1 -m "v2.3.1"
-git push origin v2.3.1
-gh release create v2.3.1 "app\build\outputs\apk\debug\app-debug.apk#Michedule-v2.3.1.apk" --title "v2.3.1" --notes "Compact banner/tabs/stats, maximize calendar cell height, partner name sync fix"
+git commit -m "v2.4.0: partner detail badges, mood/todo sync, widget redesign"
+git tag -d v2.4.0 2>nul
+git push origin :refs/tags/v2.4.0 2>nul
+git tag v2.4.0
+git push origin main --tags
+gh release delete v2.4.0 -y 2>nul
+gh release create v2.4.0 app/build/outputs/apk/release/app-release.apk --title "v2.4.0" --notes "Partner detail badges, mood/todo sync, widget redesign"

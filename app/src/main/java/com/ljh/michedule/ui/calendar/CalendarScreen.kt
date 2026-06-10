@@ -325,11 +325,12 @@ private fun MonthlyCalendarGrid(
                             partnerShift = friendShift,
                             partnerHasAlba = friendShiftEntity?.hasAlba ?: false,
                             partnerMemo = friendShiftEntity?.memo,
+                            partnerMood = friendShiftEntity?.mood,
+                            partnerTodoCount = friendShiftEntity?.todoCount ?: 0,
                             partnerName = uiState.partnerName.ifBlank { friendShiftEntity?.friendName ?: "" },
                             memo = memo,
                             events = events ?: emptyList(),
                             mood = mood?.emoji,
-                            partnerMood = null,
                             isToday = date == today,
                             isSunday = col == 0,
                             isSaturday = col == 6,
@@ -357,11 +358,12 @@ private fun CoupleCell(
     partnerShift: ShiftType?,
     partnerHasAlba: Boolean,
     partnerMemo: String?,
+    partnerMood: String?,
+    partnerTodoCount: Int,
     partnerName: String,
     memo: String?,
     events: List<EventEntity>,
     mood: String?,
-    partnerMood: String?,
     isToday: Boolean,
     isSunday: Boolean,
     isSaturday: Boolean,
@@ -371,7 +373,9 @@ private fun CoupleCell(
 ) {
     val borderMod = if (isToday) {
         Modifier.border(2.dp, Purple80, RoundedCornerShape(6.dp))
-    } else Modifier
+    } else {
+        Modifier.border(0.5.dp, DarkBorder.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+    }
 
     Column(
         modifier = modifier
@@ -381,93 +385,68 @@ private fun CoupleCell(
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 2.dp, vertical = 1.dp)
     ) {
-        CellDateRow(day, mood, partnerMood, isToday, isSunday, isSaturday)
+        // ── 내 영역 (7) ──
+        Column(modifier = Modifier.weight(7f)) {
+            CellDateRow(day, mood, partnerMood, isToday, isSunday, isSaturday)
 
-        if (myShift != null) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(myShift.bgColor.copy(alpha = 0.5f))
-                    .padding(horizontal = 2.dp, vertical = 1.dp)
-            ) {
-                Text(
-                    text = myShift.label,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = myShift.color,
-                    maxLines = 1,
-                    lineHeight = 12.sp
-                )
-                if (myShift != ShiftType.OFF) {
+            if (myShift != null) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(myShift.bgColor.copy(alpha = 0.5f))
+                        .padding(horizontal = 2.dp, vertical = 1.dp)
+                ) {
                     Text(
-                        text = myShift.timeRange.replace(" - ", "~"),
-                        fontSize = 7.sp,
-                        color = myShift.color.copy(alpha = 0.7f),
+                        text = myShift.label,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = myShift.color,
                         maxLines = 1,
-                        lineHeight = 8.sp
+                        lineHeight = 12.sp
                     )
+                    if (myShift != ShiftType.OFF) {
+                        Text(
+                            text = myShift.timeRange.replace(" - ", "~"),
+                            fontSize = 7.sp,
+                            color = myShift.color.copy(alpha = 0.7f),
+                            maxLines = 1,
+                            lineHeight = 8.sp
+                        )
+                    }
                 }
+            }
+
+            if (hasAlba) {
+                Spacer(modifier = Modifier.height(1.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(ShiftAlba.copy(alpha = 0.15f))
+                        .padding(horizontal = 2.dp, vertical = 1.dp)
+                ) {
+                    Text("알바", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = ShiftAlba, maxLines = 1, lineHeight = 10.sp)
+                    val albaTime = ShiftType.ALBA.timeRange
+                    if (albaTime != "시간 미정") {
+                        Text(albaTime.replace(" - ", "~"), fontSize = 7.sp, color = ShiftAlba.copy(alpha = 0.7f), maxLines = 1, lineHeight = 8.sp)
+                    }
+                }
+            }
+
+            if (!memo.isNullOrBlank()) {
+                Text(memo, fontSize = 7.sp, color = EventPersonal, maxLines = 1, overflow = TextOverflow.Ellipsis, lineHeight = 8.sp, modifier = Modifier.padding(top = 1.dp))
+            }
+
+            events.take(1).forEach { event ->
+                Text(event.title, fontSize = 7.sp, fontWeight = FontWeight.Medium, color = Color(event.color), maxLines = 1, overflow = TextOverflow.Ellipsis, lineHeight = 8.sp)
             }
         }
 
-        if (hasAlba) {
-            Spacer(modifier = Modifier.height(1.dp))
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(ShiftAlba.copy(alpha = 0.15f))
-                    .padding(horizontal = 2.dp, vertical = 1.dp)
-            ) {
-                Text(
-                    text = "알바",
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ShiftAlba,
-                    maxLines = 1,
-                    lineHeight = 10.sp
-                )
-                val albaTime = ShiftType.ALBA.timeRange
-                if (albaTime != "시간 미정") {
-                    Text(
-                        text = albaTime.replace(" - ", "~"),
-                        fontSize = 7.sp,
-                        color = ShiftAlba.copy(alpha = 0.7f),
-                        maxLines = 1,
-                        lineHeight = 8.sp
-                    )
-                }
-            }
+        // ── 상대 영역 (3) ──
+        Column(modifier = Modifier.weight(3f)) {
+            CellPartnerTag(partnerShift, partnerHasAlba, partnerMemo, partnerMood, partnerTodoCount, partnerName)
         }
-
-        if (!memo.isNullOrBlank()) {
-            Text(
-                text = memo,
-                fontSize = 7.sp,
-                color = EventPersonal,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = 8.sp,
-                modifier = Modifier.padding(top = 1.dp)
-            )
-        }
-
-        events.take(1).forEach { event ->
-            Text(
-                text = event.title,
-                fontSize = 7.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(event.color),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = 8.sp
-            )
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        CellPartnerTag(partnerShift, partnerHasAlba, partnerMemo, partnerName)
     }
 }
 
@@ -509,54 +488,79 @@ private fun CellPartnerTag(
     partnerShift: ShiftType?,
     partnerHasAlba: Boolean = false,
     partnerMemo: String? = null,
+    partnerMood: String? = null,
+    partnerTodoCount: Int = 0,
     partnerName: String = ""
 ) {
     if (partnerShift != null) {
-        val displayName = partnerName.take(2).ifBlank { "♡" }
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(3.dp))
-                .background(partnerShift.bgColor.copy(alpha = 0.3f))
-                .padding(horizontal = 3.dp, vertical = 2.dp)
+                .fillMaxSize()
+                .padding(start = 2.dp, end = 1.dp, top = 1.dp, bottom = 1.dp),
+            verticalArrangement = Arrangement.spacedBy(1.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
+            // 닉네임
+            val displayName = partnerName.ifBlank { "상대" }
+            Text(
+                displayName.take(3),
+                fontSize = 7.sp,
+                color = TextMuted,
+                lineHeight = 8.sp,
+                maxLines = 1
+            )
+            // 근무유형 배지
+            Text(
+                partnerShift.shortLabel,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                lineHeight = 10.sp,
+                maxLines = 1,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(partnerShift.color.copy(alpha = 0.85f))
+                    .padding(horizontal = 3.dp)
+            )
+            // 알바 배지
+            if (partnerHasAlba) {
                 Text(
-                    text = displayName,
+                    "알바",
                     fontSize = 8.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextMuted,
-                    lineHeight = 9.sp
+                    color = Color.White,
+                    lineHeight = 9.sp,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(ShiftAlba.copy(alpha = 0.85f))
+                        .padding(horizontal = 3.dp)
                 )
-                Text(
-                    text = partnerShift.label,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = partnerShift.color,
-                    lineHeight = 10.sp
-                )
-                if (partnerHasAlba) {
-                    Text(
-                        text = "+알",
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ShiftAlba,
-                        lineHeight = 9.sp
-                    )
-                }
             }
+            // 메모 배지
             if (!partnerMemo.isNullOrBlank()) {
                 Text(
-                    text = "💬$partnerMemo",
+                    partnerMemo,
                     fontSize = 7.sp,
-                    color = TextSecondary,
+                    color = Color.White,
+                    lineHeight = 8.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    lineHeight = 8.sp
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Color(0xFF60A5FA).copy(alpha = 0.7f))
+                        .padding(horizontal = 3.dp)
                 )
+            }
+            // 감정 + 할일
+            if (partnerMood != null || partnerTodoCount > 0) {
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    if (partnerMood != null) {
+                        Text(partnerMood, fontSize = 8.sp, lineHeight = 9.sp)
+                    }
+                    if (partnerTodoCount > 0) {
+                        Text("📋$partnerTodoCount", fontSize = 7.sp, color = TextMuted, lineHeight = 8.sp)
+                    }
+                }
             }
         }
     }

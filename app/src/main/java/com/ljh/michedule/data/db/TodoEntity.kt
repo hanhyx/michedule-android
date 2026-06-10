@@ -16,6 +16,9 @@ data class TodoEntity(
 
 @Dao
 interface TodoDao {
+    @Query("SELECT * FROM todos ORDER BY date")
+    suspend fun getAllTodos(): List<TodoEntity>
+
     @Query("SELECT * FROM todos WHERE date = :date ORDER BY sortOrder, time, id")
     fun getTodosForDate(date: String): Flow<List<TodoEntity>>
 
