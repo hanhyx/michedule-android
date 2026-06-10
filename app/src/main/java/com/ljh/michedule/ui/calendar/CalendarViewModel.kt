@@ -29,7 +29,8 @@ data class CalendarUiState(
     val showDayDetail: Boolean = false,
     val myName: String = "",
     val partnerName: String = "",
-    val isLocked: Boolean = false
+    val isLocked: Boolean = false,
+    val viewingPartner: Boolean = false
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -139,6 +140,10 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             val newLocked = !_uiState.value.isLocked
             app.prefsManager.setCalendarLocked(newLocked)
         }
+    }
+
+    fun toggleViewingPartner() {
+        _uiState.update { it.copy(viewingPartner = !it.viewingPartner) }
     }
 
     fun setShift(date: LocalDate, type: ShiftType) {
