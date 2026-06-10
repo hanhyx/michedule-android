@@ -69,19 +69,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 .flatMapLatest { month -> repo.getFriendShiftsForMonth(month) }
                 .collect { shifts ->
                     _uiState.update { state ->
-                        if (shifts.isEmpty()) {
-                            state.copy(
-                                friendShifts = emptyMap(),
-                                partnerName = "",
-                                viewingPartner = false
-                            )
-                        } else {
-                            val nameFromDb = shifts.firstOrNull { it.friendName.isNotBlank() }?.friendName ?: ""
-                            state.copy(
-                                friendShifts = shifts.associateBy { s -> s.date },
-                                partnerName = nameFromDb.ifBlank { state.partnerName }
-                            )
-                        }
+                        state.copy(friendShifts = shifts.associateBy { s -> s.date })
                     }
                 }
         }
@@ -129,9 +117,15 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         }
 
         viewModelScope.launch {
+            app.prefsManager.partnerName.collect { name ->
+                _uiState.update { it.copy(partnerName = name) }
+            }
+        }
+
+        viewModelScope.launch {
             app.prefsManager.roomCode.collect { code ->
                 if (code.isBlank()) {
-                    _uiState.update { it.copy(partnerName = "", viewingPartner = false, friendShifts = emptyMap()) }
+                    _uiState.update { it.copy(viewingPartner = false, friendShifts = emptyMap()) }
                 }
             }
         }

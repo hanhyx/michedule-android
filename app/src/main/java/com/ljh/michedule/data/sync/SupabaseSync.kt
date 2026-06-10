@@ -131,6 +131,9 @@ class SupabaseSync(
             val otherRows = rows.filter { it.device_id != deviceId }
             val friendRow = otherRows.firstOrNull() ?: return
             _friendName.value = friendRow.user_name
+            if (friendRow.user_name.isNotBlank()) {
+                prefsManager.setPartnerName(friendRow.user_name)
+            }
 
             val newShiftsMap = mutableMapOf<String, String>()
             val friendShifts = mutableListOf<FriendShiftEntity>()
