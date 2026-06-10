@@ -19,6 +19,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.ljh.michedule.MainActivity
 import com.ljh.michedule.data.db.AppDatabase
+import com.ljh.michedule.data.db.ShiftTypeConfig
 import com.ljh.michedule.model.ShiftType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
@@ -28,6 +29,7 @@ import java.time.format.DateTimeFormatter
 
 data class WidgetShiftInfo(
     val type: ShiftType?,
+    val config: ShiftTypeConfig? = null,
     val hasAlba: Boolean = false
 )
 
@@ -47,6 +49,7 @@ class TodayWidget : GlanceAppWidget() {
         val db = AppDatabase.getInstance(context)
 
         val (myDetail, partnerDetail) = withContext(Dispatchers.IO) {
+            val typeConfigs = try { db.shiftTypeConfigDao().getAll().associateBy { it.id } } catch (_: Exception) { emptyMap() }
             val myEntity = db.shiftDao().getShift(todayStr)
             val myMood = try { db.moodDao().getMoodForDate(todayStr).firstOrNull() } catch (_: Exception) { null }
             val myTodos = try { db.todoDao().getTodosForDate(todayStr).firstOrNull() ?: emptyList() } catch (_: Exception) { emptyList() }
@@ -54,6 +57,7 @@ class TodayWidget : GlanceAppWidget() {
             val my = WidgetDayDetail(
                 shift = WidgetShiftInfo(
                     type = myEntity?.let { ShiftType.fromString(it.type) },
+                    config = myEntity?.type?.let { typeConfigs[it] },
                     hasAlba = myEntity?.hasAlba ?: false
                 ),
                 memo = myEntity?.memo,
@@ -67,6 +71,7 @@ class TodayWidget : GlanceAppWidget() {
                 WidgetDayDetail(
                     shift = WidgetShiftInfo(
                         type = fe?.let { ShiftType.fromString(it.type) },
+                        config = fe?.type?.let { typeConfigs[it] },
                         hasAlba = fe?.hasAlba ?: false
                     ),
                     memo = fe?.memo,
@@ -98,7 +103,9 @@ private fun TodayWidgetContent(
     val memoColor = Color(0xFF60A5FA)
     val todoColor = Color(0xFF34D399)
     val myShift = myDetail.shift.type
+    val myConfig = myDetail.shift.config
     val partnerShift = partnerDetail.shift.type
+    val partnerConfig = partnerDetail.shift.config
 
     Box(
         modifier = GlanceModifier
@@ -119,16 +126,22 @@ private fun TodayWidgetContent(
             // ── 내 영역 (7) ──
             Column(modifier = GlanceModifier.defaultWeight()) {
                 // 근무
+                val myColor = myConfig?.color ?: myShift?.color ?: muted
+                val myLabel = myConfig?.label ?: myShift?.label ?: "미설정"
+                val myEmoji = myConfig?.emoji ?: myShift?.emoji ?: "📋"
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(myShift?.emoji ?: "📋", style = TextStyle(fontSize = 14.sp))
+                    Text(myEmoji, style = TextStyle(fontSize = 14.sp))
                     Spacer(modifier = GlanceModifier.width(4.dp))
                     Text(
-                        text = myShift?.label ?: "미설정",
-                        style = TextStyle(color = ColorProvider(myShift?.color ?: muted, myShift?.color ?: muted), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        text = myLabel,
+                        style = TextStyle(color = ColorProvider(myColor, myColor), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     )
-                    if (myShift != null) {
-                        Spacer(modifier = GlanceModifier.width(4.dp))
-                        Text(myShift.timeRange, style = TextStyle(color = ColorProvider(myShift.color.copy(alpha = 0.5f), myShift.color.copy(alpha = 0.5f)), fontSize = 9.sp))
+                    if (myShift != null || myConfig != null) {
+                        val timeRange = myConfig?.defaultTimeRange ?: myShift?.timeRange ?: ""
+                        if (timeRange.isNotBlank()) {
+                            Spacer(modifier = GlanceModifier.width(4.dp))
+                            Text(timeRange, style = TextStyle(color = ColorProvider(myColor.copy(alpha = 0.5f), myColor.copy(alpha = 0.5f)), fontSize = 9.sp))
+                        }
                     }
                 }
 
@@ -138,8 +151,6 @@ private fun TodayWidgetContent(
                         Text("💼", style = TextStyle(fontSize = 10.sp))
                         Spacer(modifier = GlanceModifier.width(4.dp))
                         Text("알바", style = TextStyle(color = ColorProvider(albaColor, albaColor), fontSize = 11.sp, fontWeight = FontWeight.Bold))
-                        Spacer(modifier = GlanceModifier.width(4.dp))
-                        Text(ShiftType.ALBA.timeRange, style = TextStyle(color = ColorProvider(albaColor.copy(alpha = 0.6f), albaColor.copy(alpha = 0.6f)), fontSize = 9.sp))
                     }
                 }
 
@@ -176,14 +187,16 @@ private fun TodayWidgetContent(
             }
             Spacer(modifier = GlanceModifier.height(2.dp))
             // 근무
-            if (partnerShift != null) {
+            val pColor = partnerConfig?.color ?: partnerShift?.color
+            val pLabel = partnerConfig?.label ?: partnerShift?.label
+            if (pColor != null && pLabel != null) {
                 Box(
                     modifier = GlanceModifier
                         .cornerRadius(4.dp)
-                        .background(ColorProvider(partnerShift.color.copy(alpha = 0.85f), partnerShift.color.copy(alpha = 0.85f)))
+                        .background(ColorProvider(pColor.copy(alpha = 0.85f), pColor.copy(alpha = 0.85f)))
                         .padding(horizontal = 6.dp, vertical = 1.dp)
                 ) {
-                    Text(partnerShift.label, style = TextStyle(color = ColorProvider(Color.White, Color.White), fontSize = 10.sp, fontWeight = FontWeight.Bold))
+                    Text(pLabel, style = TextStyle(color = ColorProvider(Color.White, Color.White), fontSize = 10.sp, fontWeight = FontWeight.Bold))
                 }
             }
             // 알바

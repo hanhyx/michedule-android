@@ -9,8 +9,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [ShiftEntity::class, EventEntity::class, FriendShiftEntity::class,
-        TodoEntity::class, MoodEntity::class, ShiftHistoryEntity::class, DatePlanEntity::class],
-    version = 7,
+        TodoEntity::class, MoodEntity::class, ShiftHistoryEntity::class, DatePlanEntity::class,
+        ShiftTypeConfig::class],
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -21,6 +22,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun moodDao(): MoodDao
     abstract fun shiftHistoryDao(): ShiftHistoryDao
     abstract fun datePlanDao(): DatePlanDao
+    abstract fun shiftTypeConfigDao(): ShiftTypeConfigDao
 
     companion object {
         @Volatile
@@ -98,6 +100,32 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `shift_type_configs` (
+                        `id` TEXT NOT NULL PRIMARY KEY,
+                        `label` TEXT NOT NULL,
+                        `shortLabel` TEXT NOT NULL,
+                        `emoji` TEXT NOT NULL,
+                        `colorHex` TEXT NOT NULL,
+                        `bgColorHex` TEXT NOT NULL,
+                        `defaultTimeRange` TEXT NOT NULL,
+                        `sortOrder` INTEGER NOT NULL,
+                        `inCycle` INTEGER NOT NULL,
+                        `isBuiltIn` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                ShiftTypeConfig.DEFAULTS.forEach { c ->
+                    db.execSQL(
+                        "INSERT OR IGNORE INTO shift_type_configs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        arrayOf(c.id, c.label, c.shortLabel, c.emoji, c.colorHex, c.bgColorHex,
+                            c.defaultTimeRange, c.sortOrder, if (c.inCycle) 1 else 0, if (c.isBuiltIn) 1 else 0)
+                    )
+                }
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -105,7 +133,19 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "michedule.db"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                .addCallback(object : Callback() {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        super.onCreate(db)
+                        ShiftTypeConfig.DEFAULTS.forEach { c ->
+                            db.execSQL(
+                                "INSERT OR IGNORE INTO shift_type_configs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                                arrayOf(c.id, c.label, c.shortLabel, c.emoji, c.colorHex, c.bgColorHex,
+                                    c.defaultTimeRange, c.sortOrder, if (c.inCycle) 1 else 0, if (c.isBuiltIn) 1 else 0)
+                            )
+                        }
+                    }
+                })
                 .build().also { INSTANCE = it }
             }
         }

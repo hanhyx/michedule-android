@@ -29,6 +29,7 @@ class PrefsManager(private val context: Context) {
         private val KEY_CUSTOM_TIME_RANGES = stringPreferencesKey("custom_time_ranges")
         private val KEY_ALARM_DISABLED_TYPES = stringPreferencesKey("alarm_disabled_types")
         private val KEY_SYNC_PAUSED = booleanPreferencesKey("sync_paused")
+        private val KEY_CONNECTION_MUTUAL = booleanPreferencesKey("connection_mutual")
 
         private fun generateCode(): String {
             val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -48,6 +49,7 @@ class PrefsManager(private val context: Context) {
     val alarmHoursBefore: Flow<Int> = context.dataStore.data.map { it[KEY_ALARM_HOURS_BEFORE] ?: 2 }
     val calendarLocked: Flow<Boolean> = context.dataStore.data.map { it[KEY_CALENDAR_LOCKED] ?: false }
     val syncPaused: Flow<Boolean> = context.dataStore.data.map { it[KEY_SYNC_PAUSED] ?: false }
+    val connectionMutual: Flow<Boolean> = context.dataStore.data.map { it[KEY_CONNECTION_MUTUAL] ?: false }
 
     suspend fun ensureMyCode(): String {
         var code = ""
@@ -103,11 +105,16 @@ class PrefsManager(private val context: Context) {
         context.dataStore.edit { it[KEY_SYNC_PAUSED] = paused }
     }
 
+    suspend fun setConnectionMutual(mutual: Boolean) {
+        context.dataStore.edit { it[KEY_CONNECTION_MUTUAL] = mutual }
+    }
+
     suspend fun clearPartner() {
         context.dataStore.edit {
             it.remove(KEY_PARTNER_CODE)
             it.remove(KEY_PARTNER_NAME)
             it.remove(KEY_SYNC_PAUSED)
+            it.remove(KEY_CONNECTION_MUTUAL)
         }
     }
 

@@ -7,8 +7,10 @@ import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.ljh.michedule.data.PrefsManager
+import com.ljh.michedule.data.ShiftTypeManager
 import com.ljh.michedule.data.db.DatePlanEntity
 import com.ljh.michedule.data.db.FriendShiftEntity
+import com.ljh.michedule.data.db.ShiftTypeConfig
 import com.ljh.michedule.data.repository.ScheduleRepository
 import com.ljh.michedule.model.ShiftType
 import io.github.jan.supabase.SupabaseClient
@@ -35,13 +37,15 @@ data class ScheduleRow(
     val moods: JsonObject = JsonObject(emptyMap()),
     val todo_counts: JsonObject = JsonObject(emptyMap()),
     val date_plans: JsonObject = JsonObject(emptyMap()),
+    val shift_types: JsonObject = JsonObject(emptyMap()),
     val updated_at: String? = null
 )
 
 class SupabaseSync(
     private val repo: ScheduleRepository,
     private val prefsManager: PrefsManager,
-    private val appContext: Context? = null
+    private val appContext: Context? = null,
+    private val shiftTypeManager: ShiftTypeManager? = null
 ) {
     private var client: SupabaseClient? = null
     private var channel: RealtimeChannel? = null
@@ -125,8 +129,46 @@ class SupabaseSync(
                 ?.decodeList<ScheduleRow>()
                 ?.firstOrNull() ?: return
 
+            val myCode = prefsManager.ensureMyCode()
+            val isMutual = friendRow.partner_code == myCode
+            val wasMutual = prefsManager.connectionMutual.first()
+
+            if (!isMutual) {
+                Log.d(TAG, "Connection not mutual: partner's partner_code=${friendRow.partner_code}, my code=$myCode")
+                prefsManager.setConnectionMutual(false)
+                repo.clearAllFriendData()
+
+                if (wasMutual) {
+                    Log.d(TAG, "Partner disconnected — auto-clearing connection on our side")
+                    prefsManager.clearPartner()
+                    uploadCurrentData()
+                }
+                return
+            }
+
             if (friendRow.user_name.isNotBlank()) {
                 prefsManager.setPartnerName(friendRow.user_name)
+            }
+            prefsManager.setConnectionMutual(true)
+
+            Log.d(TAG, "Mutual connection confirmed with $partnerCode")
+
+            if (friendRow.shift_types.isNotEmpty()) {
+                val partnerTypes = mutableMapOf<String, ShiftTypeConfig>()
+                friendRow.shift_types.forEach { (id, value) ->
+                    val obj = value as? JsonObject ?: return@forEach
+                    val label = (obj["label"] as? JsonPrimitive)?.content ?: return@forEach
+                    val short = (obj["short"] as? JsonPrimitive)?.content ?: label.take(1)
+                    val emoji = (obj["emoji"] as? JsonPrimitive)?.content ?: "📋"
+                    val color = (obj["color"] as? JsonPrimitive)?.content ?: "#FF808080"
+                    val bg = (obj["bg"] as? JsonPrimitive)?.content ?: "#33808080"
+                    partnerTypes[id] = ShiftTypeConfig(
+                        id = id, label = label, shortLabel = short, emoji = emoji,
+                        colorHex = color, bgColorHex = bg, defaultTimeRange = "",
+                        sortOrder = 0, inCycle = false, isBuiltIn = false
+                    )
+                }
+                shiftTypeManager?.setPartnerTypes(partnerTypes)
             }
 
             val newShiftsMap = mutableMapOf<String, String>()
@@ -224,8 +266,8 @@ class SupabaseSync(
 
         val summary = changes.take(5).joinToString("\n") { (date, old, new) ->
             val d = date.substring(5).replace("-", "/")
-            val oldLabel = old?.let { ShiftType.fromString(it)?.label } ?: "없음"
-            val newLabel = new?.let { ShiftType.fromString(it)?.label } ?: "삭제"
+            val oldLabel = old?.let { shiftTypeManager?.getById(it)?.label ?: ShiftType.fromString(it)?.label ?: it } ?: "없음"
+            val newLabel = new?.let { shiftTypeManager?.getById(it)?.label ?: ShiftType.fromString(it)?.label ?: it } ?: "삭제"
             "$d: $oldLabel → $newLabel"
         }
         val extra = if (changes.size > 5) "\n외 ${changes.size - 5}건" else ""
@@ -293,6 +335,18 @@ class SupabaseSync(
                 }
             }
 
+            val shiftTypesJson = buildJsonObject {
+                shiftTypeManager?.allTypes?.value?.forEach { config ->
+                    put(config.id, buildJsonObject {
+                        put("label", config.label)
+                        put("short", config.shortLabel)
+                        put("emoji", config.emoji)
+                        put("color", config.colorHex)
+                        put("bg", config.bgColorHex)
+                    })
+                }
+            }
+
             val row = ScheduleRow(
                 user_code = myCode,
                 user_name = myName,
@@ -302,7 +356,8 @@ class SupabaseSync(
                 albas = albasJson,
                 moods = moodsJson,
                 todo_counts = todoCountsJson,
-                date_plans = datePlansJson
+                date_plans = datePlansJson,
+                shift_types = shiftTypesJson
             )
 
             client?.from(TABLE)?.upsert(row)

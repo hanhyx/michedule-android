@@ -19,9 +19,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ljh.michedule.data.ShiftTypeManager
 import com.ljh.michedule.data.db.EventEntity
 import com.ljh.michedule.data.db.DatePlanEntity
 import com.ljh.michedule.data.db.FriendShiftEntity
+import com.ljh.michedule.data.db.ShiftTypeConfig
 import com.ljh.michedule.model.ShiftType
 import com.ljh.michedule.ui.theme.*
 import java.time.DayOfWeek
@@ -37,13 +39,14 @@ fun CalendarScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val stm = viewModel.shiftTypeManager
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(DarkBg)
     ) {
-        TodayHeroBanner(uiState)
+        TodayHeroBanner(uiState, stm)
 
         Box(
             modifier = Modifier.fillMaxWidth(),
@@ -67,9 +70,9 @@ fun CalendarScreen(
         }
 
         when (uiState.viewMode) {
-            ViewMode.MONTHLY -> MonthlyScreen(viewModel, uiState, onNavigateToAddEvent)
-            ViewMode.WEEKLY -> WeeklyTimelineScreen(viewModel, uiState)
-            ViewMode.DAILY -> DailyTimelineScreen(viewModel, uiState)
+            ViewMode.MONTHLY -> MonthlyScreen(viewModel, uiState, onNavigateToAddEvent, stm)
+            ViewMode.WEEKLY -> WeeklyTimelineScreen(viewModel, uiState, stm)
+            ViewMode.DAILY -> DailyTimelineScreen(viewModel, uiState, stm)
         }
     }
 
@@ -81,8 +84,10 @@ fun CalendarScreen(
             todos = uiState.todos,
             mood = uiState.currentMood,
             shiftHistory = uiState.shiftHistory,
+            shiftTypeManager = stm,
             onDismiss = { viewModel.closeDayDetail() },
             onShiftSelect = { type -> viewModel.setShift(uiState.selectedDate, type) },
+            onShiftSelectById = { typeId -> viewModel.setShiftById(uiState.selectedDate, typeId) },
             onShiftClear = { viewModel.clearShift(uiState.selectedDate) },
             onAlbaToggle = { hasAlba -> viewModel.toggleAlba(uiState.selectedDate, hasAlba) },
             onShiftTimeEdit = { type, range -> viewModel.updateShiftTimeRange(type, range) },
@@ -103,11 +108,11 @@ fun CalendarScreen(
 // ── Today's Schedule Compact Banner ──
 
 @Composable
-private fun TodayHeroBanner(uiState: CalendarUiState) {
+private fun TodayHeroBanner(uiState: CalendarUiState, stm: ShiftTypeManager) {
     val today = LocalDate.now()
     val todayStr = today.toString()
-    val myShift = uiState.shifts[todayStr]?.let { ShiftType.fromString(it.type) }
-    val partnerShift = uiState.friendShifts[todayStr]?.let { ShiftType.fromString(it.type) }
+    val myShift = uiState.shifts[todayStr]?.let { stm.getById(it.type) }
+    val partnerShift = uiState.friendShifts[todayStr]?.let { stm.getById(it.type) }
     val mood = uiState.moods[todayStr]
 
     val myDisplayName = uiState.myName.ifBlank { "나" }
@@ -209,9 +214,10 @@ private fun ViewModeToggle(mode: ViewMode, onModeChange: (ViewMode) -> Unit) {
 private fun MonthlyScreen(
     viewModel: CalendarViewModel,
     uiState: CalendarUiState,
-    onNavigateToAddEvent: (String) -> Unit
+    onNavigateToAddEvent: (String) -> Unit,
+    stm: ShiftTypeManager
 ) {
-    val hasPartner = uiState.partnerName.isNotBlank()
+    val hasPartner = uiState.partnerName.isNotBlank() && uiState.connectionMutual
 
     Column(modifier = Modifier.fillMaxSize()) {
         MonthHeader(
@@ -231,18 +237,19 @@ private fun MonthlyScreen(
 
         MonthlyCalendarGrid(
             uiState = uiState,
+            stm = stm,
             onShiftCycle = { date ->
                 if (!uiState.isLocked && !uiState.viewingPartner) {
-                    val current = uiState.shifts[date.toString()]?.let { ShiftType.fromString(it.type) }
-                    val next = cycleShift(current)
-                    if (next != null) viewModel.setShift(date, next)
+                    val currentId = uiState.shifts[date.toString()]?.type?.takeIf { it.isNotBlank() }
+                    val nextId = stm.cycleNext(currentId)
+                    if (nextId != null) viewModel.setShiftById(date, nextId)
                     else viewModel.clearShift(date)
                 }
             },
             onDateLongPress = { if (!uiState.viewingPartner) viewModel.selectDate(it) },
             modifier = Modifier.weight(1f)
         )
-        CompactStatsBar(uiState)
+        CompactStatsBar(uiState, stm)
     }
 }
 
@@ -317,19 +324,11 @@ private fun MonthHeader(yearMonth: YearMonth, onPrev: () -> Unit, onNext: () -> 
     }
 }
 
-private fun cycleShift(current: ShiftType?): ShiftType? = when (current) {
-    null -> ShiftType.DAY
-    ShiftType.DAY -> ShiftType.NIGHT
-    ShiftType.NIGHT -> ShiftType.OFF
-    ShiftType.OFF -> ShiftType.NIGHT_EARLY
-    ShiftType.NIGHT_EARLY -> null
-    ShiftType.ALBA -> null
-}
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MonthlyCalendarGrid(
     uiState: CalendarUiState,
+    stm: ShiftTypeManager,
     onShiftCycle: (LocalDate) -> Unit,
     onDateLongPress: (LocalDate) -> Unit,
     modifier: Modifier = Modifier
@@ -381,8 +380,9 @@ private fun MonthlyCalendarGrid(
                         if (uiState.viewingPartner) {
                             SoloCell(
                                 day = dayNum,
-                                shift = friendShiftEntity?.let { ShiftType.fromString(it.type) },
+                                shiftConfig = friendShiftEntity?.type?.let { stm.getById(it) },
                                 hasAlba = friendShiftEntity?.hasAlba ?: false,
+                                albaConfig = stm.getById("alba"),
                                 memo = friendShiftEntity?.memo,
                                 mood = friendShiftEntity?.mood,
                                 todoCount = friendShiftEntity?.todoCount ?: 0,
@@ -398,8 +398,9 @@ private fun MonthlyCalendarGrid(
                         } else {
                             SoloCell(
                                 day = dayNum,
-                                shift = shiftEntity?.let { ShiftType.fromString(it.type) },
+                                shiftConfig = shiftEntity?.type?.takeIf { it.isNotBlank() }?.let { stm.getById(it) },
                                 hasAlba = shiftEntity?.hasAlba ?: false,
+                                albaConfig = stm.getById("alba"),
                                 memo = shiftEntity?.memo,
                                 mood = mood?.emoji,
                                 moodNote = mood?.note,
@@ -431,8 +432,9 @@ private fun MonthlyCalendarGrid(
 @Composable
 private fun SoloCell(
     day: Int,
-    shift: ShiftType?,
+    shiftConfig: ShiftTypeConfig?,
     hasAlba: Boolean,
+    albaConfig: ShiftTypeConfig? = null,
     memo: String?,
     mood: String?,
     moodNote: String? = null,
@@ -503,32 +505,34 @@ private fun SoloCell(
         Spacer(modifier = Modifier.height(2.dp))
 
         // 근무유형
-        if (shift != null) {
+        if (shiftConfig != null) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(4.dp))
-                    .background(shift.bgColor.copy(alpha = 0.5f))
+                    .background(shiftConfig.bgColor.copy(alpha = 0.5f))
                     .padding(horizontal = 3.dp, vertical = 2.dp)
             ) {
-                Text(shift.label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = shift.color, maxLines = 1, lineHeight = 14.sp)
+                Text(shiftConfig.label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = shiftConfig.color, maxLines = 1, lineHeight = 14.sp)
             }
         }
 
         // 알바
         if (hasAlba) {
+            val ac = albaConfig
+            val albaColor = ac?.color ?: ShiftAlba
             Spacer(modifier = Modifier.height(2.dp))
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(4.dp))
-                    .background(ShiftAlba.copy(alpha = 0.15f))
+                    .background(albaColor.copy(alpha = 0.15f))
                     .padding(horizontal = 3.dp, vertical = 2.dp)
             ) {
-                Text("알바", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = ShiftAlba, maxLines = 1, lineHeight = 12.sp)
-                val albaTime = ShiftType.ALBA.timeRange
+                Text(ac?.label ?: "알바", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = albaColor, maxLines = 1, lineHeight = 12.sp)
+                val albaTime = ac?.defaultTimeRange ?: "시간 미정"
                 if (albaTime != "시간 미정") {
-                    Text(albaTime.replace(" - ", "~"), fontSize = 8.sp, color = ShiftAlba.copy(alpha = 0.7f), maxLines = 1, lineHeight = 10.sp)
+                    Text(albaTime.replace(" - ", "~"), fontSize = 8.sp, color = albaColor.copy(alpha = 0.7f), maxLines = 1, lineHeight = 10.sp)
                 }
             }
         }
@@ -561,7 +565,7 @@ private fun SoloCell(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun WeeklyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarUiState) {
+private fun WeeklyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarUiState, stm: ShiftTypeManager) {
     val today = LocalDate.now()
     val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY))
 
@@ -631,6 +635,8 @@ private fun WeeklyTimelineScreen(viewModel: CalendarViewModel, uiState: Calendar
                     (0..6).forEach { dayIdx ->
                         val d = weekStart.plusDays(dayIdx.toLong())
                         val dateStr = d.toString()
+                        val shiftConfig = uiState.shifts[dateStr]?.type?.takeIf { it.isNotBlank() }?.let { stm.getById(it) }
+                        val friendConfig = uiState.friendShifts[dateStr]?.type?.let { stm.getById(it) }
                         val shift = uiState.shifts[dateStr]?.let { ShiftType.fromString(it.type) }
                         val friendShift = uiState.friendShifts[dateStr]?.let { ShiftType.fromString(it.type) }
 
@@ -646,11 +652,11 @@ private fun WeeklyTimelineScreen(viewModel: CalendarViewModel, uiState: Calendar
                                 .background(
                                     when {
                                         isMyWorkHour && isPartnerWorkHour ->
-                                            shift!!.color.copy(alpha = 0.4f)
+                                            (shiftConfig?.color ?: Color.Gray).copy(alpha = 0.4f)
                                         isMyWorkHour ->
-                                            shift!!.color.copy(alpha = 0.25f)
+                                            (shiftConfig?.color ?: Color.Gray).copy(alpha = 0.25f)
                                         isPartnerWorkHour ->
-                                            friendShift!!.color.copy(alpha = 0.1f)
+                                            (friendConfig?.color ?: Color.Gray).copy(alpha = 0.1f)
                                         else -> Color.Transparent
                                     }
                                 )
@@ -661,12 +667,12 @@ private fun WeeklyTimelineScreen(viewModel: CalendarViewModel, uiState: Calendar
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
-                            if (isMyWorkHour && isShiftStartHour(hour, shift!!)) {
+                            if (isMyWorkHour && shift != null && isShiftStartHour(hour, shift)) {
                                 Text(
-                                    text = shift.shortLabel,
+                                    text = shiftConfig?.shortLabel ?: shift.shortLabel,
                                     fontSize = 8.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = shift.color
+                                    color = shiftConfig?.color ?: Color.Gray
                                 )
                             }
                         }
@@ -704,9 +710,11 @@ private fun isShiftStartHour(hour: Int, shift: ShiftType): Boolean = when (shift
 // ══════════════════════════════════════════════
 
 @Composable
-private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarUiState) {
+private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarUiState, stm: ShiftTypeManager) {
     val date = uiState.selectedDate
     val dateStr = date.toString()
+    val myShiftConfig = uiState.shifts[dateStr]?.type?.takeIf { it.isNotBlank() }?.let { stm.getById(it) }
+    val partnerShiftConfig = uiState.friendShifts[dateStr]?.type?.let { stm.getById(it) }
     val myShift = uiState.shifts[dateStr]?.let { ShiftType.fromString(it.type) }
     val partnerShift = uiState.friendShifts[dateStr]?.let { ShiftType.fromString(it.type) }
     val memo = uiState.shifts[dateStr]?.memo
@@ -755,17 +763,17 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
             Surface(
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(12.dp),
-                color = myShift?.bgColor ?: DarkSurface
+                color = myShiftConfig?.bgColor ?: DarkSurface
             ) {
                 Column(
                     modifier = Modifier.padding(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text("나", style = MaterialTheme.typography.labelSmall, color = TextMuted)
-                    if (myShift != null) {
-                        Text(myShift.emoji, fontSize = 24.sp)
-                        Text(myShift.label, fontWeight = FontWeight.Bold, color = myShift.color, fontSize = 13.sp)
-                        Text(myShift.timeRange, fontSize = 10.sp, color = myShift.color.copy(alpha = 0.7f))
+                    if (myShiftConfig != null) {
+                        Text(myShiftConfig.emoji, fontSize = 24.sp)
+                        Text(myShiftConfig.label, fontWeight = FontWeight.Bold, color = myShiftConfig.color, fontSize = 13.sp)
+                        Text(myShiftConfig.defaultTimeRange, fontSize = 10.sp, color = myShiftConfig.color.copy(alpha = 0.7f))
                     } else {
                         Text("미설정", color = TextMuted, fontSize = 13.sp)
                     }
@@ -775,17 +783,17 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
             Surface(
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(12.dp),
-                color = partnerShift?.bgColor ?: DarkSurface
+                color = partnerShiftConfig?.bgColor ?: DarkSurface
             ) {
                 Column(
                     modifier = Modifier.padding(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text("상대", style = MaterialTheme.typography.labelSmall, color = TextMuted)
-                    if (partnerShift != null) {
-                        Text(partnerShift.emoji, fontSize = 24.sp)
-                        Text(partnerShift.label, fontWeight = FontWeight.Bold, color = partnerShift.color, fontSize = 13.sp)
-                        Text(partnerShift.timeRange, fontSize = 10.sp, color = partnerShift.color.copy(alpha = 0.7f))
+                    if (partnerShiftConfig != null) {
+                        Text(partnerShiftConfig.emoji, fontSize = 24.sp)
+                        Text(partnerShiftConfig.label, fontWeight = FontWeight.Bold, color = partnerShiftConfig.color, fontSize = 13.sp)
+                        Text(partnerShiftConfig.defaultTimeRange, fontSize = 10.sp, color = partnerShiftConfig.color.copy(alpha = 0.7f))
                     } else {
                         Text("미설정", color = TextMuted, fontSize = 13.sp)
                     }
@@ -851,17 +859,17 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
                             .padding(end = 2.dp)
                             .clip(RoundedCornerShape(4.dp))
                             .background(
-                                if (isMyWork) myShift!!.color.copy(alpha = 0.2f)
+                                if (isMyWork) (myShiftConfig?.color ?: Color.Gray).copy(alpha = 0.2f)
                                 else Color.Transparent
                             )
                             .border(0.5.dp, DarkBorder.copy(alpha = 0.3f), RoundedCornerShape(4.dp)),
                         contentAlignment = Alignment.CenterStart
                     ) {
-                        if (isMyWork && isShiftStartHour(hour, myShift!!)) {
+                        if (isMyWork && myShift != null && isShiftStartHour(hour, myShift)) {
                             Text(
-                                text = " ${myShift.emoji} ${myShift.label}",
+                                text = " ${myShiftConfig?.emoji ?: ""} ${myShiftConfig?.label ?: ""}",
                                 fontSize = 10.sp,
-                                color = myShift.color,
+                                color = myShiftConfig?.color ?: Color.Gray,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -882,17 +890,17 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
                             .padding(start = 2.dp)
                             .clip(RoundedCornerShape(4.dp))
                             .background(
-                                if (isPartnerWork) partnerShift!!.color.copy(alpha = 0.15f)
+                                if (isPartnerWork) (partnerShiftConfig?.color ?: Color.Gray).copy(alpha = 0.15f)
                                 else Color.Transparent
                             )
                             .border(0.5.dp, DarkBorder.copy(alpha = 0.3f), RoundedCornerShape(4.dp)),
                         contentAlignment = Alignment.CenterStart
                     ) {
-                        if (isPartnerWork && isShiftStartHour(hour, partnerShift!!)) {
+                        if (isPartnerWork && partnerShift != null && isShiftStartHour(hour, partnerShift)) {
                             Text(
-                                text = " ${partnerShift.emoji} ${partnerShift.label}",
+                                text = " ${partnerShiftConfig?.emoji ?: ""} ${partnerShiftConfig?.label ?: ""}",
                                 fontSize = 10.sp,
-                                color = partnerShift.color.copy(alpha = 0.7f)
+                                color = (partnerShiftConfig?.color ?: Color.Gray).copy(alpha = 0.7f)
                             )
                         }
                     }
@@ -908,21 +916,19 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
 // ══════════════════════════════════════════════
 
 @Composable
-private fun CompactStatsBar(uiState: CalendarUiState) {
-    val stats = remember(uiState.shifts) {
-        var day = 0; var night = 0; var nightEarly = 0; var off = 0; var alba = 0
-        uiState.shifts.values.forEach {
-            when (ShiftType.fromString(it.type)) {
-                ShiftType.DAY -> day++
-                ShiftType.NIGHT -> night++
-                ShiftType.NIGHT_EARLY -> nightEarly++
-                ShiftType.OFF -> off++
-                ShiftType.ALBA -> alba++
-                null -> {}
+private fun CompactStatsBar(uiState: CalendarUiState, stm: ShiftTypeManager) {
+    val allTypes by stm.allTypes.collectAsState()
+    val counts = remember(uiState.shifts, allTypes) {
+        val map = mutableMapOf<String, Int>()
+        uiState.shifts.values.forEach { entity ->
+            if (entity.type.isNotBlank()) {
+                map[entity.type] = (map[entity.type] ?: 0) + 1
             }
-            if (it.hasAlba) alba++
+            if (entity.hasAlba) {
+                map["alba"] = (map["alba"] ?: 0) + 1
+            }
         }
-        MonthStats(day, night, nightEarly, off, alba)
+        map
     }
 
     Surface(
@@ -936,11 +942,9 @@ private fun CompactStatsBar(uiState: CalendarUiState) {
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            StatChip("주", stats.dayCount, ShiftDay)
-            StatChip("야", stats.nightCount, ShiftNight)
-            StatChip("조", stats.nightEarlyCount, ShiftNightEarly)
-            StatChip("비", stats.offCount, ShiftOff)
-            StatChip("알", stats.albaCount, ShiftAlba)
+            allTypes.forEach { config ->
+                StatChip(config.shortLabel, counts[config.id] ?: 0, config.color)
+            }
         }
     }
 }

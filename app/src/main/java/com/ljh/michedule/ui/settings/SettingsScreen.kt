@@ -5,9 +5,11 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -15,6 +17,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -24,8 +27,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ljh.michedule.MicheduleApp
 import com.ljh.michedule.data.PrefsManager
+import com.ljh.michedule.data.ShiftTypeManager
+import com.ljh.michedule.data.db.ShiftTypeConfig
 import com.ljh.michedule.ui.theme.*
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 @Composable
 fun SettingsScreen(
@@ -42,6 +48,7 @@ fun SettingsScreen(
     val partnerCode by prefsManager.partnerCode.collectAsState(initial = "")
     val partnerName by prefsManager.partnerName.collectAsState(initial = "")
     val syncPaused by prefsManager.syncPaused.collectAsState(initial = false)
+    val connectionMutual by prefsManager.connectionMutual.collectAsState(initial = false)
 
     val alarmEnabled by prefsManager.alarmEnabled.collectAsState(initial = false)
     val alarmHoursBefore by prefsManager.alarmHoursBefore.collectAsState(initial = 2)
@@ -170,13 +177,11 @@ fun SettingsScreen(
                 Text("근무 유형별 알림", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
                 Spacer(modifier = Modifier.height(8.dp))
 
-                val alarmTypes = listOf(
-                    "day" to "☀️ 주간",
-                    "night" to "🌙 야간",
-                    "nightEarly" to "🌇 조기야간",
-                    "alba" to "💼 알바"
-                )
-                alarmTypes.forEach { (code, label) ->
+                val stm = (context.applicationContext as MicheduleApp).shiftTypeManager
+                val alarmTypes by stm.allTypes.collectAsState()
+                alarmTypes.filter { it.id != "off" }.forEach { cfg ->
+                    val code = cfg.id
+                    val label = "${cfg.emoji} ${cfg.label}"
                     val isEnabled = code !in alarmDisabledTypes
                     Row(
                         modifier = Modifier
@@ -264,7 +269,28 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             if (partnerCode.isNotBlank()) {
-                // connected state
+                val isPending = !connectionMutual
+                val statusColor = when {
+                    syncPaused -> Color(0xFFFBBF24)
+                    isPending -> Color(0xFFFF9800)
+                    else -> StatusOnline
+                }
+                val statusIcon = when {
+                    syncPaused -> Icons.Default.CloudOff
+                    isPending -> Icons.Default.Schedule
+                    else -> Icons.Default.Cloud
+                }
+                val statusText = when {
+                    syncPaused -> "동기화 일시정지"
+                    isPending -> "상대방 수락 대기 중..."
+                    else -> "${partnerName.ifBlank { partnerCode }}와 연결됨"
+                }
+                val statusSubText = when {
+                    syncPaused -> "일정 입력 후 다시 켜주세요"
+                    isPending -> "상대방이 내 코드($myCode)를 입력하면 연결됩니다"
+                    else -> "상대 코드: $partnerCode"
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -272,40 +298,42 @@ fun SettingsScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                         Icon(
-                            if (syncPaused) Icons.Default.CloudOff else Icons.Default.Cloud,
+                            statusIcon,
                             contentDescription = null,
-                            tint = if (syncPaused) Color(0xFFFBBF24) else StatusOnline,
+                            tint = statusColor,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Column {
                             Text(
-                                if (syncPaused) "동기화 일시정지" else "${partnerName.ifBlank { partnerCode }}와 연결됨",
-                                color = if (syncPaused) Color(0xFFFBBF24) else StatusOnline,
+                                statusText,
+                                color = statusColor,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                if (syncPaused) "일정 입력 후 다시 켜주세요" else "상대 코드: $partnerCode",
+                                statusSubText,
                                 style = MaterialTheme.typography.bodySmall, color = TextMuted
                             )
                         }
                     }
-                    Switch(
-                        checked = !syncPaused,
-                        onCheckedChange = { enabled ->
-                            scope.launch {
-                                prefsManager.setSyncPaused(!enabled)
-                                val app = context.applicationContext as MicheduleApp
-                                if (enabled) app.startSync() else app.stopSync()
-                            }
-                        },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = StatusOnline,
-                            checkedTrackColor = StatusOnline.copy(alpha = 0.3f),
-                            uncheckedThumbColor = Color(0xFFFBBF24),
-                            uncheckedTrackColor = Color(0xFFFBBF24).copy(alpha = 0.2f)
+                    if (!isPending) {
+                        Switch(
+                            checked = !syncPaused,
+                            onCheckedChange = { enabled ->
+                                scope.launch {
+                                    prefsManager.setSyncPaused(!enabled)
+                                    val app = context.applicationContext as MicheduleApp
+                                    if (enabled) app.startSync() else app.stopSync()
+                                }
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = StatusOnline,
+                                checkedTrackColor = StatusOnline.copy(alpha = 0.3f),
+                                uncheckedThumbColor = Color(0xFFFBBF24),
+                                uncheckedTrackColor = Color(0xFFFBBF24).copy(alpha = 0.2f)
+                            )
                         )
-                    )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -338,7 +366,7 @@ fun SettingsScreen(
                                         app.connectPartner(changeCode.trim())
                                         showChangeInput = false
                                         changeCode = ""
-                                        Toast.makeText(context, "연결되었습니다!", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "코드 등록 완료! 상대방도 내 코드를 입력하면 연결됩니다", Toast.LENGTH_LONG).show()
                                     }
                                 } else if (changeCode == myCode) {
                                     Toast.makeText(context, "내 코드는 입력할 수 없습니다", Toast.LENGTH_SHORT).show()
@@ -383,7 +411,7 @@ fun SettingsScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.PersonAdd, contentDescription = null, tint = TextMuted, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("상대방 코드를 입력하면 연결됩니다", color = TextMuted)
+                    Text("서로의 코드를 입력해야 연결됩니다", color = TextMuted)
                 }
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -409,7 +437,7 @@ fun SettingsScreen(
                                 scope.launch {
                                     val app = context.applicationContext as MicheduleApp
                                     app.connectPartner(joinCode.trim())
-                                    Toast.makeText(context, "연결되었습니다!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "코드 등록 완료! 상대방도 내 코드를 입력하면 연결됩니다", Toast.LENGTH_LONG).show()
                                 }
                             } else if (joinCode == myCode) {
                                 Toast.makeText(context, "내 코드는 입력할 수 없습니다", Toast.LENGTH_SHORT).show()
@@ -431,8 +459,12 @@ fun SettingsScreen(
             }
         }
 
+        // Shift type management
+        val app = context.applicationContext as MicheduleApp
+        ShiftTypeManagementCard(shiftTypeManager = app.shiftTypeManager)
+
         // Pattern autofill
-        PatternAutofillCard(onAutofill = onAutofill)
+        PatternAutofillCard(onAutofill = onAutofill, shiftTypeManager = app.shiftTypeManager)
 
         // Data management
         SettingsCard(title = "데이터 관리") {
@@ -524,32 +556,351 @@ private fun settingsFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedLabelColor = Purple80
 )
 
+// ── Color palette for picker ──
+
+private val COLOR_PALETTE = listOf(
+    "#FFFBBF24", "#FFEF4444", "#FFF97316", "#FFF472B6", "#FFEC4899",
+    "#FF818CF8", "#FF8B5CF6", "#FF6366F1", "#FF60A5FA", "#FF3B82F6",
+    "#FF34D399", "#FF10B981", "#FF14B8A6", "#FF06B6D4", "#FF0EA5E9",
+    "#FFA78BFA", "#FFD946EF", "#FFFACC15", "#FF84CC16", "#FF22C55E",
+    "#FFE11D48", "#FF9CA3AF", "#FF64748B", "#FFF59E0B"
+)
+
+@Composable
+private fun ShiftTypeManagementCard(shiftTypeManager: ShiftTypeManager) {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val allTypes by shiftTypeManager.allTypes.collectAsState()
+    val cycleTypes by shiftTypeManager.cycleTypes.collectAsState()
+    var editingConfig by remember { mutableStateOf<ShiftTypeConfig?>(null) }
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    SettingsCard(title = "근무유형 관리") {
+        Text(
+            "이름, 색상, 순환 순서를 커스텀할 수 있습니다",
+            style = MaterialTheme.typography.bodySmall,
+            color = TextMuted
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        allTypes.forEach { config ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(config.bgColor)
+                    .clickable { editingConfig = config }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(config.emoji, fontSize = 18.sp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(config.label, fontWeight = FontWeight.SemiBold, color = config.color, fontSize = 14.sp)
+                    Text(config.defaultTimeRange, fontSize = 10.sp, color = config.color.copy(alpha = 0.7f))
+                }
+                if (config.inCycle) {
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = config.color.copy(alpha = 0.2f)
+                    ) {
+                        Text(
+                            "순환",
+                            fontSize = 9.sp,
+                            color = config.color,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                Icon(Icons.Default.Edit, contentDescription = null, tint = TextMuted, modifier = Modifier.size(16.dp))
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+        }
+
+        if (cycleTypes.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "탭 순서: ${cycleTypes.joinToString(" → ") { it.shortLabel }} → 삭제",
+                style = MaterialTheme.typography.bodySmall,
+                color = Purple80
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedButton(
+            onClick = { showAddDialog = true },
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, Purple80.copy(alpha = 0.5f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = Purple80)
+            Spacer(modifier = Modifier.width(4.dp))
+            Text("새 근무유형 추가", color = Purple80)
+        }
+    }
+
+    if (editingConfig != null) {
+        ShiftTypeEditDialog(
+            config = editingConfig!!,
+            onSave = { updated ->
+                scope.launch {
+                    shiftTypeManager.save(updated)
+                    editingConfig = null
+                    (context.applicationContext as MicheduleApp).triggerUpload()
+                }
+            },
+            onDelete = if (!editingConfig!!.isBuiltIn) { {
+                scope.launch {
+                    shiftTypeManager.deleteCustom(editingConfig!!.id)
+                    editingConfig = null
+                    (context.applicationContext as MicheduleApp).triggerUpload()
+                }
+            } } else null,
+            onDismiss = { editingConfig = null }
+        )
+    }
+
+    if (showAddDialog) {
+        ShiftTypeEditDialog(
+            config = null,
+            onSave = { newConfig ->
+                scope.launch {
+                    val order = shiftTypeManager.nextSortOrder()
+                    val id = "custom_${UUID.randomUUID().toString().take(6)}"
+                    shiftTypeManager.save(newConfig.copy(id = id, sortOrder = order, isBuiltIn = false))
+                    showAddDialog = false
+                    (context.applicationContext as MicheduleApp).triggerUpload()
+                    Toast.makeText(context, "${newConfig.label} 추가됨", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onDelete = null,
+            onDismiss = { showAddDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun ShiftTypeEditDialog(
+    config: ShiftTypeConfig?,
+    onSave: (ShiftTypeConfig) -> Unit,
+    onDelete: (() -> Unit)?,
+    onDismiss: () -> Unit
+) {
+    val isNew = config == null
+    var label by remember { mutableStateOf(config?.label ?: "") }
+    var shortLabel by remember { mutableStateOf(config?.shortLabel ?: "") }
+    var emoji by remember { mutableStateOf(config?.emoji ?: "") }
+    var colorHex by remember { mutableStateOf(config?.colorHex ?: COLOR_PALETTE[0]) }
+    var timeRange by remember { mutableStateOf(config?.defaultTimeRange ?: "09:00 - 18:00") }
+    var inCycle by remember { mutableStateOf(config?.inCycle ?: true) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    val bgColorHex = remember(colorHex) {
+        val cleaned = colorHex.removePrefix("#")
+        if (cleaned.length >= 6) {
+            val rgb = cleaned.takeLast(6)
+            "#33$rgb"
+        } else "#33808080"
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = DarkCard,
+        title = {
+            Text(
+                if (isNew) "새 근무유형" else "${config!!.emoji} ${config.label} 편집",
+                color = TextPrimary
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = emoji,
+                        onValueChange = { emoji = it.take(4) },
+                        label = { Text("이모지", color = TextMuted, fontSize = 12.sp) },
+                        modifier = Modifier.width(80.dp),
+                        colors = settingsFieldColors(),
+                        shape = RoundedCornerShape(10.dp),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = shortLabel,
+                        onValueChange = { shortLabel = it.take(2) },
+                        label = { Text("약자", color = TextMuted, fontSize = 12.sp) },
+                        modifier = Modifier.width(70.dp),
+                        colors = settingsFieldColors(),
+                        shape = RoundedCornerShape(10.dp),
+                        singleLine = true
+                    )
+                }
+                OutlinedTextField(
+                    value = label,
+                    onValueChange = { label = it.take(10) },
+                    label = { Text("이름", color = TextMuted, fontSize = 12.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = settingsFieldColors(),
+                    shape = RoundedCornerShape(10.dp),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = timeRange,
+                    onValueChange = { timeRange = it },
+                    label = { Text("시간 범위", color = TextMuted, fontSize = 12.sp) },
+                    placeholder = { Text("HH:MM - HH:MM", color = TextMuted) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = settingsFieldColors(),
+                    shape = RoundedCornerShape(10.dp),
+                    singleLine = true
+                )
+
+                Text("색상 선택", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                ColorPicker(
+                    selectedHex = colorHex,
+                    onSelect = { colorHex = it }
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("탭 순환에 포함", color = TextPrimary, fontSize = 14.sp)
+                    Switch(
+                        checked = inCycle,
+                        onCheckedChange = { inCycle = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Purple80,
+                            checkedTrackColor = Purple40,
+                            uncheckedThumbColor = TextMuted,
+                            uncheckedTrackColor = DarkSurface
+                        )
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Row {
+                if (onDelete != null) {
+                    TextButton(onClick = { showDeleteConfirm = true }) {
+                        Text("삭제", color = Color(0xFFF87171))
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("취소", color = TextMuted)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(
+                    onClick = {
+                        if (label.isBlank() || shortLabel.isBlank()) return@Button
+                        val result = ShiftTypeConfig(
+                            id = config?.id ?: "",
+                            label = label.trim(),
+                            shortLabel = shortLabel.trim(),
+                            emoji = emoji.trim().ifBlank { "📋" },
+                            colorHex = colorHex,
+                            bgColorHex = bgColorHex,
+                            defaultTimeRange = timeRange.trim().ifBlank { "시간 미정" },
+                            sortOrder = config?.sortOrder ?: 0,
+                            inCycle = inCycle,
+                            isBuiltIn = config?.isBuiltIn ?: false
+                        )
+                        onSave(result)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Purple40),
+                    enabled = label.isNotBlank() && shortLabel.isNotBlank()
+                ) {
+                    Text("저장")
+                }
+            }
+        }
+    )
+
+    if (showDeleteConfirm && onDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            containerColor = DarkCard,
+            title = { Text("삭제 확인", color = TextPrimary) },
+            text = { Text("'${config?.label}'을 삭제하시겠습니까?", color = TextSecondary) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    onDelete()
+                }) { Text("삭제", color = Color(0xFFF87171)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("취소", color = TextMuted) }
+            }
+        )
+    }
+}
+
+@Composable
+private fun ColorPicker(selectedHex: String, onSelect: (String) -> Unit) {
+    val columns = 6
+    val rows = (COLOR_PALETTE.size + columns - 1) / columns
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        for (row in 0 until rows) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                for (col in 0 until columns) {
+                    val idx = row * columns + col
+                    if (idx < COLOR_PALETTE.size) {
+                        val hex = COLOR_PALETTE[idx]
+                        val color = ShiftTypeConfig.parseColor(hex)
+                        val isSelected = hex == selectedHex
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                                .then(
+                                    if (isSelected) Modifier.border(3.dp, Color.White, CircleShape)
+                                    else Modifier.border(1.dp, DarkBorder, CircleShape)
+                                )
+                                .clickable { onSelect(hex) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isSelected) {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.size(36.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun PatternAutofillCard(
-    onAutofill: (pattern: List<String>, startDate: String, endDate: String) -> Unit
+    onAutofill: (pattern: List<String>, startDate: String, endDate: String) -> Unit,
+    shiftTypeManager: ShiftTypeManager
 ) {
     val context = LocalContext.current
-    val shiftOptions = listOf(
-        "day" to "주간 ☀️",
-        "night" to "야간 🌙",
-        "nightEarly" to "조기 🌇",
-        "off" to "비번 😴",
-        "alba" to "알바 💼"
-    )
+    val allTypes by shiftTypeManager.allTypes.collectAsState()
+    val shiftOptions = allTypes.map { it.id to "${it.label} ${it.emoji}" }
 
     var pattern by remember { mutableStateOf(listOf<String>()) }
     var startDay by remember { mutableStateOf("1") }
     var endDay by remember { mutableStateOf("") }
 
     val patternDisplay = pattern.joinToString(" → ") { code ->
-        when (code) {
-            "day" -> "주"
-            "night" -> "야"
-            "nightEarly" -> "조"
-            "off" -> "비"
-            "alba" -> "알"
-            else -> "?"
-        }
+        shiftTypeManager.getById(code)?.shortLabel ?: "?"
     }
 
     SettingsCard(title = "패턴 자동채우기") {
@@ -599,13 +950,8 @@ private fun PatternAutofillCard(
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             shiftOptions.forEach { (code, label) ->
-                val color = when (code) {
-                    "day" -> ShiftDay
-                    "night" -> ShiftNight
-                    "nightEarly" -> ShiftNightEarly
-                    "off" -> ShiftOff
-                    else -> TextMuted
-                }
+                val config = shiftTypeManager.getById(code)
+                val color = config?.color ?: TextMuted
                 OutlinedButton(
                     onClick = { pattern = pattern + code },
                     shape = RoundedCornerShape(10.dp),

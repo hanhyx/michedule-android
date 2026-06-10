@@ -2,6 +2,7 @@ package com.ljh.michedule
 
 import android.app.Application
 import com.ljh.michedule.data.PrefsManager
+import com.ljh.michedule.data.ShiftTypeManager
 import com.ljh.michedule.data.parseTimeRanges
 import com.ljh.michedule.data.db.AppDatabase
 import com.ljh.michedule.data.repository.ScheduleRepository
@@ -20,6 +21,8 @@ class MicheduleApp : Application() {
         private set
     lateinit var prefsManager: PrefsManager
         private set
+    lateinit var shiftTypeManager: ShiftTypeManager
+        private set
     var supabaseSync: SupabaseSync? = null
         private set
 
@@ -30,6 +33,7 @@ class MicheduleApp : Application() {
         database = AppDatabase.getInstance(this)
         repository = ScheduleRepository(database)
         prefsManager = PrefsManager(this)
+        shiftTypeManager = ShiftTypeManager(database.shiftTypeConfigDao(), appScope)
 
         appScope.launch { prefsManager.ensureMyCode() }
         startSync()
@@ -52,7 +56,7 @@ class MicheduleApp : Application() {
                 return@launch
             }
             supabaseSync?.stop()
-            val sync = SupabaseSync(repository, prefsManager, this@MicheduleApp)
+            val sync = SupabaseSync(repository, prefsManager, this@MicheduleApp, shiftTypeManager)
             supabaseSync = sync
             sync.start(appScope)
         }
@@ -68,6 +72,7 @@ class MicheduleApp : Application() {
             repository.clearAllFriendData()
             prefsManager.setPartnerCode(partnerCode)
             prefsManager.setPartnerName(partnerCode)
+            prefsManager.setConnectionMutual(false)
             startSync()
         }
     }

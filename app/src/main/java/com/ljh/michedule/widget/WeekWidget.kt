@@ -39,15 +39,16 @@ class WeekWidget : GlanceAppWidget() {
         val db = AppDatabase.getInstance(context)
 
         val (myShifts, partnerShifts) = withContext(Dispatchers.IO) {
+            val typeConfigs = try { db.shiftTypeConfigDao().getAll().associateBy { it.id } } catch (_: Exception) { emptyMap() }
             val mine = db.shiftDao().getAllShifts()
                 .filter { it.date in weekStartStr..weekEndStr }
-                .associate { it.date to WidgetShiftInfo(ShiftType.fromString(it.type), it.hasAlba) }
+                .associate { it.date to WidgetShiftInfo(ShiftType.fromString(it.type), typeConfigs[it.type], it.hasAlba) }
 
             val partner = try {
                 val friends = db.friendShiftDao()
                     .getShiftsInRange(weekStartStr, weekEndStr)
                     .firstOrNull() ?: emptyList()
-                friends.associate { it.date to WidgetShiftInfo(ShiftType.fromString(it.type), it.hasAlba) }
+                friends.associate { it.date to WidgetShiftInfo(ShiftType.fromString(it.type), typeConfigs[it.type], it.hasAlba) }
             } catch (_: Exception) {
                 emptyMap<String, WidgetShiftInfo>()
             }
@@ -133,15 +134,14 @@ private fun WeekWidgetContent(
                     }
 
                     Column(modifier = colMod, horizontalAlignment = Alignment.CenterHorizontally) {
+                        val myLabel = myInfo?.config?.shortLabel ?: myInfo?.type?.shortLabel ?: "─"
+                        val myColor = myInfo?.config?.color ?: myInfo?.type?.color ?: muted.copy(alpha = 0.3f)
                         Text(
-                            text = myInfo?.type?.shortLabel ?: "─",
+                            text = myLabel,
                             style = TextStyle(
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = ColorProvider(
-                                    myInfo?.type?.color ?: muted.copy(alpha = 0.3f),
-                                    myInfo?.type?.color ?: muted.copy(alpha = 0.3f)
-                                )
+                                color = ColorProvider(myColor, myColor)
                             )
                         )
                         if (myInfo?.hasAlba == true) {
@@ -169,14 +169,13 @@ private fun WeekWidgetContent(
                         modifier = GlanceModifier.defaultWeight(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        val pLabel = partnerInfo?.config?.shortLabel ?: partnerInfo?.type?.shortLabel ?: ""
+                        val pColor = (partnerInfo?.config?.color ?: partnerInfo?.type?.color)?.copy(alpha = 0.6f) ?: Color.Transparent
                         Text(
-                            text = partnerInfo?.type?.shortLabel ?: "",
+                            text = pLabel,
                             style = TextStyle(
                                 fontSize = 10.sp,
-                                color = ColorProvider(
-                                    partnerInfo?.type?.color?.copy(alpha = 0.6f) ?: Color.Transparent,
-                                    partnerInfo?.type?.color?.copy(alpha = 0.6f) ?: Color.Transparent
-                                )
+                                color = ColorProvider(pColor, pColor)
                             )
                         )
                         if (partnerInfo?.hasAlba == true) {

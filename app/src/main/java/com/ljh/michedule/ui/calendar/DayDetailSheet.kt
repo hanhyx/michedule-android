@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ljh.michedule.data.ShiftTypeManager
 import com.ljh.michedule.data.db.*
 import com.ljh.michedule.model.ShiftType
 import com.ljh.michedule.ui.theme.*
@@ -41,9 +42,11 @@ fun DayDetailSheet(
     todos: List<TodoEntity>,
     mood: MoodEntity?,
     shiftHistory: List<ShiftHistoryEntity>,
+    shiftTypeManager: ShiftTypeManager,
     datePlan: DatePlanEntity? = null,
     onDismiss: () -> Unit,
     onShiftSelect: (ShiftType) -> Unit,
+    onShiftSelectById: (String) -> Unit = {},
     onShiftClear: () -> Unit,
     onAlbaToggle: (Boolean) -> Unit,
     onShiftTimeEdit: (ShiftType, String) -> Unit,
@@ -57,8 +60,9 @@ fun DayDetailSheet(
     onDatePlanSet: (String) -> Unit = {},
     onDatePlanDelete: () -> Unit = {}
 ) {
+    val allTypes by shiftTypeManager.allTypes.collectAsState()
     var memoText by remember(date, shift) { mutableStateOf(shift?.memo ?: "") }
-    val currentShift = shift?.let { ShiftType.fromString(it.type) }
+    val currentShiftId = shift?.type?.takeIf { it.isNotBlank() }
     var editingShiftType by remember { mutableStateOf<ShiftType?>(null) }
 
     if (editingShiftType != null) {
@@ -110,6 +114,8 @@ fun DayDetailSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             // ── 1. 알바 토글 (최상단) ──
+            val albaConfig = shiftTypeManager.getById("alba")
+            val albaColor = albaConfig?.color ?: ShiftAlba
             val albaActive = shift?.hasAlba ?: false
             Surface(
                 modifier = Modifier
@@ -117,8 +123,8 @@ fun DayDetailSheet(
                     .clip(RoundedCornerShape(10.dp))
                     .clickable { onAlbaToggle(!albaActive) },
                 shape = RoundedCornerShape(10.dp),
-                color = if (albaActive) ShiftAlba.copy(alpha = 0.15f) else DarkSurface,
-                border = BorderStroke(1.dp, if (albaActive) ShiftAlba else DarkBorder)
+                color = if (albaActive) albaColor.copy(alpha = 0.15f) else DarkSurface,
+                border = BorderStroke(1.dp, if (albaActive) albaColor else DarkBorder)
             ) {
                 Row(
                     modifier = Modifier
@@ -126,15 +132,15 @@ fun DayDetailSheet(
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("💼", fontSize = 20.sp)
+                    Text(albaConfig?.emoji ?: "💼", fontSize = 20.sp)
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("알바 (투잡)", fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                            color = if (albaActive) ShiftAlba else TextPrimary)
+                        Text("${albaConfig?.label ?: "알바"} (투잡)", fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                            color = if (albaActive) albaColor else TextPrimary)
                         Text(
-                            text = ShiftType.ALBA.timeRange,
+                            text = albaConfig?.defaultTimeRange ?: "시간 미정",
                             fontSize = 11.sp,
-                            color = if (albaActive) ShiftAlba.copy(alpha = 0.7f) else TextMuted
+                            color = if (albaActive) albaColor.copy(alpha = 0.7f) else TextMuted
                         )
                     }
                     TextButton(
@@ -148,7 +154,7 @@ fun DayDetailSheet(
                         onCheckedChange = { onAlbaToggle(it) },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
-                            checkedTrackColor = ShiftAlba,
+                            checkedTrackColor = albaColor,
                             uncheckedThumbColor = TextMuted,
                             uncheckedTrackColor = DarkBorder
                         )
@@ -258,12 +264,18 @@ fun DayDetailSheet(
             )
             Spacer(modifier = Modifier.height(6.dp))
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                ShiftType.entries.filter { it != ShiftType.ALBA }.forEach { type ->
-                    ShiftButton(
-                        type = type,
-                        isActive = currentShift == type,
-                        onClick = { onShiftSelect(type) },
-                        onLongClick = { editingShiftType = type }
+                allTypes.filter { it.id != "alba" }.forEach { config ->
+                    val builtInType = ShiftType.fromString(config.id)
+                    ShiftConfigButton(
+                        config = config,
+                        isActive = currentShiftId == config.id,
+                        onClick = {
+                            if (builtInType != null) onShiftSelect(builtInType)
+                            else onShiftSelectById(config.id)
+                        },
+                        onLongClick = {
+                            if (builtInType != null) editingShiftType = builtInType
+                        }
                     )
                 }
             }
@@ -400,8 +412,8 @@ private fun ShiftHistorySection(history: List<ShiftHistoryEntity>) {
             val time = Instant.ofEpochMilli(h.changedAt)
                 .atZone(ZoneId.systemDefault())
                 .format(DateTimeFormatter.ofPattern("M/d HH:mm"))
-            val oldLabel = h.oldType?.let { ShiftType.fromString(it)?.label } ?: "없음"
-            val newLabel = h.newType?.let { ShiftType.fromString(it)?.label } ?: "없음"
+            val oldLabel = h.oldType?.let { ShiftType.fromString(it)?.label ?: it } ?: "없음"
+            val newLabel = h.newType?.let { ShiftType.fromString(it)?.label ?: it } ?: "없음"
 
             Text(
                 text = "$time : $oldLabel → $newLabel",
@@ -490,12 +502,12 @@ private fun TodoSection(
     }
 }
 
-// ── Shift Button ──
+// ── Shift Config Button ──
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ShiftButton(
-    type: ShiftType,
+private fun ShiftConfigButton(
+    config: ShiftTypeConfig,
     isActive: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {}
@@ -504,27 +516,22 @@ private fun ShiftButton(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(if (isActive) type.bgColor else DarkSurface)
-            .border(1.dp, if (isActive) type.color else DarkBorder, RoundedCornerShape(10.dp))
+            .background(if (isActive) config.bgColor else DarkSurface)
+            .border(1.dp, if (isActive) config.color else DarkBorder, RoundedCornerShape(10.dp))
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(type.emoji, fontSize = 20.sp)
+        Text(config.emoji, fontSize = 20.sp)
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
-            Text(type.label, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                color = if (isActive) type.color else TextPrimary)
-            if (type != ShiftType.OFF) {
-                Text(type.timeRange, fontSize = 11.sp,
-                    color = if (isActive) type.color.copy(alpha = 0.7f) else TextMuted)
-            } else {
-                Text(type.defaultTimeRange, fontSize = 11.sp,
-                    color = if (isActive) type.color.copy(alpha = 0.7f) else TextMuted)
-            }
+            Text(config.label, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                color = if (isActive) config.color else TextPrimary)
+            Text(config.defaultTimeRange, fontSize = 11.sp,
+                color = if (isActive) config.color.copy(alpha = 0.7f) else TextMuted)
         }
         if (isActive) {
-            Icon(Icons.Default.CheckCircle, null, tint = type.color, modifier = Modifier.size(20.dp))
+            Icon(Icons.Default.CheckCircle, null, tint = config.color, modifier = Modifier.size(20.dp))
         }
     }
 }

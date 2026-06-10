@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ljh.michedule.MicheduleApp
 import com.ljh.michedule.alarm.ShiftAlarmManager
+import com.ljh.michedule.data.ShiftTypeManager
 import com.ljh.michedule.data.db.*
 import com.ljh.michedule.model.ShiftType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -31,6 +32,7 @@ data class CalendarUiState(
     val partnerName: String = "",
     val isLocked: Boolean = false,
     val viewingPartner: Boolean = false,
+    val connectionMutual: Boolean = false,
     val datePlans: Map<String, DatePlanEntity> = emptyMap(),
     val currentDatePlan: DatePlanEntity? = null
 )
@@ -40,6 +42,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     private val app = application as MicheduleApp
     private val repo = app.repository
+    val shiftTypeManager: ShiftTypeManager = app.shiftTypeManager
 
     private val _uiState = MutableStateFlow(CalendarUiState())
     val uiState: StateFlow<CalendarUiState> = _uiState.asStateFlow()
@@ -125,7 +128,19 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             app.prefsManager.partnerCode.collect { code ->
                 if (code.isBlank()) {
-                    _uiState.update { it.copy(viewingPartner = false, friendShifts = emptyMap()) }
+                    _uiState.update { it.copy(viewingPartner = false, friendShifts = emptyMap(), connectionMutual = false) }
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            app.prefsManager.connectionMutual.collect { mutual ->
+                _uiState.update { state ->
+                    if (!mutual && state.viewingPartner) {
+                        state.copy(connectionMutual = false, viewingPartner = false)
+                    } else {
+                        state.copy(connectionMutual = mutual)
+                    }
                 }
             }
         }
@@ -192,24 +207,28 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun setShift(date: LocalDate, type: ShiftType) {
+        setShiftById(date, ShiftType.toDbString(type))
+    }
+
+    fun setShiftById(date: LocalDate, typeId: String) {
         viewModelScope.launch {
             val oldShift = repo.getShift(date)
             val oldType = oldShift?.type
-            val newType = ShiftType.toDbString(type)
 
-            if (oldType != newType) {
-                repo.recordShiftChange(date, oldType, newType)
+            if (oldType != typeId) {
+                repo.recordShiftChange(date, oldType, typeId)
             }
-            repo.setShift(date, newType)
+            repo.setShift(date, typeId)
             app.triggerUpload()
 
             try {
+                val shiftType = ShiftType.fromString(typeId)
                 val enabled = app.prefsManager.alarmEnabled.first()
-                if (enabled) {
+                if (enabled && shiftType != null) {
                     val disabledTypes = app.prefsManager.alarmDisabledTypes.first()
-                    if (ShiftType.toDbString(type) !in disabledTypes) {
+                    if (typeId !in disabledTypes) {
                         val hours = app.prefsManager.alarmHoursBefore.first()
-                        ShiftAlarmManager.scheduleAlarm(app, date, type, hours)
+                        ShiftAlarmManager.scheduleAlarm(app, date, shiftType, hours)
                     }
                 }
             } catch (_: Exception) {}
