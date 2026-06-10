@@ -6,8 +6,9 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [ShiftEntity::class, EventEntity::class, FriendShiftEntity::class, TodoEntity::class],
-    version = 2,
+    entities = [ShiftEntity::class, EventEntity::class, FriendShiftEntity::class,
+        TodoEntity::class, MoodEntity::class, ShiftHistoryEntity::class],
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -15,6 +16,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun eventDao(): EventDao
     abstract fun friendShiftDao(): FriendShiftDao
     abstract fun todoDao(): TodoDao
+    abstract fun moodDao(): MoodDao
+    abstract fun shiftHistoryDao(): ShiftHistoryDao
 
     companion object {
         @Volatile

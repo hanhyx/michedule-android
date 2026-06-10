@@ -5,6 +5,7 @@ import com.ljh.michedule.data.PrefsManager
 import com.ljh.michedule.data.db.AppDatabase
 import com.ljh.michedule.data.db.ShiftEntity
 import com.ljh.michedule.data.repository.ScheduleRepository
+import com.ljh.michedule.data.sync.SupabaseSync
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -17,6 +18,10 @@ class MicheduleApp : Application() {
         private set
     lateinit var prefsManager: PrefsManager
         private set
+    var supabaseSync: SupabaseSync? = null
+        private set
+
+    private val appScope = CoroutineScope(Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
@@ -24,12 +29,27 @@ class MicheduleApp : Application() {
         repository = ScheduleRepository(database)
         prefsManager = PrefsManager(this)
 
+        startSync()
+
         val prefs = getSharedPreferences("michedule_init", MODE_PRIVATE)
         if (!prefs.getBoolean("seeded_june_2026", false)) {
             CoroutineScope(Dispatchers.IO).launch {
                 seedJune2026()
                 prefs.edit().putBoolean("seeded_june_2026", true).apply()
             }
+        }
+    }
+
+    fun startSync() {
+        supabaseSync?.stop()
+        val sync = SupabaseSync(repository, prefsManager)
+        supabaseSync = sync
+        sync.start(appScope)
+    }
+
+    fun triggerUpload() {
+        appScope.launch {
+            supabaseSync?.uploadCurrentData()
         }
     }
 

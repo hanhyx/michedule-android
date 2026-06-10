@@ -11,6 +11,8 @@ class ScheduleRepository(private val db: AppDatabase) {
     private val eventDao = db.eventDao()
     private val friendShiftDao = db.friendShiftDao()
     private val todoDao = db.todoDao()
+    private val moodDao = db.moodDao()
+    private val historyDao = db.shiftHistoryDao()
 
     fun getShiftsForMonth(yearMonth: YearMonth): Flow<List<ShiftEntity>> {
         val start = yearMonth.atDay(1).toString()
@@ -118,4 +120,25 @@ class ScheduleRepository(private val db: AppDatabase) {
     suspend fun toggleTodo(id: Long, done: Boolean) = todoDao.setDone(id, done)
 
     suspend fun deleteTodo(id: Long) = todoDao.deleteById(id)
+
+    // Mood
+    fun getMoodForDate(date: LocalDate): Flow<MoodEntity?> = moodDao.getMoodForDate(date.toString())
+
+    fun getMoodsForMonth(yearMonth: YearMonth): Flow<List<MoodEntity>> {
+        val start = yearMonth.atDay(1).toString()
+        val end = yearMonth.atEndOfMonth().toString()
+        return moodDao.getMoodsInRange(start, end)
+    }
+
+    suspend fun setMood(date: LocalDate, emoji: String, note: String) {
+        moodDao.upsert(MoodEntity(date = date.toString(), emoji = emoji, note = note))
+    }
+
+    // Shift History
+    fun getHistoryForDate(date: LocalDate): Flow<List<ShiftHistoryEntity>> =
+        historyDao.getHistoryForDate(date.toString())
+
+    suspend fun recordShiftChange(date: LocalDate, oldType: String?, newType: String?) {
+        historyDao.insert(ShiftHistoryEntity(date = date.toString(), oldType = oldType, newType = newType))
+    }
 }

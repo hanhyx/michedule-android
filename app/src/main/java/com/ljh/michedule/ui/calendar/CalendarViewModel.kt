@@ -5,17 +5,15 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ljh.michedule.MicheduleApp
 import com.ljh.michedule.alarm.ShiftAlarmManager
-import com.ljh.michedule.data.db.EventEntity
-import com.ljh.michedule.data.db.FriendShiftEntity
-import com.ljh.michedule.data.db.ShiftEntity
-import com.ljh.michedule.data.db.TodoEntity
+import com.ljh.michedule.data.db.*
 import com.ljh.michedule.model.ShiftType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
+
+enum class ViewMode { MONTHLY, WEEKLY, DAILY }
 
 data class CalendarUiState(
     val currentMonth: YearMonth = YearMonth.now(),
@@ -23,8 +21,11 @@ data class CalendarUiState(
     val shifts: Map<String, ShiftEntity> = emptyMap(),
     val events: Map<String, List<EventEntity>> = emptyMap(),
     val friendShifts: Map<String, FriendShiftEntity> = emptyMap(),
+    val moods: Map<String, MoodEntity> = emptyMap(),
     val todos: List<TodoEntity> = emptyList(),
-    val isWeeklyView: Boolean = false,
+    val shiftHistory: List<ShiftHistoryEntity> = emptyList(),
+    val currentMood: MoodEntity? = null,
+    val viewMode: ViewMode = ViewMode.MONTHLY,
     val showDayDetail: Boolean = false
 )
 
@@ -43,9 +44,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 .distinctUntilChanged()
                 .flatMapLatest { month -> repo.getShiftsForMonth(month) }
                 .collect { shifts ->
-                    _uiState.update { state ->
-                        state.copy(shifts = shifts.associateBy { it.date })
-                    }
+                    _uiState.update { it.copy(shifts = shifts.associateBy { s -> s.date }) }
                 }
         }
 
@@ -54,9 +53,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 .distinctUntilChanged()
                 .flatMapLatest { month -> repo.getEventsForMonth(month) }
                 .collect { events ->
-                    _uiState.update { state ->
-                        state.copy(events = events.groupBy { it.date })
-                    }
+                    _uiState.update { it.copy(events = events.groupBy { e -> e.date }) }
                 }
         }
 
@@ -65,9 +62,16 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 .distinctUntilChanged()
                 .flatMapLatest { month -> repo.getFriendShiftsForMonth(month) }
                 .collect { shifts ->
-                    _uiState.update { state ->
-                        state.copy(friendShifts = shifts.associateBy { it.date })
-                    }
+                    _uiState.update { it.copy(friendShifts = shifts.associateBy { s -> s.date }) }
+                }
+        }
+
+        viewModelScope.launch {
+            _uiState.map { it.currentMonth }
+                .distinctUntilChanged()
+                .flatMapLatest { month -> repo.getMoodsForMonth(month) }
+                .collect { moods ->
+                    _uiState.update { it.copy(moods = moods.associateBy { m -> m.date }) }
                 }
         }
 
@@ -75,9 +79,21 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             _uiState.map { it.selectedDate }
                 .distinctUntilChanged()
                 .flatMapLatest { date -> repo.getTodosForDate(date) }
-                .collect { todos ->
-                    _uiState.update { state -> state.copy(todos = todos) }
-                }
+                .collect { todos -> _uiState.update { it.copy(todos = todos) } }
+        }
+
+        viewModelScope.launch {
+            _uiState.map { it.selectedDate }
+                .distinctUntilChanged()
+                .flatMapLatest { date -> repo.getMoodForDate(date) }
+                .collect { mood -> _uiState.update { it.copy(currentMood = mood) } }
+        }
+
+        viewModelScope.launch {
+            _uiState.map { it.selectedDate }
+                .distinctUntilChanged()
+                .flatMapLatest { date -> repo.getHistoryForDate(date) }
+                .collect { history -> _uiState.update { it.copy(shiftHistory = history) } }
         }
     }
 
@@ -93,13 +109,22 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(showDayDetail = false) }
     }
 
-    fun toggleView() {
-        _uiState.update { it.copy(isWeeklyView = !it.isWeeklyView) }
+    fun setViewMode(mode: ViewMode) {
+        _uiState.update { it.copy(viewMode = mode) }
     }
 
     fun setShift(date: LocalDate, type: ShiftType) {
         viewModelScope.launch {
-            repo.setShift(date, ShiftType.toDbString(type))
+            val oldShift = repo.getShift(date)
+            val oldType = oldShift?.type
+            val newType = ShiftType.toDbString(type)
+
+            if (oldType != newType) {
+                repo.recordShiftChange(date, oldType, newType)
+            }
+            repo.setShift(date, newType)
+            app.triggerUpload()
+
             try {
                 val enabled = app.prefsManager.alarmEnabled.first()
                 if (enabled) {
@@ -112,38 +137,32 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     fun clearShift(date: LocalDate) {
         viewModelScope.launch {
+            val old = repo.getShift(date)
+            if (old?.type?.isNotBlank() == true) {
+                repo.recordShiftChange(date, old.type, null)
+            }
             repo.clearShift(date)
         }
     }
 
     fun setMemo(date: LocalDate, memo: String?) {
-        viewModelScope.launch {
-            repo.setMemo(date, memo)
-        }
+        viewModelScope.launch { repo.setMemo(date, memo) }
     }
 
     fun addEvent(event: EventEntity) {
-        viewModelScope.launch {
-            repo.addEvent(event)
-        }
+        viewModelScope.launch { repo.addEvent(event) }
     }
 
     fun deleteEvent(id: Long) {
-        viewModelScope.launch {
-            repo.deleteEvent(id)
-        }
+        viewModelScope.launch { repo.deleteEvent(id) }
     }
 
     fun addTodo(title: String, time: String? = null, isHabit: Boolean = false) {
         viewModelScope.launch {
-            repo.addTodo(
-                TodoEntity(
-                    date = _uiState.value.selectedDate.toString(),
-                    title = title,
-                    time = time,
-                    isHabit = isHabit
-                )
-            )
+            repo.addTodo(TodoEntity(
+                date = _uiState.value.selectedDate.toString(),
+                title = title, time = time, isHabit = isHabit
+            ))
         }
     }
 
@@ -155,20 +174,20 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { repo.deleteTodo(id) }
     }
 
+    fun setMood(emoji: String, note: String) {
+        viewModelScope.launch {
+            repo.setMood(_uiState.value.selectedDate, emoji, note)
+        }
+    }
+
     fun autofillPattern(patternCodes: List<String>, startDate: LocalDate, endDate: LocalDate) {
         if (patternCodes.isEmpty()) return
-
         viewModelScope.launch {
             val shifts = mutableListOf<ShiftEntity>()
             var current = startDate
             var idx = 0
             while (!current.isAfter(endDate)) {
-                shifts.add(
-                    ShiftEntity(
-                        date = current.toString(),
-                        type = patternCodes[idx % patternCodes.size]
-                    )
-                )
+                shifts.add(ShiftEntity(date = current.toString(), type = patternCodes[idx % patternCodes.size]))
                 current = current.plusDays(1)
                 idx++
             }
@@ -177,35 +196,22 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun clearMonth() {
-        viewModelScope.launch {
-            repo.clearMonth(_uiState.value.currentMonth)
-        }
-    }
-
-    fun getTodayShift(): ShiftType? {
-        val today = LocalDate.now().toString()
-        return _uiState.value.shifts[today]?.let { ShiftType.fromString(it.type) }
+        viewModelScope.launch { repo.clearMonth(_uiState.value.currentMonth) }
     }
 
     fun getDdayInfo(): DdayInfo {
         val today = LocalDate.now()
         val shifts = _uiState.value.shifts
-
         var nextOff: Int? = null
         var nextWork: Int? = null
         var consecutiveWork = 0
 
-        // Count consecutive work days ending today
         var check = today
         while (true) {
             val shift = shifts[check.toString()]?.let { ShiftType.fromString(it.type) }
-            if (shift != null && shift != ShiftType.OFF) {
-                consecutiveWork++
-                check = check.minusDays(1)
-            } else break
+            if (shift != null && shift != ShiftType.OFF) { consecutiveWork++; check = check.minusDays(1) }
+            else break
         }
-
-        // Find next off & next work
         for (i in 1..60) {
             val d = today.plusDays(i.toLong())
             val shift = shifts[d.toString()]?.let { ShiftType.fromString(it.type) }
@@ -215,27 +221,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             }
             if (nextOff != null && nextWork != null) break
         }
-
-        return DdayInfo(
-            nextOffDays = nextOff,
-            nextWorkDays = nextWork,
-            consecutiveWorkDays = consecutiveWork
-        )
-    }
-
-    fun getMonthStats(): MonthStats {
-        val shifts = _uiState.value.shifts
-        var day = 0; var night = 0; var nightEarly = 0; var off = 0
-        shifts.values.forEach {
-            when (ShiftType.fromString(it.type)) {
-                ShiftType.DAY -> day++
-                ShiftType.NIGHT -> night++
-                ShiftType.NIGHT_EARLY -> nightEarly++
-                ShiftType.OFF -> off++
-                null -> {}
-            }
-        }
-        return MonthStats(day, night, nightEarly, off)
+        return DdayInfo(nextOff, nextWork, consecutiveWork)
     }
 }
 

@@ -1,11 +1,14 @@
 package com.ljh.michedule.ui.calendar
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -15,17 +18,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import com.ljh.michedule.data.db.EventEntity
-import com.ljh.michedule.data.db.FriendShiftEntity
-import com.ljh.michedule.data.db.ShiftEntity
-import com.ljh.michedule.data.db.TodoEntity
+import com.ljh.michedule.data.db.*
 import com.ljh.michedule.model.ShiftType
 import com.ljh.michedule.ui.theme.*
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,6 +37,8 @@ fun DayDetailSheet(
     events: List<EventEntity>,
     friendShift: FriendShiftEntity?,
     todos: List<TodoEntity>,
+    mood: MoodEntity?,
+    shiftHistory: List<ShiftHistoryEntity>,
     onDismiss: () -> Unit,
     onShiftSelect: (ShiftType) -> Unit,
     onShiftClear: () -> Unit,
@@ -44,18 +47,15 @@ fun DayDetailSheet(
     onDeleteEvent: (Long) -> Unit,
     onAddTodo: (String, String?, Boolean) -> Unit,
     onToggleTodo: (Long, Boolean) -> Unit,
-    onDeleteTodo: (Long) -> Unit
+    onDeleteTodo: (Long) -> Unit,
+    onMoodSelect: (String, String) -> Unit
 ) {
-    var memoText by remember(date, shift) {
-        mutableStateOf(shift?.memo ?: "")
-    }
+    var memoText by remember(date, shift) { mutableStateOf(shift?.memo ?: "") }
     val currentShift = shift?.let { ShiftType.fromString(it.type) }
 
     ModalBottomSheet(
         onDismissRequest = {
-            if (memoText != (shift?.memo ?: "")) {
-                onMemoChange(memoText.ifBlank { null })
-            }
+            if (memoText != (shift?.memo ?: "")) onMemoChange(memoText.ifBlank { null })
             onDismiss()
         },
         containerColor = DarkCard,
@@ -84,195 +84,111 @@ fun DayDetailSheet(
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Shift selection
-            Text(
-                text = "근무 유형",
-                style = MaterialTheme.typography.labelLarge,
-                color = TextSecondary
-            )
+            // ── Mood Section ──
+            MoodSection(mood = mood, onMoodSelect = onMoodSelect)
+
+            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 12.dp))
+
+            // ── Shift Selection ──
+            Text("근무 유형", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
             Spacer(modifier = Modifier.height(8.dp))
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 ShiftType.entries.forEach { type ->
-                    val isActive = currentShift == type
-                    ShiftButton(
-                        type = type,
-                        isActive = isActive,
-                        onClick = { onShiftSelect(type) }
-                    )
+                    ShiftButton(type = type, isActive = currentShift == type, onClick = { onShiftSelect(type) })
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            TextButton(onClick = onShiftClear, modifier = Modifier.align(Alignment.End)) {
+                Icon(Icons.Default.Clear, null, Modifier.size(14.dp), tint = TextMuted)
+                Spacer(Modifier.width(4.dp))
+                Text("초기화", color = TextMuted, fontSize = 12.sp)
+            }
 
-            // Clear button
-            TextButton(
-                onClick = {
-                    onShiftClear()
-                },
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Icon(
-                    Icons.Default.Clear,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = TextMuted
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("초기화", color = TextMuted, fontSize = 13.sp)
+            // ── Shift History ──
+            if (shiftHistory.isNotEmpty()) {
+                ShiftHistorySection(shiftHistory)
             }
 
             HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 8.dp))
 
-            // Memo
-            Text(
-                text = "메모",
-                style = MaterialTheme.typography.labelLarge,
-                color = TextSecondary
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            // ── Memo ──
+            Text("메모", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+            Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
                 value = memoText,
                 onValueChange = { memoText = it },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("메모를 입력하세요", color = TextMuted) },
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Purple80,
-                    unfocusedBorderColor = DarkBorder,
-                    cursorColor = Purple80,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary
+                    focusedBorderColor = Purple80, unfocusedBorderColor = DarkBorder,
+                    cursorColor = Purple80, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
                 ),
                 shape = RoundedCornerShape(12.dp),
                 maxLines = 3
             )
-
-            // Save memo button
             if (memoText != (shift?.memo ?: "")) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Button(
-                    onClick = {
-                        onMemoChange(memoText.ifBlank { null })
-                    },
+                    onClick = { onMemoChange(memoText.ifBlank { null }) },
                     colors = ButtonDefaults.buttonColors(containerColor = Purple40),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("메모 저장")
-                }
+                ) { Text("저장") }
             }
 
             HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 12.dp))
 
-            // Events
+            // ── Todos ──
+            TodoSection(todos, onAddTodo, onToggleTodo, onDeleteTodo)
+
+            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 12.dp))
+
+            // ── Events ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "일정",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = TextSecondary
-                )
-                IconButton(
-                    onClick = onAddEvent,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = "일정 추가",
-                        tint = Purple80
-                    )
+                Text("일정", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                IconButton(onClick = onAddEvent, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Add, "추가", tint = Purple80)
                 }
             }
-
             if (events.isEmpty()) {
-                Text(
-                    text = "등록된 일정이 없습니다",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextMuted,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                Text("등록된 일정이 없습니다", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
             } else {
                 events.forEach { event ->
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(10.dp)
-                                .clip(CircleShape)
-                                .background(Color(event.color))
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = event.title,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
+                        Box(Modifier.size(8.dp).clip(CircleShape).background(Color(event.color)))
+                        Spacer(Modifier.width(8.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(event.title, style = MaterialTheme.typography.bodyMedium)
                             if (event.startTime != null) {
-                                Text(
-                                    text = buildString {
-                                        append(event.startTime)
-                                        if (event.endTime != null) append(" ~ ${event.endTime}")
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = TextMuted
-                                )
+                                Text("${event.startTime}${event.endTime?.let { " - $it" } ?: ""}",
+                                    style = MaterialTheme.typography.bodySmall, color = TextMuted)
                             }
                         }
-                        IconButton(
-                            onClick = { onDeleteEvent(event.id) },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "삭제",
-                                modifier = Modifier.size(16.dp),
-                                tint = TextMuted
-                            )
+                        IconButton(onClick = { onDeleteEvent(event.id) }, Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Delete, "삭제", Modifier.size(14.dp), tint = TextMuted)
                         }
                     }
                 }
             }
 
-            // Todo checklist
-            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 12.dp))
-            TodoSection(
-                todos = todos,
-                onAdd = onAddTodo,
-                onToggle = onToggleTodo,
-                onDelete = onDeleteTodo
-            )
-
-            // Friend shift
+            // ── Friend shift ──
             if (friendShift != null) {
                 val fType = ShiftType.fromString(friendShift.type)
                 if (fType != null) {
-                    HorizontalDivider(
-                        color = DarkBorder,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
+                    HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Person,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = fType.color
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "${friendShift.friendName}: ${fType.emoji} ${fType.label}",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = fType.color
-                        )
+                        Icon(Icons.Default.Person, null, Modifier.size(18.dp), tint = fType.color)
+                        Spacer(Modifier.width(8.dp))
+                        Text("${friendShift.friendName}: ${fType.emoji} ${fType.label}",
+                            style = MaterialTheme.typography.bodyLarge, color = fType.color)
                     }
                 }
             }
@@ -282,6 +198,100 @@ fun DayDetailSheet(
     }
 }
 
+// ── Mood Section ──
+
+@Composable
+private fun MoodSection(mood: MoodEntity?, onMoodSelect: (String, String) -> Unit) {
+    val moodOptions = listOf("😊", "🥰", "😐", "😢", "😤", "😴", "🤩", "😰")
+    var selectedEmoji by remember(mood) { mutableStateOf(mood?.emoji ?: "") }
+    var moodNote by remember(mood) { mutableStateOf(mood?.note ?: "") }
+
+    Text("오늘의 감정", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+    Spacer(modifier = Modifier.height(8.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        moodOptions.forEach { emoji ->
+            val isSelected = selectedEmoji == emoji
+            Surface(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .clickable {
+                        selectedEmoji = emoji
+                        onMoodSelect(emoji, moodNote)
+                    },
+                shape = CircleShape,
+                color = if (isSelected) Purple40 else Color.Transparent,
+                border = if (isSelected) BorderStroke(2.dp, Purple80) else null
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(emoji, fontSize = 20.sp)
+                }
+            }
+        }
+    }
+    Spacer(modifier = Modifier.height(6.dp))
+    OutlinedTextField(
+        value = moodNote,
+        onValueChange = {
+            moodNote = it
+            if (selectedEmoji.isNotBlank()) onMoodSelect(selectedEmoji, it)
+        },
+        modifier = Modifier.fillMaxWidth(),
+        placeholder = { Text("한줄 감정 메모...", color = TextMuted) },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Purple80, unfocusedBorderColor = DarkBorder,
+            cursorColor = Purple80, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
+        ),
+        shape = RoundedCornerShape(12.dp),
+        singleLine = true
+    )
+}
+
+// ── Shift History Section ──
+
+@Composable
+private fun ShiftHistorySection(history: List<ShiftHistoryEntity>) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = !expanded }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Default.History, null, Modifier.size(14.dp), tint = TextMuted)
+        Spacer(Modifier.width(4.dp))
+        Text("변경 이력 (${history.size})", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+        Spacer(Modifier.weight(1f))
+        Icon(
+            if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+            null, Modifier.size(16.dp), tint = TextMuted
+        )
+    }
+    if (expanded) {
+        history.take(10).forEach { h ->
+            val time = Instant.ofEpochMilli(h.changedAt)
+                .atZone(ZoneId.systemDefault())
+                .format(DateTimeFormatter.ofPattern("M/d HH:mm"))
+            val oldLabel = h.oldType?.let { ShiftType.fromString(it)?.label } ?: "없음"
+            val newLabel = h.newType?.let { ShiftType.fromString(it)?.label } ?: "없음"
+
+            Text(
+                text = "$time : $oldLabel → $newLabel",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextMuted,
+                modifier = Modifier.padding(start = 18.dp, top = 2.dp)
+            )
+        }
+    }
+}
+
+// ── Todo Section ──
+
 @Composable
 private fun TodoSection(
     todos: List<TodoEntity>,
@@ -290,28 +300,20 @@ private fun TodoSection(
     onDelete: (Long) -> Unit
 ) {
     var newTodoText by remember { mutableStateOf("") }
-    var isHabit by remember { mutableStateOf(false) }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "✅ 할 일",
-            style = MaterialTheme.typography.labelLarge,
-            color = TextSecondary
-        )
+        Text("할 일", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
         val doneCount = todos.count { it.isDone }
         if (todos.isNotEmpty()) {
-            Text(
-                text = "$doneCount/${todos.size} 완료",
-                style = MaterialTheme.typography.bodySmall,
-                color = if (doneCount == todos.size) ShiftOff else TextMuted
-            )
+            Text("$doneCount/${todos.size}", style = MaterialTheme.typography.bodySmall,
+                color = if (doneCount == todos.size) ShiftOff else TextMuted)
         }
     }
-    Spacer(modifier = Modifier.height(8.dp))
+    Spacer(modifier = Modifier.height(6.dp))
 
     todos.forEach { todo ->
         Row(
@@ -321,137 +323,74 @@ private fun TodoSection(
                 .clip(RoundedCornerShape(8.dp))
                 .background(if (todo.isDone) DarkSurface.copy(alpha = 0.5f) else DarkSurface)
                 .clickable { onToggle(todo.id, !todo.isDone) }
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 if (todo.isDone) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                contentDescription = null,
-                tint = if (todo.isDone) ShiftOff else TextMuted,
-                modifier = Modifier.size(20.dp)
+                null, tint = if (todo.isDone) ShiftOff else TextMuted, modifier = Modifier.size(18.dp)
             )
-            Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = (if (todo.isHabit) "🔄 " else "") + todo.title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (todo.isDone) TextMuted else TextPrimary,
-                    fontWeight = if (todo.isDone) FontWeight.Normal else FontWeight.Medium
-                )
-                if (todo.time != null) {
-                    Text(
-                        text = todo.time,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextMuted
-                    )
-                }
-            }
-            IconButton(
-                onClick = { onDelete(todo.id) },
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "삭제",
-                    modifier = Modifier.size(14.dp),
-                    tint = TextMuted
-                )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = (if (todo.isHabit) "🔄 " else "") + todo.title,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (todo.isDone) TextMuted else TextPrimary,
+                textDecoration = if (todo.isDone) TextDecoration.LineThrough else TextDecoration.None,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = { onDelete(todo.id) }, Modifier.size(20.dp)) {
+                Icon(Icons.Default.Close, "삭제", Modifier.size(12.dp), tint = TextMuted)
             }
         }
     }
 
-    Spacer(modifier = Modifier.height(8.dp))
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    Spacer(modifier = Modifier.height(6.dp))
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         OutlinedTextField(
             value = newTodoText,
             onValueChange = { newTodoText = it },
             modifier = Modifier.weight(1f),
             placeholder = { Text("할 일 추가...", color = TextMuted) },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Purple80,
-                unfocusedBorderColor = DarkBorder,
-                cursorColor = Purple80,
-                focusedTextColor = TextPrimary,
-                unfocusedTextColor = TextPrimary
+                focusedBorderColor = Purple80, unfocusedBorderColor = DarkBorder,
+                cursorColor = Purple80, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
             ),
             shape = RoundedCornerShape(12.dp),
             singleLine = true
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        IconButton(
-            onClick = {
-                if (newTodoText.isNotBlank()) {
-                    onAdd(newTodoText.trim(), null, isHabit)
-                    newTodoText = ""
-                    isHabit = false
-                }
+        IconButton(onClick = {
+            if (newTodoText.isNotBlank()) {
+                onAdd(newTodoText.trim(), null, false)
+                newTodoText = ""
             }
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "추가", tint = Purple80)
-        }
-    }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(top = 4.dp)
-    ) {
-        Checkbox(
-            checked = isHabit,
-            onCheckedChange = { isHabit = it },
-            colors = CheckboxDefaults.colors(
-                checkedColor = Purple80,
-                uncheckedColor = TextMuted
-            ),
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text("매일 반복 (습관)", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+        }) { Icon(Icons.Default.Add, "추가", tint = Purple80) }
     }
 }
 
-@Composable
-private fun ShiftButton(
-    type: ShiftType,
-    isActive: Boolean,
-    onClick: () -> Unit
-) {
-    val bgColor = if (isActive) type.bgColor else DarkSurface
-    val borderColor = if (isActive) type.color else DarkBorder
+// ── Shift Button ──
 
+@Composable
+private fun ShiftButton(type: ShiftType, isActive: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(bgColor)
-            .border(1.5.dp, borderColor, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (isActive) type.bgColor else DarkSurface)
+            .border(1.dp, if (isActive) type.color else DarkBorder, RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = type.emoji, fontSize = 22.sp)
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = type.label,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = if (isActive) type.color else TextPrimary
-            )
-            Text(
-                text = type.timeRange,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isActive) type.color.copy(alpha = 0.7f) else TextMuted
-            )
+        Text(type.emoji, fontSize = 20.sp)
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(type.label, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                color = if (isActive) type.color else TextPrimary)
+            Text(type.timeRange, fontSize = 11.sp,
+                color = if (isActive) type.color.copy(alpha = 0.7f) else TextMuted)
         }
         if (isActive) {
-            Icon(
-                Icons.Default.CheckCircle,
-                contentDescription = null,
-                tint = type.color,
-                modifier = Modifier.size(22.dp)
-            )
+            Icon(Icons.Default.CheckCircle, null, tint = type.color, modifier = Modifier.size(20.dp))
         }
     }
 }
