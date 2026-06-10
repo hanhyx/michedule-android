@@ -7,5 +7,7 @@ import androidx.room.PrimaryKey
 data class FriendShiftEntity(
     @PrimaryKey val date: String,
     val type: String,
-    val friendName: String = ""
+    val friendName: String = "",
+    val hasAlba: Boolean = false,
+    val memo: String? = null
 )

@@ -31,6 +31,7 @@ data class ScheduleRow(
     val user_name: String = "",
     val shifts: JsonObject = JsonObject(emptyMap()),
     val memos: JsonObject = JsonObject(emptyMap()),
+    val albas: JsonObject = JsonObject(emptyMap()),
     val updated_at: String? = null
 )
 
@@ -126,6 +127,14 @@ class SupabaseSync(
 
             val newShiftsMap = mutableMapOf<String, String>()
             val friendShifts = mutableListOf<FriendShiftEntity>()
+            val albaSet = friendRow.albas.mapNotNull { (date, value) ->
+                if ((value as? JsonPrimitive)?.booleanOrNull == true) date else null
+            }.toSet()
+            val memoMap = friendRow.memos.mapNotNull { (date, value) ->
+                val m = (value as? JsonPrimitive)?.content
+                if (!m.isNullOrBlank()) date to m else null
+            }.toMap()
+
             friendRow.shifts.forEach { (date, value) ->
                 val type = (value as? JsonPrimitive)?.content ?: return@forEach
                 newShiftsMap[date] = type
@@ -133,7 +142,9 @@ class SupabaseSync(
                     FriendShiftEntity(
                         date = date,
                         type = type,
-                        friendName = friendRow.user_name
+                        friendName = friendRow.user_name,
+                        hasAlba = date in albaSet,
+                        memo = memoMap[date]
                     )
                 )
             }
@@ -227,13 +238,19 @@ class SupabaseSync(
                     if (!s.memo.isNullOrBlank()) put(s.date, s.memo)
                 }
             }
+            val albasJson = buildJsonObject {
+                allShifts.forEach { s ->
+                    if (s.hasAlba) put(s.date, true)
+                }
+            }
 
             val row = ScheduleRow(
                 room_code = code,
                 device_id = deviceId,
                 user_name = myName,
                 shifts = shiftsJson,
-                memos = memosJson
+                memos = memosJson,
+                albas = albasJson
             )
 
             client?.from(TABLE)?.upsert(row)

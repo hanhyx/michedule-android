@@ -366,6 +366,8 @@ private fun MonthlyCalendarGrid(
                             myShift = shift,
                             hasAlba = hasAlba,
                             partnerShift = friendShift,
+                            partnerHasAlba = friendShiftEntity?.hasAlba ?: false,
+                            partnerMemo = friendShiftEntity?.memo,
                             partnerName = uiState.partnerName.ifBlank { friendShiftEntity?.friendName ?: "" },
                             memo = memo,
                             events = events ?: emptyList(),
@@ -396,6 +398,8 @@ private fun CoupleCell(
     myShift: ShiftType?,
     hasAlba: Boolean,
     partnerShift: ShiftType?,
+    partnerHasAlba: Boolean,
+    partnerMemo: String?,
     partnerName: String,
     memo: String?,
     events: List<EventEntity>,
@@ -506,7 +510,7 @@ private fun CoupleCell(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        CellPartnerTag(partnerShift, partnerName)
+        CellPartnerTag(partnerShift, partnerHasAlba, partnerMemo, partnerName)
     }
 }
 
@@ -544,31 +548,45 @@ private fun CellDateRow(
 }
 
 @Composable
-private fun CellPartnerTag(partnerShift: ShiftType?, partnerName: String = "") {
+private fun CellPartnerTag(
+    partnerShift: ShiftType?,
+    partnerHasAlba: Boolean = false,
+    partnerMemo: String? = null,
+    partnerName: String = ""
+) {
     if (partnerShift != null) {
         val displayName = partnerName.take(1).ifBlank { "♡" }
-        Row(
-            modifier = Modifier
-                .background(
-                    partnerShift.bgColor.copy(alpha = 0.6f),
-                    RoundedCornerShape(3.dp)
+        val albaTag = if (partnerHasAlba) "+알" else ""
+        Column {
+            Row(
+                modifier = Modifier
+                    .background(
+                        partnerShift.bgColor.copy(alpha = 0.6f),
+                        RoundedCornerShape(3.dp)
+                    )
+                    .padding(horizontal = 2.dp, vertical = 0.5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("💑", fontSize = 6.sp, lineHeight = 7.sp)
+                Text(
+                    text = "${displayName}:${partnerShift.shortLabel}${albaTag}",
+                    fontSize = 7.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = partnerShift.color.copy(alpha = 0.9f),
+                    maxLines = 1,
+                    lineHeight = 8.sp
                 )
-                .padding(horizontal = 2.dp, vertical = 0.5.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "💑",
-                fontSize = 6.sp,
-                lineHeight = 7.sp
-            )
-            Text(
-                text = "${displayName}:${partnerShift.shortLabel}",
-                fontSize = 7.sp,
-                fontWeight = FontWeight.Bold,
-                color = partnerShift.color.copy(alpha = 0.9f),
-                maxLines = 1,
-                lineHeight = 8.sp
-            )
+            }
+            if (!partnerMemo.isNullOrBlank()) {
+                Text(
+                    text = "${displayName}:${partnerMemo}",
+                    fontSize = 6.sp,
+                    color = TextMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 7.sp
+                )
+            }
         }
     }
 }

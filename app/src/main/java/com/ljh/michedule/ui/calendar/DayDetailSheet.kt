@@ -238,11 +238,36 @@ fun DayDetailSheet(
                 val fType = ShiftType.fromString(friendShift.type)
                 if (fType != null) {
                     HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 8.dp))
+                    Text("💑 상대 일정", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                    Spacer(Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Person, null, Modifier.size(18.dp), tint = fType.color)
                         Spacer(Modifier.width(8.dp))
                         Text("${friendShift.friendName}: ${fType.emoji} ${fType.label}",
                             style = MaterialTheme.typography.bodyLarge, color = fType.color)
+                    }
+                    if (friendShift.hasAlba) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(start = 26.dp, top = 2.dp)
+                        ) {
+                            Text("💼", fontSize = 14.sp)
+                            Spacer(Modifier.width(4.dp))
+                            Text("알바", fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                                color = ShiftAlba)
+                            Text(" (${ShiftType.ALBA.timeRange})", fontSize = 11.sp,
+                                color = ShiftAlba.copy(alpha = 0.7f))
+                        }
+                    }
+                    if (!friendShift.memo.isNullOrBlank()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(start = 26.dp, top = 2.dp)
+                        ) {
+                            Text("📝", fontSize = 12.sp)
+                            Spacer(Modifier.width(4.dp))
+                            Text(friendShift.memo, fontSize = 13.sp, color = TextSecondary)
+                        }
                     }
                 }
             }
