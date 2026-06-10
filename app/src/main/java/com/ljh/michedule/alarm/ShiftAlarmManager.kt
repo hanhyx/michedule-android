@@ -21,15 +21,17 @@ object ShiftAlarmManager {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
         val workStartHour = when (shift) {
-            ShiftType.DAY -> 8       // 08:30
-            ShiftType.NIGHT -> 18    // 18:00
-            ShiftType.NIGHT_EARLY -> 16  // 16:30
+            ShiftType.DAY -> 8
+            ShiftType.NIGHT -> 18
+            ShiftType.NIGHT_EARLY -> 16
+            ShiftType.ALBA -> 9
             ShiftType.OFF -> return
         }
         val workStartMinute = when (shift) {
             ShiftType.DAY -> 30
             ShiftType.NIGHT -> 0
             ShiftType.NIGHT_EARLY -> 30
+            ShiftType.ALBA -> 0
             ShiftType.OFF -> return
         }
 

@@ -286,7 +286,8 @@ private fun cycleShift(current: ShiftType?): ShiftType? = when (current) {
     ShiftType.DAY -> ShiftType.NIGHT
     ShiftType.NIGHT -> ShiftType.NIGHT_EARLY
     ShiftType.NIGHT_EARLY -> ShiftType.OFF
-    ShiftType.OFF -> null
+    ShiftType.OFF -> ShiftType.ALBA
+    ShiftType.ALBA -> null
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -613,6 +614,7 @@ private fun isWithinShift(hour: Int, shift: ShiftType): Boolean = when (shift) {
     ShiftType.NIGHT -> hour >= 18 || hour < 6
     ShiftType.NIGHT_EARLY -> hour >= 16 || hour < 4
     ShiftType.OFF -> false
+    ShiftType.ALBA -> hour in 9..17
 }
 
 private fun isShiftStartHour(hour: Int, shift: ShiftType): Boolean = when (shift) {
@@ -620,6 +622,7 @@ private fun isShiftStartHour(hour: Int, shift: ShiftType): Boolean = when (shift
     ShiftType.NIGHT -> hour == 18
     ShiftType.NIGHT_EARLY -> hour == 16
     ShiftType.OFF -> false
+    ShiftType.ALBA -> hour == 9
 }
 
 // ══════════════════════════════════════════════
@@ -833,17 +836,18 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
 @Composable
 private fun CompactStatsBar(uiState: CalendarUiState) {
     val stats = remember(uiState.shifts) {
-        var day = 0; var night = 0; var nightEarly = 0; var off = 0
+        var day = 0; var night = 0; var nightEarly = 0; var off = 0; var alba = 0
         uiState.shifts.values.forEach {
             when (ShiftType.fromString(it.type)) {
                 ShiftType.DAY -> day++
                 ShiftType.NIGHT -> night++
                 ShiftType.NIGHT_EARLY -> nightEarly++
                 ShiftType.OFF -> off++
+                ShiftType.ALBA -> alba++
                 null -> {}
             }
         }
-        MonthStats(day, night, nightEarly, off)
+        MonthStats(day, night, nightEarly, off, alba)
     }
 
     Surface(
@@ -861,11 +865,7 @@ private fun CompactStatsBar(uiState: CalendarUiState) {
                 StatChip("🌙야", stats.nightCount, ShiftNight)
                 StatChip("🌇조", stats.nightEarlyCount, ShiftNightEarly)
                 StatChip("😴비", stats.offCount, ShiftOff)
-                Text(
-                    text = "총 ${stats.totalWork + stats.offCount}일",
-                    fontSize = 11.sp,
-                    color = TextMuted
-                )
+                StatChip("💼알", stats.albaCount, ShiftAlba)
             }
             Spacer(modifier = Modifier.height(4.dp))
             Row(
@@ -878,7 +878,8 @@ private fun CompactStatsBar(uiState: CalendarUiState) {
                     stats.dayCount to ShiftDay,
                     stats.nightCount to ShiftNight,
                     stats.nightEarlyCount to ShiftNightEarly,
-                    stats.offCount to ShiftOff
+                    stats.offCount to ShiftOff,
+                    stats.albaCount to ShiftAlba
                 ).forEach { (count, color) ->
                     if (count > 0) {
                         Box(modifier = Modifier.weight(count.toFloat()).fillMaxHeight().background(color))

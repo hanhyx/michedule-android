@@ -19,6 +19,7 @@ val ShiftDay = Color(0xFFFBBF24)
 val ShiftNight = Color(0xFF818CF8)
 val ShiftNightEarly = Color(0xFFF472B6)
 val ShiftOff = Color(0xFF34D399)
+val ShiftAlba = Color(0xFFF59E0B)
 
 val EventPersonal = Color(0xFF60A5FA)
 val EventAppointment = Color(0xFFFBBF24)

@@ -249,7 +249,8 @@ data class MonthStats(
     val dayCount: Int = 0,
     val nightCount: Int = 0,
     val nightEarlyCount: Int = 0,
-    val offCount: Int = 0
+    val offCount: Int = 0,
+    val albaCount: Int = 0
 ) {
-    val totalWork get() = dayCount + nightCount + nightEarlyCount
+    val totalWork get() = dayCount + nightCount + nightEarlyCount + albaCount
 }

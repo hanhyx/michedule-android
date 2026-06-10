@@ -332,8 +332,9 @@ private fun PatternAutofillCard(
     val shiftOptions = listOf(
         "day" to "주간 ☀️",
         "night" to "야간 🌙",
-        "nightEarly" to "야간(조) 🌆",
-        "off" to "비번 🏖️"
+        "nightEarly" to "조기 🌇",
+        "off" to "비번 😴",
+        "alba" to "알바 💼"
     )
 
     var pattern by remember { mutableStateOf(listOf<String>()) }
@@ -347,6 +348,7 @@ private fun PatternAutofillCard(
             "night" -> "야"
             "nightEarly" -> "조"
             "off" -> "비"
+            "alba" -> "알"
             else -> "?"
         }
     }

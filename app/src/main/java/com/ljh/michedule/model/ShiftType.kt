@@ -41,6 +41,14 @@ enum class ShiftType(
         timeRange = "종일 휴무",
         color = Color(0xFF34D399),
         bgColor = Color(0x3334D399)
+    ),
+    ALBA(
+        label = "알바",
+        shortLabel = "알",
+        emoji = "💼",
+        timeRange = "시간 미정",
+        color = Color(0xFFF59E0B),
+        bgColor = Color(0x33F59E0B)
     );
 
     companion object {
@@ -49,6 +57,7 @@ enum class ShiftType(
             "night" -> NIGHT
             "nightEarly" -> NIGHT_EARLY
             "off" -> OFF
+            "alba" -> ALBA
             else -> null
         }
 
@@ -57,6 +66,7 @@ enum class ShiftType(
             NIGHT -> "night"
             NIGHT_EARLY -> "nightEarly"
             OFF -> "off"
+            ALBA -> "alba"
         }
     }
 }
