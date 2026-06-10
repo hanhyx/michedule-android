@@ -348,6 +348,7 @@ private fun MonthlyCalendarGrid(
                             memo = memo,
                             eventCount = events?.size ?: 0,
                             mood = mood?.emoji,
+                            partnerMood = null,
                             isToday = date == today,
                             isSunday = col == 0,
                             isSaturday = col == 6,
@@ -375,6 +376,7 @@ private fun CoupleCell(
     memo: String?,
     eventCount: Int,
     mood: String?,
+    partnerMood: String?,
     isToday: Boolean,
     isSunday: Boolean,
     isSaturday: Boolean,
@@ -391,103 +393,89 @@ private fun CoupleCell(
             .padding(0.5.dp)
             .then(borderMod)
             .clip(RoundedCornerShape(6.dp))
-            .background(Color.Transparent)
+            .background(myShift?.bgColor ?: Color.Transparent)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(horizontal = 2.dp, vertical = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // ── 상단 50%: 날짜 + 내 근무 ──
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .background(myShift?.bgColor ?: Color.Transparent)
-                .padding(horizontal = 2.dp, vertical = 1.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        // ── 날짜 행: 날짜 + 감정(내꺼, 상대꺼) ──
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "$day",
-                    fontSize = 10.sp,
-                    fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Medium,
-                    color = when {
-                        isSunday -> Color(0xFFF87171)
-                        isSaturday -> Color(0xFF60A5FA)
-                        else -> TextPrimary
-                    }
-                )
-                if (mood != null) {
-                    Text(text = mood, fontSize = 8.sp)
+            Text(
+                text = "$day",
+                fontSize = 11.sp,
+                fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Medium,
+                color = when {
+                    isSunday -> Color(0xFFF87171)
+                    isSaturday -> Color(0xFF60A5FA)
+                    else -> TextPrimary
                 }
+            )
+            Row {
+                if (mood != null) Text(text = mood, fontSize = 8.sp)
+                if (partnerMood != null) Text(text = partnerMood, fontSize = 8.sp)
             }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            if (myShift != null) {
-                Text(myShift.emoji, fontSize = 14.sp)
-                Text(
-                    text = myShift.label,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = myShift.color,
-                    maxLines = 1
-                )
-                Text(
-                    text = myShift.timeRange.substringBefore(" -"),
-                    fontSize = 7.sp,
-                    color = myShift.color.copy(alpha = 0.7f),
-                    maxLines = 1
-                )
-            }
-            Spacer(modifier = Modifier.weight(0.5f))
         }
 
-        // ── 하단 50%: 상대 근무 + 메모/일정 ──
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .background(partnerShift?.bgColor?.copy(alpha = 0.5f) ?: DarkSurface.copy(alpha = 0.3f))
-                .padding(horizontal = 2.dp, vertical = 1.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.weight(1f))
 
-            if (partnerShift != null) {
-                Text(partnerShift.emoji, fontSize = 12.sp)
-                Text(
-                    text = partnerShift.label,
-                    fontSize = 8.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = partnerShift.color.copy(alpha = 0.85f),
-                    maxLines = 1
-                )
-                Text(
-                    text = partnerShift.timeRange.substringBefore(" -"),
-                    fontSize = 7.sp,
-                    color = partnerShift.color.copy(alpha = 0.5f),
-                    maxLines = 1
-                )
-            } else {
-                Text("─", fontSize = 10.sp, color = TextMuted.copy(alpha = 0.3f))
-            }
+        // ── 내 근무: 근무명 + 시간 ──
+        if (myShift != null) {
+            Text(
+                text = myShift.label,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = myShift.color,
+                maxLines = 1
+            )
+            Text(
+                text = myShift.timeRange.replace(" - ", "~"),
+                fontSize = 7.sp,
+                color = myShift.color.copy(alpha = 0.7f),
+                maxLines = 1
+            )
+        }
 
-            val infoText = when {
-                !memo.isNullOrBlank() -> "📝"
-                eventCount > 0 -> "📅$eventCount"
-                else -> null
-            }
-            if (infoText != null) {
-                Text(
-                    text = infoText,
-                    fontSize = 7.sp,
-                    color = TextMuted,
-                    maxLines = 1
-                )
-            }
+        // ── 메모/일정 ──
+        val infoText = when {
+            !memo.isNullOrBlank() -> "📝 $memo"
+            eventCount > 0 -> "📅 ${eventCount}개"
+            else -> null
+        }
+        if (infoText != null) {
+            Text(
+                text = infoText,
+                fontSize = 7.sp,
+                color = TextMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
 
-            Spacer(modifier = Modifier.weight(0.5f))
+        Spacer(modifier = Modifier.weight(1f))
+
+        // ── 하단: 상대 근무 (컴팩트 텍스트) ──
+        if (partnerShift != null) {
+            HorizontalDivider(
+                color = partnerShift.color.copy(alpha = 0.3f),
+                modifier = Modifier.padding(vertical = 1.dp)
+            )
+            Text(
+                text = "${partnerShift.emoji} ${partnerShift.label}",
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Medium,
+                color = partnerShift.color.copy(alpha = 0.8f),
+                maxLines = 1
+            )
+            Text(
+                text = partnerShift.timeRange.replace(" - ", "~"),
+                fontSize = 6.sp,
+                color = partnerShift.color.copy(alpha = 0.5f),
+                maxLines = 1
+            )
         }
     }
 }

@@ -202,21 +202,23 @@ fun DayDetailSheet(
 
 @Composable
 private fun MoodSection(mood: MoodEntity?, onMoodSelect: (String, String) -> Unit) {
-    val moodOptions = listOf("😊", "🥰", "😐", "😢", "😤", "😴", "🤩", "😰")
+    val quickEmojis = listOf("😊", "🥰", "😐", "😢", "😤", "😴", "🤩", "😰", "🥲", "😎")
     var selectedEmoji by remember(mood) { mutableStateOf(mood?.emoji ?: "") }
     var moodNote by remember(mood) { mutableStateOf(mood?.note ?: "") }
+    var customEmoji by remember { mutableStateOf("") }
 
     Text("오늘의 감정", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
     Spacer(modifier = Modifier.height(8.dp))
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        moodOptions.forEach { emoji ->
+        quickEmojis.take(8).forEach { emoji ->
             val isSelected = selectedEmoji == emoji
             Surface(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(36.dp)
                     .clip(CircleShape)
                     .clickable {
                         selectedEmoji = emoji
@@ -227,27 +229,63 @@ private fun MoodSection(mood: MoodEntity?, onMoodSelect: (String, String) -> Uni
                 border = if (isSelected) BorderStroke(2.dp, Purple80) else null
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text(emoji, fontSize = 20.sp)
+                    Text(emoji, fontSize = 18.sp)
                 }
             }
         }
     }
+
     Spacer(modifier = Modifier.height(6.dp))
-    OutlinedTextField(
-        value = moodNote,
-        onValueChange = {
-            moodNote = it
-            if (selectedEmoji.isNotBlank()) onMoodSelect(selectedEmoji, it)
-        },
+
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text("한줄 감정 메모...", color = TextMuted) },
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Purple80, unfocusedBorderColor = DarkBorder,
-            cursorColor = Purple80, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
-        ),
-        shape = RoundedCornerShape(12.dp),
-        singleLine = true
-    )
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        OutlinedTextField(
+            value = customEmoji,
+            onValueChange = { input ->
+                customEmoji = input
+                val trimmed = input.trim()
+                if (trimmed.isNotBlank()) {
+                    selectedEmoji = trimmed
+                    onMoodSelect(trimmed, moodNote)
+                }
+            },
+            modifier = Modifier.width(80.dp),
+            placeholder = { Text("이모지", color = TextMuted, fontSize = 12.sp) },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Purple80, unfocusedBorderColor = DarkBorder,
+                cursorColor = Purple80, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
+            ),
+            shape = RoundedCornerShape(12.dp),
+            singleLine = true
+        )
+        OutlinedTextField(
+            value = moodNote,
+            onValueChange = {
+                moodNote = it
+                if (selectedEmoji.isNotBlank()) onMoodSelect(selectedEmoji, it)
+            },
+            modifier = Modifier.weight(1f),
+            placeholder = { Text("한줄 감정 메모...", color = TextMuted) },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Purple80, unfocusedBorderColor = DarkBorder,
+                cursorColor = Purple80, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
+            ),
+            shape = RoundedCornerShape(12.dp),
+            singleLine = true
+        )
+    }
+
+    if (selectedEmoji.isNotBlank()) {
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "선택됨: $selectedEmoji",
+            fontSize = 12.sp,
+            color = Purple80
+        )
+    }
 }
 
 // ── Shift History Section ──
