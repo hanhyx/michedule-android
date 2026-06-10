@@ -87,6 +87,8 @@ fun CalendarScreen(
             onDismiss = { viewModel.closeDayDetail() },
             onShiftSelect = { type -> viewModel.setShift(uiState.selectedDate, type) },
             onShiftClear = { viewModel.clearShift(uiState.selectedDate) },
+            onAlbaToggle = { hasAlba -> viewModel.toggleAlba(uiState.selectedDate, hasAlba) },
+            onShiftTimeEdit = { type, range -> viewModel.updateShiftTimeRange(type, range) },
             onMemoChange = { memo -> viewModel.setMemo(uiState.selectedDate, memo) },
             onAddEvent = { onNavigateToAddEvent(uiState.selectedDate.toString()) },
             onDeleteEvent = { viewModel.deleteEvent(it) },
@@ -303,7 +305,7 @@ private fun cycleShift(current: ShiftType?): ShiftType? = when (current) {
     ShiftType.DAY -> ShiftType.NIGHT
     ShiftType.NIGHT -> ShiftType.NIGHT_EARLY
     ShiftType.NIGHT_EARLY -> ShiftType.OFF
-    ShiftType.OFF -> ShiftType.ALBA
+    ShiftType.OFF -> null
     ShiftType.ALBA -> null
 }
 
@@ -353,8 +355,10 @@ private fun MonthlyCalendarGrid(
                     if (dayNum in 1..daysInMonth) {
                         val date = yearMonth.atDay(dayNum)
                         val dateStr = date.toString()
-                        val shift = uiState.shifts[dateStr]?.let { ShiftType.fromString(it.type) }
-                        val memo = uiState.shifts[dateStr]?.memo
+                        val shiftEntity = uiState.shifts[dateStr]
+                        val shift = shiftEntity?.let { ShiftType.fromString(it.type) }
+                        val memo = shiftEntity?.memo
+                        val hasAlba = shiftEntity?.hasAlba ?: false
                         val events = uiState.events[dateStr]
                         val friendShift = uiState.friendShifts[dateStr]?.let { ShiftType.fromString(it.type) }
                         val mood = uiState.moods[dateStr]
@@ -362,9 +366,10 @@ private fun MonthlyCalendarGrid(
                         CoupleCell(
                             day = dayNum,
                             myShift = shift,
+                            hasAlba = hasAlba,
                             partnerShift = friendShift,
                             memo = memo,
-                            eventCount = events?.size ?: 0,
+                            events = events ?: emptyList(),
                             mood = mood?.emoji,
                             partnerMood = null,
                             isToday = date == today,
@@ -390,9 +395,10 @@ private fun MonthlyCalendarGrid(
 private fun CoupleCell(
     day: Int,
     myShift: ShiftType?,
+    hasAlba: Boolean,
     partnerShift: ShiftType?,
     memo: String?,
-    eventCount: Int,
+    events: List<EventEntity>,
     mood: String?,
     partnerMood: String?,
     isToday: Boolean,
@@ -411,89 +417,139 @@ private fun CoupleCell(
             .padding(0.5.dp)
             .then(borderMod)
             .clip(RoundedCornerShape(6.dp))
-            .background(myShift?.bgColor ?: Color.Transparent)
+            .background(Color.Transparent)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 2.dp, vertical = 2.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // ── 날짜 행: 날짜 + 감정(내꺼, 상대꺼) ──
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        // ── 상단 60%: 내 영역 (근무 + 메모 + 이벤트) ──
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(3f)
+                .background(myShift?.bgColor ?: Color.Transparent)
+                .padding(horizontal = 2.dp, vertical = 1.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "$day",
-                fontSize = 11.sp,
-                fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Medium,
-                color = when {
-                    isSunday -> Color(0xFFF87171)
-                    isSaturday -> Color(0xFF60A5FA)
-                    else -> TextPrimary
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "$day",
+                        fontSize = 11.sp,
+                        fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Medium,
+                        color = when {
+                            isSunday -> Color(0xFFF87171)
+                            isSaturday -> Color(0xFF60A5FA)
+                            else -> TextPrimary
+                        }
+                    )
+                    if (mood != null || partnerMood != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (mood != null) Text(text = mood, fontSize = 7.sp)
+                            if (partnerMood != null) Text(text = partnerMood, fontSize = 7.sp)
+                        }
+                    }
                 }
-            )
-            Row {
-                if (mood != null) Text(text = mood, fontSize = 8.sp)
-                if (partnerMood != null) Text(text = partnerMood, fontSize = 8.sp)
+                if (hasAlba) {
+                    Text(text = "💼", fontSize = 7.sp)
+                }
             }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            if (myShift != null) {
+                Text(myShift.emoji, fontSize = 14.sp)
+                Text(
+                    text = myShift.label,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = myShift.color,
+                    maxLines = 1
+                )
+                Text(
+                    text = myShift.timeRange.replace(" - ", "~"),
+                    fontSize = 7.sp,
+                    color = myShift.color.copy(alpha = 0.7f),
+                    maxLines = 1
+                )
+            }
+
+            if (hasAlba && myShift != null) {
+                Text(
+                    text = "+알바",
+                    fontSize = 7.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ShiftAlba,
+                    maxLines = 1
+                )
+            } else if (hasAlba && myShift == null) {
+                Text("💼", fontSize = 14.sp)
+                Text(
+                    text = "알바",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ShiftAlba,
+                    maxLines = 1
+                )
+            }
+
+            events.take(1).forEach { event ->
+                Text(
+                    text = event.title,
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(event.color),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            if (!memo.isNullOrBlank()) {
+                Text(
+                    text = memo,
+                    fontSize = 8.sp,
+                    color = EventPersonal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            if (events.size > 1) {
+                Text("+${events.size - 1}", fontSize = 7.sp, color = TextMuted)
+            }
+
+            Spacer(modifier = Modifier.weight(0.5f))
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        // ── 하단 40%: 상대 영역 ──
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(2f)
+                .background(partnerShift?.bgColor?.copy(alpha = 0.6f) ?: DarkSurface.copy(alpha = 0.3f))
+                .padding(horizontal = 2.dp, vertical = 1.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(modifier = Modifier.weight(1f))
 
-        // ── 내 근무: 근무명 + 시간 ──
-        if (myShift != null) {
-            Text(
-                text = myShift.label,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                color = myShift.color,
-                maxLines = 1
-            )
-            Text(
-                text = myShift.timeRange.replace(" - ", "~"),
-                fontSize = 7.sp,
-                color = myShift.color.copy(alpha = 0.7f),
-                maxLines = 1
-            )
-        }
+            if (partnerShift != null) {
+                Text(
+                    text = "${partnerShift.emoji}${partnerShift.shortLabel}",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = partnerShift.color,
+                    maxLines = 1
+                )
+                Text(
+                    text = partnerShift.timeRange.replace(" - ", "~"),
+                    fontSize = 7.sp,
+                    color = partnerShift.color.copy(alpha = 0.6f),
+                    maxLines = 1
+                )
+            }
 
-        // ── 메모/일정 ──
-        val infoText = when {
-            !memo.isNullOrBlank() -> "📝 $memo"
-            eventCount > 0 -> "📅 ${eventCount}개"
-            else -> null
-        }
-        if (infoText != null) {
-            Text(
-                text = infoText,
-                fontSize = 7.sp,
-                color = TextMuted,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        // ── 하단: 상대 근무 (컴팩트 텍스트) ──
-        if (partnerShift != null) {
-            HorizontalDivider(
-                color = partnerShift.color.copy(alpha = 0.3f),
-                modifier = Modifier.padding(vertical = 1.dp)
-            )
-            Text(
-                text = "${partnerShift.emoji} ${partnerShift.label}",
-                fontSize = 8.sp,
-                fontWeight = FontWeight.Medium,
-                color = partnerShift.color.copy(alpha = 0.8f),
-                maxLines = 1
-            )
-            Text(
-                text = partnerShift.timeRange.replace(" - ", "~"),
-                fontSize = 6.sp,
-                color = partnerShift.color.copy(alpha = 0.5f),
-                maxLines = 1
-            )
+            Spacer(modifier = Modifier.weight(0.5f))
         }
     }
 }
@@ -863,6 +919,7 @@ private fun CompactStatsBar(uiState: CalendarUiState) {
                 ShiftType.ALBA -> alba++
                 null -> {}
             }
+            if (it.hasAlba) alba++
         }
         MonthStats(day, night, nightEarly, off, alba)
     }

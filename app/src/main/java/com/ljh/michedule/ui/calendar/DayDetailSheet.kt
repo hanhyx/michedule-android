@@ -1,9 +1,6 @@
 package com.ljh.michedule.ui.calendar
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -24,6 +21,8 @@ import androidx.compose.ui.unit.sp
 import com.ljh.michedule.data.db.*
 import com.ljh.michedule.model.ShiftType
 import com.ljh.michedule.ui.theme.*
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -42,6 +41,8 @@ fun DayDetailSheet(
     onDismiss: () -> Unit,
     onShiftSelect: (ShiftType) -> Unit,
     onShiftClear: () -> Unit,
+    onAlbaToggle: (Boolean) -> Unit,
+    onShiftTimeEdit: (ShiftType, String) -> Unit,
     onMemoChange: (String?) -> Unit,
     onAddEvent: () -> Unit,
     onDeleteEvent: (Long) -> Unit,
@@ -52,6 +53,18 @@ fun DayDetailSheet(
 ) {
     var memoText by remember(date, shift) { mutableStateOf(shift?.memo ?: "") }
     val currentShift = shift?.let { ShiftType.fromString(it.type) }
+    var editingShiftType by remember { mutableStateOf<ShiftType?>(null) }
+
+    if (editingShiftType != null) {
+        TimeRangeEditDialog(
+            shiftType = editingShiftType!!,
+            onConfirm = { newRange ->
+                onShiftTimeEdit(editingShiftType!!, newRange)
+                editingShiftType = null
+            },
+            onDismiss = { editingShiftType = null }
+        )
+    }
 
     ModalBottomSheet(
         onDismissRequest = {
@@ -91,18 +104,79 @@ fun DayDetailSheet(
 
             HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 12.dp))
 
-            // ── Shift Selection ──
+            // ── Shift Selection (알바 제외) ──
             Text("근무 유형", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
             Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "꾹 눌러서 시간 수정",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextMuted,
+                fontSize = 10.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                ShiftType.entries.forEach { type ->
-                    ShiftButton(type = type, isActive = currentShift == type, onClick = { onShiftSelect(type) })
+                ShiftType.entries.filter { it != ShiftType.ALBA }.forEach { type ->
+                    ShiftButton(
+                        type = type,
+                        isActive = currentShift == type,
+                        onClick = { onShiftSelect(type) },
+                        onLongClick = { editingShiftType = type }
+                    )
                 }
             }
             TextButton(onClick = onShiftClear, modifier = Modifier.align(Alignment.End)) {
                 Icon(Icons.Default.Clear, null, Modifier.size(14.dp), tint = TextMuted)
                 Spacer(Modifier.width(4.dp))
                 Text("초기화", color = TextMuted, fontSize = 12.sp)
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ── 알바 토글 (투잡 - 기존 근무와 동시 가능) ──
+            val albaActive = shift?.hasAlba ?: false
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable { onAlbaToggle(!albaActive) },
+                shape = RoundedCornerShape(10.dp),
+                color = if (albaActive) ShiftAlba.copy(alpha = 0.15f) else DarkSurface,
+                border = BorderStroke(1.dp, if (albaActive) ShiftAlba else DarkBorder)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("💼", fontSize = 20.sp)
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("알바 (투잡)", fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                            color = if (albaActive) ShiftAlba else TextPrimary)
+                        Text(
+                            text = ShiftType.ALBA.timeRange,
+                            fontSize = 11.sp,
+                            color = if (albaActive) ShiftAlba.copy(alpha = 0.7f) else TextMuted
+                        )
+                    }
+                    TextButton(
+                        onClick = { editingShiftType = ShiftType.ALBA },
+                        modifier = Modifier.padding(end = 4.dp)
+                    ) {
+                        Text("⏰", fontSize = 14.sp)
+                    }
+                    Switch(
+                        checked = albaActive,
+                        onCheckedChange = { onAlbaToggle(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = ShiftAlba,
+                            uncheckedThumbColor = TextMuted,
+                            uncheckedTrackColor = DarkBorder
+                        )
+                    )
+                }
             }
 
             // ── Shift History ──
@@ -407,15 +481,21 @@ private fun TodoSection(
 
 // ── Shift Button ──
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ShiftButton(type: ShiftType, isActive: Boolean, onClick: () -> Unit) {
+private fun ShiftButton(
+    type: ShiftType,
+    isActive: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
             .background(if (isActive) type.bgColor else DarkSurface)
             .border(1.dp, if (isActive) type.color else DarkBorder, RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -424,11 +504,121 @@ private fun ShiftButton(type: ShiftType, isActive: Boolean, onClick: () -> Unit)
         Column(Modifier.weight(1f)) {
             Text(type.label, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
                 color = if (isActive) type.color else TextPrimary)
-            Text(type.timeRange, fontSize = 11.sp,
-                color = if (isActive) type.color.copy(alpha = 0.7f) else TextMuted)
+            if (type != ShiftType.OFF) {
+                Text(type.timeRange, fontSize = 11.sp,
+                    color = if (isActive) type.color.copy(alpha = 0.7f) else TextMuted)
+            } else {
+                Text(type.defaultTimeRange, fontSize = 11.sp,
+                    color = if (isActive) type.color.copy(alpha = 0.7f) else TextMuted)
+            }
         }
         if (isActive) {
             Icon(Icons.Default.CheckCircle, null, tint = type.color, modifier = Modifier.size(20.dp))
         }
     }
+}
+
+// ── Time Range Edit Dialog ──
+
+@Composable
+private fun TimeRangeEditDialog(
+    shiftType: ShiftType,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val currentRange = shiftType.timeRange
+    val parts = currentRange.replace("~", "-").split("-").map { it.trim() }
+    var startTime by remember { mutableStateOf(if (parts.size >= 2 && parts[0].contains(":")) parts[0] else "") }
+    var endTime by remember { mutableStateOf(if (parts.size >= 2 && parts[1].contains(":")) parts[1] else "") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = DarkCard,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(shiftType.emoji, fontSize = 20.sp)
+                Spacer(Modifier.width(8.dp))
+                Text("${shiftType.label} 시간 설정", color = TextPrimary)
+            }
+        },
+        text = {
+            Column {
+                Text("현재: $currentRange", fontSize = 12.sp, color = TextMuted)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = startTime,
+                        onValueChange = { if (it.length <= 5) startTime = it },
+                        modifier = Modifier.weight(1f),
+                        label = { Text("시작", color = TextMuted, fontSize = 12.sp) },
+                        placeholder = { Text("HH:MM", color = TextMuted) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = shiftType.color,
+                            unfocusedBorderColor = DarkBorder,
+                            cursorColor = shiftType.color,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                    Text("~", color = TextMuted, fontSize = 16.sp)
+                    OutlinedTextField(
+                        value = endTime,
+                        onValueChange = { if (it.length <= 5) endTime = it },
+                        modifier = Modifier.weight(1f),
+                        label = { Text("종료", color = TextMuted, fontSize = 12.sp) },
+                        placeholder = { Text("HH:MM", color = TextMuted) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = shiftType.color,
+                            unfocusedBorderColor = DarkBorder,
+                            cursorColor = shiftType.color,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "기본값: ${shiftType.defaultTimeRange}",
+                    fontSize = 11.sp, color = TextMuted
+                )
+            }
+        },
+        confirmButton = {
+            Row {
+                TextButton(onClick = {
+                    onConfirm(shiftType.defaultTimeRange)
+                }) {
+                    Text("기본값", color = TextMuted)
+                }
+                Spacer(Modifier.width(8.dp))
+                Button(
+                    onClick = {
+                        val range = "$startTime - $endTime"
+                        onConfirm(range)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = shiftType.color),
+                    enabled = startTime.isNotBlank() && endTime.isNotBlank()
+                ) {
+                    Text("저장")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("취소", color = TextMuted)
+            }
+        }
+    )
 }

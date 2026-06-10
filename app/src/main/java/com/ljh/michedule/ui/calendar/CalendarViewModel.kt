@@ -173,6 +173,23 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun updateShiftTimeRange(type: ShiftType, timeRange: String) {
+        viewModelScope.launch {
+            if (timeRange == type.defaultTimeRange) {
+                app.prefsManager.clearCustomTimeRange(ShiftType.toDbString(type))
+            } else {
+                app.prefsManager.setCustomTimeRange(ShiftType.toDbString(type), timeRange)
+            }
+        }
+    }
+
+    fun toggleAlba(date: LocalDate, hasAlba: Boolean) {
+        viewModelScope.launch {
+            repo.setAlba(date, hasAlba)
+            app.triggerUpload()
+        }
+    }
+
     fun setMemo(date: LocalDate, memo: String?) {
         viewModelScope.launch { repo.setMemo(date, memo) }
     }

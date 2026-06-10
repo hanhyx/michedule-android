@@ -31,7 +31,13 @@ class ScheduleRepository(private val db: AppDatabase) {
     suspend fun getAllShifts(): List<ShiftEntity> = shiftDao.getAllShifts()
 
     suspend fun setShift(date: LocalDate, type: String) {
-        shiftDao.upsert(ShiftEntity(date = date.toString(), type = type))
+        val existing = shiftDao.getShift(date.toString())
+        shiftDao.upsert(ShiftEntity(
+            date = date.toString(),
+            type = type,
+            memo = existing?.memo,
+            hasAlba = existing?.hasAlba ?: false
+        ))
     }
 
     suspend fun setShiftWithMemo(date: LocalDate, type: String, memo: String?) {
@@ -43,6 +49,15 @@ class ScheduleRepository(private val db: AppDatabase) {
                 memo = memo ?: existing?.memo
             )
         )
+    }
+
+    suspend fun setAlba(date: LocalDate, hasAlba: Boolean) {
+        val existing = shiftDao.getShift(date.toString())
+        if (existing != null) {
+            shiftDao.upsert(existing.copy(hasAlba = hasAlba))
+        } else {
+            shiftDao.upsert(ShiftEntity(date = date.toString(), type = "", hasAlba = hasAlba))
+        }
     }
 
     suspend fun setMemo(date: LocalDate, memo: String?) {

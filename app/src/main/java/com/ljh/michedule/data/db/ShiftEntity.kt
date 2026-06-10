@@ -7,5 +7,6 @@ import androidx.room.PrimaryKey
 data class ShiftEntity(
     @PrimaryKey val date: String,
     val type: String,
-    val memo: String? = null
+    val memo: String? = null,
+    val hasAlba: Boolean = false
 )

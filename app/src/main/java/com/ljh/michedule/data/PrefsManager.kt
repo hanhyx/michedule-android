@@ -26,6 +26,7 @@ class PrefsManager(private val context: Context) {
         private val KEY_ALARM_ENABLED = booleanPreferencesKey("alarm_enabled")
         private val KEY_ALARM_HOURS_BEFORE = intPreferencesKey("alarm_hours_before")
         private val KEY_CALENDAR_LOCKED = booleanPreferencesKey("calendar_locked")
+        private val KEY_CUSTOM_TIME_RANGES = stringPreferencesKey("custom_time_ranges")
     }
 
     val deviceId: Flow<String> = context.dataStore.data.map { prefs ->
@@ -90,9 +91,41 @@ class PrefsManager(private val context: Context) {
         context.dataStore.edit { it[KEY_CALENDAR_LOCKED] = locked }
     }
 
+    val customTimeRanges: Flow<String> = context.dataStore.data.map { it[KEY_CUSTOM_TIME_RANGES] ?: "" }
+
+    suspend fun setCustomTimeRange(shiftCode: String, timeRange: String) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[KEY_CUSTOM_TIME_RANGES] ?: ""
+            val map = parseTimeRanges(current).toMutableMap()
+            map[shiftCode] = timeRange
+            prefs[KEY_CUSTOM_TIME_RANGES] = serializeTimeRanges(map)
+        }
+    }
+
+    suspend fun clearCustomTimeRange(shiftCode: String) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[KEY_CUSTOM_TIME_RANGES] ?: ""
+            val map = parseTimeRanges(current).toMutableMap()
+            map.remove(shiftCode)
+            prefs[KEY_CUSTOM_TIME_RANGES] = serializeTimeRanges(map)
+        }
+    }
+
     suspend fun clearSync() {
         context.dataStore.edit {
             it.remove(KEY_ROOM_CODE)
         }
     }
+}
+
+fun parseTimeRanges(data: String): Map<String, String> {
+    if (data.isBlank()) return emptyMap()
+    return data.split(";").mapNotNull {
+        val parts = it.split("=", limit = 2)
+        if (parts.size == 2) parts[0] to parts[1] else null
+    }.toMap()
+}
+
+private fun serializeTimeRanges(map: Map<String, String>): String {
+    return map.entries.joinToString(";") { "${it.key}=${it.value}" }
 }

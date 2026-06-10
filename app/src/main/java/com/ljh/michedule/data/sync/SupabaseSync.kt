@@ -1,10 +1,16 @@
 package com.ljh.michedule.data.sync
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.os.Build
 import android.util.Log
+import androidx.core.app.NotificationCompat
 import com.ljh.michedule.data.PrefsManager
 import com.ljh.michedule.data.db.FriendShiftEntity
 import com.ljh.michedule.data.db.ShiftEntity
 import com.ljh.michedule.data.repository.ScheduleRepository
+import com.ljh.michedule.model.ShiftType
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
@@ -30,7 +36,8 @@ data class ScheduleRow(
 
 class SupabaseSync(
     private val repo: ScheduleRepository,
-    private val prefsManager: PrefsManager
+    private val prefsManager: PrefsManager,
+    private val appContext: Context? = null
 ) {
     private var client: SupabaseClient? = null
     private var channel: RealtimeChannel? = null
@@ -41,6 +48,9 @@ class SupabaseSync(
 
     private val _friendName = MutableStateFlow("")
     val friendName: StateFlow<String> = _friendName.asStateFlow()
+
+    private var lastKnownFriendShifts: Map<String, String> = emptyMap()
+    private var isFirstSync = true
 
     fun start(scope: CoroutineScope) {
         syncJob?.cancel()
@@ -114,9 +124,11 @@ class SupabaseSync(
             val friendRow = rows.firstOrNull { it.device_id != deviceId } ?: return
             _friendName.value = friendRow.user_name
 
+            val newShiftsMap = mutableMapOf<String, String>()
             val friendShifts = mutableListOf<FriendShiftEntity>()
             friendRow.shifts.forEach { (date, value) ->
                 val type = (value as? JsonPrimitive)?.content ?: return@forEach
+                newShiftsMap[date] = type
                 friendShifts.add(
                     FriendShiftEntity(
                         date = date,
@@ -125,10 +137,75 @@ class SupabaseSync(
                     )
                 )
             }
+
+            if (!isFirstSync && appContext != null) {
+                val changes = detectChanges(lastKnownFriendShifts, newShiftsMap)
+                if (changes.isNotEmpty()) {
+                    sendPartnerChangeNotification(
+                        appContext,
+                        friendRow.user_name.ifBlank { "상대" },
+                        changes
+                    )
+                }
+            }
+            isFirstSync = false
+            lastKnownFriendShifts = newShiftsMap
+
             repo.syncFriendShifts(friendShifts)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to process remote change", e)
         }
+    }
+
+    private fun detectChanges(
+        old: Map<String, String>,
+        new: Map<String, String>
+    ): List<Triple<String, String?, String?>> {
+        val changes = mutableListOf<Triple<String, String?, String?>>()
+        val allDates = (old.keys + new.keys).sorted()
+        allDates.forEach { date ->
+            val oldType = old[date]
+            val newType = new[date]
+            if (oldType != newType) {
+                changes.add(Triple(date, oldType, newType))
+            }
+        }
+        return changes
+    }
+
+    private fun sendPartnerChangeNotification(
+        context: Context,
+        partnerName: String,
+        changes: List<Triple<String, String?, String?>>
+    ) {
+        val channelId = "michedule_partner_change"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId, "상대 일정 변경", NotificationManager.IMPORTANCE_DEFAULT
+            ).apply { description = "상대방의 일정이 변경되었을 때 알림" }
+            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.createNotificationChannel(channel)
+        }
+
+        val summary = changes.take(5).joinToString("\n") { (date, old, new) ->
+            val d = date.substring(5).replace("-", "/")
+            val oldLabel = old?.let { ShiftType.fromString(it)?.label } ?: "없음"
+            val newLabel = new?.let { ShiftType.fromString(it)?.label } ?: "삭제"
+            "$d: $oldLabel → $newLabel"
+        }
+        val extra = if (changes.size > 5) "\n외 ${changes.size - 5}건" else ""
+
+        val notification = NotificationCompat.Builder(context, channelId)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("📅 ${partnerName}님 일정 변경")
+            .setContentText("${changes.size}건의 일정이 변경되었습니다")
+            .setStyle(NotificationCompat.BigTextStyle().bigText(summary + extra))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .build()
+
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(9999, notification)
     }
 
     suspend fun uploadCurrentData(roomCode: String? = null) {

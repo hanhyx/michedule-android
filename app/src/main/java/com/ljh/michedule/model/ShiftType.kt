@@ -6,7 +6,7 @@ enum class ShiftType(
     val label: String,
     val shortLabel: String,
     val emoji: String,
-    val timeRange: String,
+    val defaultTimeRange: String,
     val color: Color,
     val bgColor: Color
 ) {
@@ -14,7 +14,7 @@ enum class ShiftType(
         label = "주간",
         shortLabel = "주",
         emoji = "☀️",
-        timeRange = "08:30 - 16:30",
+        defaultTimeRange = "06:00 - 16:30",
         color = Color(0xFFFBBF24),
         bgColor = Color(0x33FBBF24)
     ),
@@ -22,7 +22,7 @@ enum class ShiftType(
         label = "야간",
         shortLabel = "야",
         emoji = "🌙",
-        timeRange = "18:00 - 06:00",
+        defaultTimeRange = "18:00 - 06:00",
         color = Color(0xFF818CF8),
         bgColor = Color(0x33818CF8)
     ),
@@ -30,7 +30,7 @@ enum class ShiftType(
         label = "조기야간",
         shortLabel = "조",
         emoji = "🌇",
-        timeRange = "16:30 - 04:00",
+        defaultTimeRange = "16:30 - 04:00",
         color = Color(0xFFF472B6),
         bgColor = Color(0x33F472B6)
     ),
@@ -38,7 +38,7 @@ enum class ShiftType(
         label = "비번",
         shortLabel = "비",
         emoji = "😴",
-        timeRange = "종일 휴무",
+        defaultTimeRange = "종일 휴무",
         color = Color(0xFF34D399),
         bgColor = Color(0x3334D399)
     ),
@@ -46,12 +46,17 @@ enum class ShiftType(
         label = "알바",
         shortLabel = "알",
         emoji = "💼",
-        timeRange = "시간 미정",
-        color = Color(0xFFF59E0B),
-        bgColor = Color(0x33F59E0B)
+        defaultTimeRange = "시간 미정",
+        color = Color(0xFF14B8A6),
+        bgColor = Color(0x3314B8A6)
     );
 
+    val timeRange: String get() = customTimeRanges[this] ?: defaultTimeRange
+
     companion object {
+        var customTimeRanges: Map<ShiftType, String> = emptyMap()
+            internal set
+
         fun fromString(s: String?): ShiftType? = when (s) {
             "day" -> DAY
             "night" -> NIGHT
@@ -67,6 +72,14 @@ enum class ShiftType(
             NIGHT_EARLY -> "nightEarly"
             OFF -> "off"
             ALBA -> "alba"
+        }
+
+        fun setCustomTimeRange(type: ShiftType, timeRange: String?) {
+            customTimeRanges = if (timeRange != null) {
+                customTimeRanges + (type to timeRange)
+            } else {
+                customTimeRanges - type
+            }
         }
     }
 }
