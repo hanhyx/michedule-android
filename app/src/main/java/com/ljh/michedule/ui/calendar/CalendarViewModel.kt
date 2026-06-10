@@ -68,13 +68,20 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 .distinctUntilChanged()
                 .flatMapLatest { month -> repo.getFriendShiftsForMonth(month) }
                 .collect { shifts ->
-                    val nameFromDb = shifts.firstOrNull { it.friendName.isNotBlank() }?.friendName ?: ""
                     _uiState.update { state ->
-                        state.copy(
-                            friendShifts = shifts.associateBy { s -> s.date },
-                            partnerName = if (state.partnerName.isBlank()) nameFromDb else state.partnerName,
-                            viewingPartner = if (shifts.isEmpty()) false else state.viewingPartner
-                        )
+                        if (shifts.isEmpty()) {
+                            state.copy(
+                                friendShifts = emptyMap(),
+                                partnerName = "",
+                                viewingPartner = false
+                            )
+                        } else {
+                            val nameFromDb = shifts.firstOrNull { it.friendName.isNotBlank() }?.friendName ?: ""
+                            state.copy(
+                                friendShifts = shifts.associateBy { s -> s.date },
+                                partnerName = nameFromDb.ifBlank { state.partnerName }
+                            )
+                        }
                     }
                 }
         }
@@ -122,8 +129,16 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         }
 
         viewModelScope.launch {
-            app.supabaseSync?.friendName?.collect { name ->
-                _uiState.update { it.copy(partnerName = name) }
+            app.prefsManager.roomCode.collect { code ->
+                if (code.isBlank()) {
+                    _uiState.update { it.copy(partnerName = "", viewingPartner = false) }
+                } else {
+                    app.supabaseSync?.friendName?.collect { name ->
+                        if (name.isNotBlank()) {
+                            _uiState.update { it.copy(partnerName = name) }
+                        }
+                    }
+                }
             }
         }
 
