@@ -46,6 +46,7 @@ fun SettingsScreen(
 
     val alarmEnabled by prefsManager.alarmEnabled.collectAsState(initial = false)
     val alarmHoursBefore by prefsManager.alarmHoursBefore.collectAsState(initial = 2)
+    val alarmDisabledTypes by prefsManager.alarmDisabledTypes.collectAsState(initial = emptySet())
 
     var editName by remember(myName) { mutableStateOf(myName) }
     var showClearConfirm by remember { mutableStateOf(false) }
@@ -160,6 +161,43 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = TextMuted
                 )
+
+                HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 12.dp))
+                Text("근무 유형별 알림", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val alarmTypes = listOf(
+                    "day" to "☀️ 주간",
+                    "night" to "🌙 야간",
+                    "nightEarly" to "🌇 조기야간",
+                    "alba" to "💼 알바"
+                )
+                alarmTypes.forEach { (code, label) ->
+                    val isEnabled = code !in alarmDisabledTypes
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(label, style = MaterialTheme.typography.bodyMedium,
+                            color = if (isEnabled) TextPrimary else TextMuted)
+                        Switch(
+                            checked = isEnabled,
+                            onCheckedChange = { enabled ->
+                                scope.launch { prefsManager.toggleAlarmForType(code, enabled) }
+                            },
+                            modifier = Modifier.height(28.dp),
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Purple80,
+                                checkedTrackColor = Purple40,
+                                uncheckedThumbColor = TextMuted,
+                                uncheckedTrackColor = DarkSurface
+                            )
+                        )
+                    }
+                }
             }
         }
 

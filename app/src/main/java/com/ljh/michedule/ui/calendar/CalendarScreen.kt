@@ -417,138 +417,180 @@ private fun CoupleCell(
             .padding(0.5.dp)
             .then(borderMod)
             .clip(RoundedCornerShape(6.dp))
-            .background(Color.Transparent)
+            .background(myShift?.bgColor?.copy(alpha = 0.5f) ?: Color.Transparent)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
     ) {
-        // ── 상단 60%: 내 영역 (근무 + 메모 + 이벤트) ──
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(3f)
-                .background(myShift?.bgColor ?: Color.Transparent)
-                .padding(horizontal = 2.dp, vertical = 1.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
+        if (hasAlba) {
+            // ══ 알바 있는 날: 50:50 그리드 ══
+            // 상단: 본업
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .background(myShift?.bgColor?.copy(alpha = 0.5f) ?: Color.Transparent)
+                    .padding(horizontal = 2.dp, vertical = 1.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                CellDateRow(day, mood, partnerMood, isToday, isSunday, isSaturday)
+                if (myShift != null && myShift != ShiftType.OFF) {
                     Text(
-                        text = "$day",
-                        fontSize = 11.sp,
-                        fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Medium,
-                        color = when {
-                            isSunday -> Color(0xFFF87171)
-                            isSaturday -> Color(0xFF60A5FA)
-                            else -> TextPrimary
-                        }
+                        text = myShift.label,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = myShift.color,
+                        maxLines = 1
                     )
-                    if (mood != null || partnerMood != null) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (mood != null) Text(text = mood, fontSize = 7.sp)
-                            if (partnerMood != null) Text(text = partnerMood, fontSize = 7.sp)
-                        }
-                    }
+                    Text(
+                        text = myShift.timeRange.replace(" - ", "~"),
+                        fontSize = 7.sp,
+                        color = myShift.color.copy(alpha = 0.7f),
+                        maxLines = 1
+                    )
+                } else if (myShift == ShiftType.OFF) {
+                    Text("비번", fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                        color = ShiftOff, maxLines = 1)
                 }
-                if (hasAlba) {
-                    Text(text = "💼", fontSize = 7.sp)
-                }
             }
 
-            if (myShift != null) {
-                Spacer(modifier = Modifier.height(1.dp))
-                Text(
-                    text = "${myShift.emoji} ${myShift.label}",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = myShift.color,
-                    maxLines = 1
-                )
-                Text(
-                    text = myShift.timeRange.replace(" - ", "~"),
-                    fontSize = 7.sp,
-                    color = myShift.color.copy(alpha = 0.7f),
-                    maxLines = 1
-                )
-            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(0.5.dp)
+                    .background(DarkBorder)
+            )
 
-            if (hasAlba && myShift != null) {
+            // 하단: 알바
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .background(ShiftAlba.copy(alpha = 0.1f))
+                    .padding(horizontal = 2.dp, vertical = 1.dp)
+            ) {
                 Text(
-                    text = "+알바",
-                    fontSize = 7.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ShiftAlba,
-                    maxLines = 1
-                )
-            } else if (hasAlba && myShift == null) {
-                Spacer(modifier = Modifier.height(1.dp))
-                Text(
-                    text = "💼 알바",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ShiftAlba,
-                    maxLines = 1
-                )
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            events.take(1).forEach { event ->
-                Text(
-                    text = event.title,
-                    fontSize = 8.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(event.color),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            if (!memo.isNullOrBlank()) {
-                Text(
-                    text = memo,
-                    fontSize = 8.sp,
-                    color = EventPersonal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            if (events.size > 1) {
-                Text("+${events.size - 1}", fontSize = 7.sp, color = TextMuted)
-            }
-        }
-
-        // ── 하단 40%: 상대 영역 ──
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(2f)
-                .background(partnerShift?.bgColor?.copy(alpha = 0.6f) ?: DarkSurface.copy(alpha = 0.3f))
-                .padding(horizontal = 2.dp, vertical = 1.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.weight(1f))
-
-            if (partnerShift != null) {
-                Text(
-                    text = "${partnerShift.emoji}${partnerShift.shortLabel}",
+                    text = "알바",
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
-                    color = partnerShift.color,
+                    color = ShiftAlba,
                     maxLines = 1
                 )
-                Text(
-                    text = partnerShift.timeRange.replace(" - ", "~"),
-                    fontSize = 7.sp,
-                    color = partnerShift.color.copy(alpha = 0.6f),
-                    maxLines = 1
-                )
+                val albaTime = ShiftType.ALBA.timeRange
+                if (albaTime != "시간 미정") {
+                    Text(
+                        text = albaTime.replace(" - ", "~"),
+                        fontSize = 7.sp,
+                        color = ShiftAlba.copy(alpha = 0.7f),
+                        maxLines = 1
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                CellPartnerTag(partnerShift)
             }
+        } else {
+            // ══ 일반 날: 전체 셀 = 내 본업 중심 ══
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(horizontal = 2.dp, vertical = 1.dp)
+            ) {
+                CellDateRow(day, mood, partnerMood, isToday, isSunday, isSaturday)
 
-            Spacer(modifier = Modifier.weight(0.5f))
+                if (myShift != null) {
+                    Spacer(modifier = Modifier.height(1.dp))
+                    Text(
+                        text = myShift.label,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = myShift.color,
+                        maxLines = 1
+                    )
+                    if (myShift != ShiftType.OFF) {
+                        Text(
+                            text = myShift.timeRange.replace(" - ", "~"),
+                            fontSize = 7.sp,
+                            color = myShift.color.copy(alpha = 0.7f),
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                events.take(1).forEach { event ->
+                    Text(
+                        text = event.title,
+                        fontSize = 7.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(event.color),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                if (!memo.isNullOrBlank()) {
+                    Text(
+                        text = memo,
+                        fontSize = 7.sp,
+                        color = EventPersonal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+                CellPartnerTag(partnerShift)
+            }
         }
+    }
+}
+
+@Composable
+private fun CellDateRow(
+    day: Int,
+    mood: String?,
+    partnerMood: String?,
+    isToday: Boolean,
+    isSunday: Boolean,
+    isSaturday: Boolean
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "$day",
+            fontSize = 11.sp,
+            fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Medium,
+            color = when {
+                isSunday -> Color(0xFFF87171)
+                isSaturday -> Color(0xFF60A5FA)
+                else -> TextPrimary
+            }
+        )
+        if (mood != null) {
+            Spacer(modifier = Modifier.width(1.dp))
+            Text(text = mood, fontSize = 7.sp)
+        }
+        if (partnerMood != null) {
+            Text(text = partnerMood, fontSize = 7.sp)
+        }
+    }
+}
+
+@Composable
+private fun CellPartnerTag(partnerShift: ShiftType?) {
+    if (partnerShift != null) {
+        Text(
+            text = partnerShift.shortLabel,
+            fontSize = 8.sp,
+            fontWeight = FontWeight.Bold,
+            color = partnerShift.color.copy(alpha = 0.8f),
+            maxLines = 1,
+            modifier = Modifier
+                .background(
+                    partnerShift.bgColor.copy(alpha = 0.6f),
+                    RoundedCornerShape(2.dp)
+                )
+                .padding(horizontal = 2.dp)
+        )
     }
 }
 

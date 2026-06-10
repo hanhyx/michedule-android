@@ -156,8 +156,11 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             try {
                 val enabled = app.prefsManager.alarmEnabled.first()
                 if (enabled) {
-                    val hours = app.prefsManager.alarmHoursBefore.first()
-                    ShiftAlarmManager.scheduleAlarm(app, date, type, hours)
+                    val disabledTypes = app.prefsManager.alarmDisabledTypes.first()
+                    if (ShiftType.toDbString(type) !in disabledTypes) {
+                        val hours = app.prefsManager.alarmHoursBefore.first()
+                        ShiftAlarmManager.scheduleAlarm(app, date, type, hours)
+                    }
                 }
             } catch (_: Exception) {}
         }

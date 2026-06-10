@@ -70,13 +70,19 @@ object ShiftAlarmManager {
         }
     }
 
-    fun scheduleUpcomingAlarms(context: Context, shifts: Map<String, ShiftEntity>, hoursBeforeWork: Int) {
+    fun scheduleUpcomingAlarms(
+        context: Context,
+        shifts: Map<String, ShiftEntity>,
+        hoursBeforeWork: Int,
+        disabledTypes: Set<String> = emptySet()
+    ) {
         val today = LocalDate.now()
         for (i in 0..7) {
             val date = today.plusDays(i.toLong())
             val shiftEntity = shifts[date.toString()] ?: continue
             val shiftType = ShiftType.fromString(shiftEntity.type) ?: continue
             if (shiftType == ShiftType.OFF) continue
+            if (ShiftType.toDbString(shiftType) in disabledTypes) continue
             scheduleAlarm(context, date, shiftType, hoursBeforeWork)
         }
     }

@@ -27,6 +27,7 @@ class PrefsManager(private val context: Context) {
         private val KEY_ALARM_HOURS_BEFORE = intPreferencesKey("alarm_hours_before")
         private val KEY_CALENDAR_LOCKED = booleanPreferencesKey("calendar_locked")
         private val KEY_CUSTOM_TIME_RANGES = stringPreferencesKey("custom_time_ranges")
+        private val KEY_ALARM_DISABLED_TYPES = stringPreferencesKey("alarm_disabled_types")
     }
 
     val deviceId: Flow<String> = context.dataStore.data.map { prefs ->
@@ -92,6 +93,9 @@ class PrefsManager(private val context: Context) {
     }
 
     val customTimeRanges: Flow<String> = context.dataStore.data.map { it[KEY_CUSTOM_TIME_RANGES] ?: "" }
+    val alarmDisabledTypes: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        (prefs[KEY_ALARM_DISABLED_TYPES] ?: "").split(",").filter { it.isNotBlank() }.toSet()
+    }
 
     suspend fun setCustomTimeRange(shiftCode: String, timeRange: String) {
         context.dataStore.edit { prefs ->
@@ -108,6 +112,18 @@ class PrefsManager(private val context: Context) {
             val map = parseTimeRanges(current).toMutableMap()
             map.remove(shiftCode)
             prefs[KEY_CUSTOM_TIME_RANGES] = serializeTimeRanges(map)
+        }
+    }
+
+    suspend fun setAlarmDisabledTypes(types: Set<String>) {
+        context.dataStore.edit { it[KEY_ALARM_DISABLED_TYPES] = types.joinToString(",") }
+    }
+
+    suspend fun toggleAlarmForType(typeCode: String, enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            val current = (prefs[KEY_ALARM_DISABLED_TYPES] ?: "").split(",").filter { it.isNotBlank() }.toMutableSet()
+            if (enabled) current.remove(typeCode) else current.add(typeCode)
+            prefs[KEY_ALARM_DISABLED_TYPES] = current.joinToString(",")
         }
     }
 
