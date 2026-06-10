@@ -67,7 +67,7 @@ class MicheduleApp : Application() {
         appScope.launch {
             repository.clearAllFriendData()
             prefsManager.setPartnerCode(partnerCode)
-            prefsManager.setPartnerName("")
+            prefsManager.setPartnerName(partnerCode)
             startSync()
         }
     }
