@@ -512,9 +512,6 @@ private fun SoloCell(
                     .padding(horizontal = 3.dp, vertical = 2.dp)
             ) {
                 Text(shift.label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = shift.color, maxLines = 1, lineHeight = 14.sp)
-                if (shift != ShiftType.OFF) {
-                    Text(shift.timeRange.replace(" - ", "~"), fontSize = 8.sp, color = shift.color.copy(alpha = 0.7f), maxLines = 1, lineHeight = 10.sp)
-                }
             }
         }
 
