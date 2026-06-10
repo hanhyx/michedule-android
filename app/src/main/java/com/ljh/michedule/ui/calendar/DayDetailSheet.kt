@@ -21,7 +21,11 @@ import androidx.compose.ui.unit.sp
 import com.ljh.michedule.data.db.*
 import com.ljh.michedule.model.ShiftType
 import com.ljh.michedule.ui.theme.*
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import java.time.Instant
 import java.time.LocalDate
@@ -66,6 +70,9 @@ fun DayDetailSheet(
         )
     }
 
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
     ModalBottomSheet(
         onDismissRequest = {
             if (memoText != (shift?.memo ?: "")) onMemoChange(memoText.ifBlank { null })
@@ -90,6 +97,7 @@ fun DayDetailSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 16.dp)
                 .navigationBarsPadding()
+                .imePadding()
         ) {
             // Date header
             Text(
@@ -99,40 +107,7 @@ fun DayDetailSheet(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ── Mood Section ──
-            MoodSection(mood = mood, onMoodSelect = onMoodSelect)
-
-            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 12.dp))
-
-            // ── Shift Selection (알바 제외) ──
-            Text("근무 유형", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "꾹 눌러서 시간 수정",
-                style = MaterialTheme.typography.bodySmall,
-                color = TextMuted,
-                fontSize = 10.sp
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                ShiftType.entries.filter { it != ShiftType.ALBA }.forEach { type ->
-                    ShiftButton(
-                        type = type,
-                        isActive = currentShift == type,
-                        onClick = { onShiftSelect(type) },
-                        onLongClick = { editingShiftType = type }
-                    )
-                }
-            }
-            TextButton(onClick = onShiftClear, modifier = Modifier.align(Alignment.End)) {
-                Icon(Icons.Default.Clear, null, Modifier.size(14.dp), tint = TextMuted)
-                Spacer(Modifier.width(4.dp))
-                Text("초기화", color = TextMuted, fontSize = 12.sp)
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // ── 알바 토글 (투잡 - 기존 근무와 동시 가능) ──
+            // ── 1. 알바 토글 (최상단) ──
             val albaActive = shift?.hasAlba ?: false
             Surface(
                 modifier = Modifier
@@ -179,15 +154,10 @@ fun DayDetailSheet(
                 }
             }
 
-            // ── Shift History ──
-            if (shiftHistory.isNotEmpty()) {
-                ShiftHistorySection(shiftHistory)
-            }
+            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
 
-            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 8.dp))
-
-            // ── Memo ──
-            Text("메모", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+            // ── 2. 메모 ──
+            Text("📝 메모", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
             Spacer(modifier = Modifier.height(6.dp))
             OutlinedTextField(
                 value = memoText,
@@ -199,32 +169,42 @@ fun DayDetailSheet(
                     cursorColor = Purple80, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
                 ),
                 shape = RoundedCornerShape(12.dp),
-                maxLines = 3
+                maxLines = 3,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = {
+                    onMemoChange(memoText.ifBlank { null })
+                    keyboardController?.hide()
+                    focusManager.clearFocus()
+                })
             )
             if (memoText != (shift?.memo ?: "")) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Button(
-                    onClick = { onMemoChange(memoText.ifBlank { null }) },
+                    onClick = {
+                        onMemoChange(memoText.ifBlank { null })
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = Purple40),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.align(Alignment.End)
                 ) { Text("저장") }
             }
 
-            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 12.dp))
+            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
 
-            // ── Todos ──
+            // ── 3. 할 일 ──
             TodoSection(todos, onAddTodo, onToggleTodo, onDeleteTodo)
 
-            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 12.dp))
+            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
 
-            // ── Events ──
+            // ── 4. 일정 ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("일정", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                Text("📅 일정", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
                 IconButton(onClick = onAddEvent, modifier = Modifier.size(32.dp)) {
                     Icon(Icons.Default.Add, "추가", tint = Purple80)
                 }
@@ -265,6 +245,44 @@ fun DayDetailSheet(
                             style = MaterialTheme.typography.bodyLarge, color = fType.color)
                     }
                 }
+            }
+
+            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
+
+            // ── 5. 오늘의 감정 ──
+            MoodSection(mood = mood, onMoodSelect = onMoodSelect)
+
+            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
+
+            // ── 6. 근무 유형 설정 (최하단) ──
+            Text("근무 유형", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "꾹 눌러서 시간 수정",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextMuted,
+                fontSize = 10.sp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                ShiftType.entries.filter { it != ShiftType.ALBA }.forEach { type ->
+                    ShiftButton(
+                        type = type,
+                        isActive = currentShift == type,
+                        onClick = { onShiftSelect(type) },
+                        onLongClick = { editingShiftType = type }
+                    )
+                }
+            }
+            TextButton(onClick = onShiftClear, modifier = Modifier.align(Alignment.End)) {
+                Icon(Icons.Default.Clear, null, Modifier.size(14.dp), tint = TextMuted)
+                Spacer(Modifier.width(4.dp))
+                Text("초기화", color = TextMuted, fontSize = 12.sp)
+            }
+
+            // ── Shift History ──
+            if (shiftHistory.isNotEmpty()) {
+                ShiftHistorySection(shiftHistory)
             }
 
             Spacer(modifier = Modifier.height(16.dp))

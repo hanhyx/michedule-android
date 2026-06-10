@@ -13,10 +13,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -412,23 +408,8 @@ private fun CoupleCell(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val hasMemo = !memo.isNullOrBlank()
     val borderMod = if (isToday) {
         Modifier.border(2.dp, Purple80, RoundedCornerShape(6.dp))
-    } else Modifier
-
-    val memoBgMod = if (hasMemo) {
-        Modifier.drawBehind {
-            drawRoundRect(
-                color = EventPersonal.copy(alpha = 0.08f),
-                cornerRadius = CornerRadius(6.dp.toPx())
-            )
-            drawRect(
-                color = EventPersonal.copy(alpha = 0.6f),
-                topLeft = Offset.Zero,
-                size = Size(2.5.dp.toPx(), size.height)
-            )
-        }
     } else Modifier
 
     Column(
@@ -436,59 +417,79 @@ private fun CoupleCell(
             .padding(0.5.dp)
             .then(borderMod)
             .clip(RoundedCornerShape(6.dp))
-            .background(myShift?.bgColor?.copy(alpha = 0.5f) ?: Color.Transparent)
-            .then(memoBgMod)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 2.dp, vertical = 1.dp)
     ) {
         CellDateRow(day, mood, partnerMood, isToday, isSunday, isSaturday)
 
         if (myShift != null) {
-            Text(
-                text = myShift.label,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = myShift.color,
-                maxLines = 1,
-                lineHeight = 12.sp
-            )
-            if (myShift != ShiftType.OFF) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(myShift.bgColor.copy(alpha = 0.5f))
+                    .padding(horizontal = 2.dp, vertical = 1.dp)
+            ) {
                 Text(
-                    text = myShift.timeRange.replace(" - ", "~"),
-                    fontSize = 7.sp,
-                    color = myShift.color.copy(alpha = 0.7f),
+                    text = myShift.label,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = myShift.color,
                     maxLines = 1,
-                    lineHeight = 8.sp
+                    lineHeight = 12.sp
                 )
+                if (myShift != ShiftType.OFF) {
+                    Text(
+                        text = myShift.timeRange.replace(" - ", "~"),
+                        fontSize = 7.sp,
+                        color = myShift.color.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        lineHeight = 8.sp
+                    )
+                }
             }
         }
 
         if (hasAlba) {
-            Box(
+            Spacer(modifier = Modifier.height(1.dp))
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 1.dp)
-                    .height(0.5.dp)
-                    .background(DarkBorder)
-            )
-            Text(
-                text = "알바",
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                color = ShiftAlba,
-                maxLines = 1,
-                lineHeight = 10.sp
-            )
-            val albaTime = ShiftType.ALBA.timeRange
-            if (albaTime != "시간 미정") {
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(ShiftAlba.copy(alpha = 0.15f))
+                    .padding(horizontal = 2.dp, vertical = 1.dp)
+            ) {
                 Text(
-                    text = albaTime.replace(" - ", "~"),
-                    fontSize = 7.sp,
-                    color = ShiftAlba.copy(alpha = 0.7f),
+                    text = "알바",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ShiftAlba,
                     maxLines = 1,
-                    lineHeight = 8.sp
+                    lineHeight = 10.sp
                 )
+                val albaTime = ShiftType.ALBA.timeRange
+                if (albaTime != "시간 미정") {
+                    Text(
+                        text = albaTime.replace(" - ", "~"),
+                        fontSize = 7.sp,
+                        color = ShiftAlba.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        lineHeight = 8.sp
+                    )
+                }
             }
+        }
+
+        if (!memo.isNullOrBlank()) {
+            Text(
+                text = memo,
+                fontSize = 7.sp,
+                color = EventPersonal,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                lineHeight = 8.sp,
+                modifier = Modifier.padding(top = 1.dp)
+            )
         }
 
         events.take(1).forEach { event ->
