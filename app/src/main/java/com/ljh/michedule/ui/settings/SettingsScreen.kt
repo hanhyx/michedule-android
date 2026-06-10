@@ -40,17 +40,14 @@ fun SettingsScreen(
     val clipboardManager = LocalClipboardManager.current
 
     val myName by prefsManager.myName.collectAsState(initial = "")
-    val supabaseUrl by prefsManager.supabaseUrl.collectAsState(initial = "")
-    val supabaseKey by prefsManager.supabaseKey.collectAsState(initial = "")
+    val supabaseUrl by prefsManager.supabaseUrl.collectAsState(initial = PrefsManager.DEFAULT_SUPABASE_URL)
+    val supabaseKey by prefsManager.supabaseKey.collectAsState(initial = PrefsManager.DEFAULT_SUPABASE_KEY)
     val roomCode by prefsManager.roomCode.collectAsState(initial = "")
 
     val alarmEnabled by prefsManager.alarmEnabled.collectAsState(initial = false)
     val alarmHoursBefore by prefsManager.alarmHoursBefore.collectAsState(initial = 2)
 
     var editName by remember(myName) { mutableStateOf(myName) }
-    var editUrl by remember(supabaseUrl) { mutableStateOf(supabaseUrl) }
-    var editKey by remember(supabaseKey) { mutableStateOf(supabaseKey) }
-    var editRoom by remember { mutableStateOf("") }
     var showClearConfirm by remember { mutableStateOf(false) }
 
     Column(
@@ -174,26 +171,22 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column {
-                        Text("연결됨", color = StatusOnline, fontWeight = FontWeight.Bold)
-                        Text("방 코드: $roomCode", style = MaterialTheme.typography.bodySmall, color = TextMuted)
-                    }
-                    IconButton(onClick = {
-                        scope.launch {
-                            prefsManager.clearSync()
-                            Toast.makeText(context, "연결 해제됨", Toast.LENGTH_SHORT).show()
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Cloud, contentDescription = null, tint = StatusOnline, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text("동기화 활성", color = StatusOnline, fontWeight = FontWeight.Bold)
+                            Text("변경사항이 자동으로 공유됩니다", style = MaterialTheme.typography.bodySmall, color = TextMuted)
                         }
-                    }) {
-                        Icon(Icons.Default.LinkOff, "해제", tint = StatusOffline)
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Button(
                     onClick = {
                         val link = buildInviteLink(supabaseUrl, supabaseKey, roomCode)
                         val sendIntent = Intent().apply {
                             action = Intent.ACTION_SEND
-                            putExtra(Intent.EXTRA_TEXT, "Michedule 스케줄 공유 초대!\n아래 링크를 탭하면 자동 연결됩니다.\n\n$link")
+                            putExtra(Intent.EXTRA_TEXT, "Michedule 스케줄 공유 초대!\n아래 링크를 탭하면 자동 연결돼!\n\n$link")
                             type = "text/plain"
                         }
                         context.startActivity(Intent.createChooser(sendIntent, "초대 링크 보내기"))
@@ -206,93 +199,35 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("상대방에게 초대 링크 보내기")
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "카톡으로 보내면 상대방이 탭만 하면 자동 연결됩니다",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted
-                )
             } else {
-                OutlinedTextField(
-                    value = editUrl,
-                    onValueChange = { editUrl = it },
-                    label = { Text("Supabase URL", color = TextMuted) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = settingsFieldColors(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = editKey,
-                    onValueChange = { editKey = it },
-                    label = { Text("Supabase anon Key", color = TextMuted) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = settingsFieldColors(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                if (editUrl.isNotBlank() && editKey.isNotBlank()) {
-                                    prefsManager.setSupabaseUrl(editUrl.trim())
-                                    prefsManager.setSupabaseKey(editKey.trim())
-                                    val code = generateRoomCode()
-                                    prefsManager.setRoomCode(code)
-                                    Toast.makeText(context, "방 생성됨: $code", Toast.LENGTH_LONG).show()
-                                }
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Purple40),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("방 만들기")
-                    }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.CloudOff, contentDescription = null, tint = TextMuted, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("아직 연결되지 않았습니다", color = TextMuted)
                 }
-
-                Spacer(modifier = Modifier.height(12.dp))
-                HorizontalDivider(color = DarkBorder)
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = editRoom,
-                    onValueChange = { editRoom = it },
-                    label = { Text("방 코드 입력", color = TextMuted) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = settingsFieldColors(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Button(
                     onClick = {
                         scope.launch {
-                            if (editUrl.isNotBlank() && editKey.isNotBlank() && editRoom.isNotBlank()) {
-                                prefsManager.setSupabaseUrl(editUrl.trim())
-                                prefsManager.setSupabaseKey(editKey.trim())
-                                prefsManager.setRoomCode(editRoom.trim())
-                                Toast.makeText(context, "연결됨", Toast.LENGTH_SHORT).show()
-                            }
+                            val code = generateRoomCode()
+                            prefsManager.setRoomCode(code)
+                            Toast.makeText(context, "공유가 활성화되었습니다", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Purple60),
+                    colors = ButtonDefaults.buttonColors(containerColor = Purple40),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("방 참여하기")
+                    Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("공유 시작하기")
                 }
+                Text(
+                    text = "탭하면 바로 활성화되고, 초대 링크를 보낼 수 있어요",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextMuted,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
             }
         }
 
@@ -315,8 +250,11 @@ fun SettingsScreen(
 
         // App info
         SettingsCard(title = "앱 정보") {
+            val versionName = try {
+                context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "?"
+            } catch (_: Exception) { "?" }
             Text(
-                text = "Michedule v1.0.0",
+                text = "Michedule v$versionName",
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary
             )
@@ -360,6 +298,7 @@ private fun SettingsCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = DarkCard)
     ) {

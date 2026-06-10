@@ -92,82 +92,95 @@ private fun TodayHeroBanner(uiState: CalendarUiState) {
     val myShift = uiState.shifts[todayStr]?.let { ShiftType.fromString(it.type) }
     val partnerShift = uiState.friendShifts[todayStr]?.let { ShiftType.fromString(it.type) }
     val mood = uiState.moods[todayStr]
-    val todayMemo = uiState.shifts[todayStr]?.memo
-    val todayEvents = uiState.events[todayStr]?.size ?: 0
 
-    val accentColor = myShift?.color ?: Purple80
+    val myDisplayName = uiState.myName.ifBlank { "나" }
+    val partnerDisplayName = uiState.partnerName.ifBlank { "상대" }
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         color = DarkCard,
-        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.3f))
+        border = BorderStroke(1.dp, DarkBorder)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     text = today.format(DateTimeFormatter.ofPattern("M월 d일 EEEE")),
                     style = MaterialTheme.typography.labelMedium,
-                    color = TextMuted
+                    fontWeight = FontWeight.Bold,
+                    color = TextSecondary
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (myShift != null) {
-                        Text(myShift.emoji, fontSize = 18.sp)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "${myShift.label} ${myShift.timeRange}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = myShift.color
-                        )
-                    } else {
-                        Text("오늘 근무 미설정", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-                if (!todayMemo.isNullOrBlank() || todayEvents > 0) {
-                    Text(
-                        text = buildString {
-                            if (!todayMemo.isNullOrBlank()) append("📝 $todayMemo")
-                            if (todayEvents > 0) {
-                                if (isNotEmpty()) append(" · ")
-                                append("📅 일정 ${todayEvents}개")
-                            }
-                        },
-                        fontSize = 11.sp,
-                        color = TextMuted,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                if (mood != null) {
+                    Text(mood.emoji, fontSize = 16.sp)
                 }
             }
 
-            if (partnerShift != null) {
-                VerticalDivider(
-                    modifier = Modifier.height(36.dp).padding(horizontal = 8.dp),
-                    color = DarkBorder
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (myShift != null) {
+                    Text(myShift.emoji, fontSize = 15.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                Text(
+                    text = myDisplayName,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
                 )
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("상대", fontSize = 9.sp, color = TextMuted)
-                    Text(partnerShift.emoji, fontSize = 16.sp)
+                Text(" : ", fontSize = 12.sp, color = TextMuted)
+                if (myShift != null) {
                     Text(
-                        partnerShift.shortLabel,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
+                        text = "${myShift.label} (${myShift.timeRange})",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = myShift.color
+                    )
+                } else {
+                    Text("미설정", fontSize = 12.sp, color = TextMuted)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (partnerShift != null) {
+                    Text(partnerShift.emoji, fontSize = 15.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                Text(
+                    text = partnerDisplayName,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                Text(" : ", fontSize = 12.sp, color = TextMuted)
+                if (partnerShift != null) {
+                    Text(
+                        text = "${partnerShift.label} (${partnerShift.timeRange})",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
                         color = partnerShift.color
                     )
+                } else {
+                    Text("미설정", fontSize = 12.sp, color = TextMuted)
                 }
-            }
-
-            if (mood != null) {
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(mood.emoji, fontSize = 18.sp)
             }
         }
     }
@@ -369,99 +382,112 @@ private fun CoupleCell(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val bgColor = when {
-        myShift != null -> myShift.bgColor
-        else -> Color.Transparent
-    }
     val borderMod = if (isToday) {
         Modifier.border(2.dp, Purple80, RoundedCornerShape(6.dp))
     } else Modifier
-
-    val partnerBarColor = partnerShift?.color?.copy(alpha = 0.6f)
 
     Column(
         modifier = modifier
             .padding(0.5.dp)
             .then(borderMod)
             .clip(RoundedCornerShape(6.dp))
-            .background(bgColor)
-            .then(
-                if (partnerBarColor != null) {
-                    Modifier.drawBehind {
-                        drawRoundRect(
-                            color = partnerBarColor,
-                            topLeft = Offset(0f, size.height - 3.dp.toPx()),
-                            size = Size(size.width, 3.dp.toPx()),
-                            cornerRadius = CornerRadius(3.dp.toPx())
-                        )
-                    }
-                } else Modifier
-            )
+            .background(Color.Transparent)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 2.dp, vertical = 2.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+        // ── 상단 50%: 날짜 + 내 근무 ──
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .background(myShift?.bgColor ?: Color.Transparent)
+                .padding(horizontal = 2.dp, vertical = 1.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "$day",
-                fontSize = 11.sp,
-                fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Medium,
-                color = when {
-                    isSunday -> Color(0xFFF87171)
-                    isSaturday -> Color(0xFF60A5FA)
-                    else -> TextPrimary
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "$day",
+                    fontSize = 10.sp,
+                    fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Medium,
+                    color = when {
+                        isSunday -> Color(0xFFF87171)
+                        isSaturday -> Color(0xFF60A5FA)
+                        else -> TextPrimary
+                    }
+                )
+                if (mood != null) {
+                    Text(text = mood, fontSize = 8.sp)
                 }
-            )
-            if (mood != null) {
-                Text(text = mood, fontSize = 9.sp)
             }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            if (myShift != null) {
+                Text(myShift.emoji, fontSize = 14.sp)
+                Text(
+                    text = myShift.label,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = myShift.color,
+                    maxLines = 1
+                )
+                Text(
+                    text = myShift.timeRange.substringBefore(" -"),
+                    fontSize = 7.sp,
+                    color = myShift.color.copy(alpha = 0.7f),
+                    maxLines = 1
+                )
+            }
+            Spacer(modifier = Modifier.weight(0.5f))
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        // ── 하단 50%: 상대 근무 + 메모/일정 ──
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .background(partnerShift?.bgColor?.copy(alpha = 0.5f) ?: DarkSurface.copy(alpha = 0.3f))
+                .padding(horizontal = 2.dp, vertical = 1.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(modifier = Modifier.weight(1f))
 
-        if (myShift != null) {
-            Text(myShift.emoji, fontSize = 16.sp)
-            Text(
-                text = myShift.shortLabel,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = myShift.color,
-                maxLines = 1
-            )
-        }
+            if (partnerShift != null) {
+                Text(partnerShift.emoji, fontSize = 12.sp)
+                Text(
+                    text = partnerShift.label,
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = partnerShift.color.copy(alpha = 0.85f),
+                    maxLines = 1
+                )
+                Text(
+                    text = partnerShift.timeRange.substringBefore(" -"),
+                    fontSize = 7.sp,
+                    color = partnerShift.color.copy(alpha = 0.5f),
+                    maxLines = 1
+                )
+            } else {
+                Text("─", fontSize = 10.sp, color = TextMuted.copy(alpha = 0.3f))
+            }
 
-        if (partnerShift != null) {
-            Text(
-                text = "♥ ${partnerShift.shortLabel}",
-                fontSize = 9.sp,
-                color = partnerShift.color.copy(alpha = 0.8f),
-                maxLines = 1
-            )
-        }
+            val infoText = when {
+                !memo.isNullOrBlank() -> "📝"
+                eventCount > 0 -> "📅$eventCount"
+                else -> null
+            }
+            if (infoText != null) {
+                Text(
+                    text = infoText,
+                    fontSize = 7.sp,
+                    color = TextMuted,
+                    maxLines = 1
+                )
+            }
 
-        val infoText = when {
-            !memo.isNullOrBlank() -> memo
-            eventCount > 0 -> "📅${eventCount}"
-            else -> null
-        }
-        if (infoText != null) {
-            Text(
-                text = infoText,
-                fontSize = 8.sp,
-                color = TextMuted,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        Spacer(modifier = Modifier.weight(0.5f))
-
-        if (partnerShift != null) {
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.weight(0.5f))
         }
     }
 }

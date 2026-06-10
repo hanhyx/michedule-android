@@ -13,6 +13,9 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class PrefsManager(private val context: Context) {
 
     companion object {
+        const val DEFAULT_SUPABASE_URL = "https://ylnhoawekholqlumgytl.supabase.co"
+        const val DEFAULT_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlsbmhvYXdla2hvbHFsdW1neXRsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5ODQxOTIsImV4cCI6MjA5NjU2MDE5Mn0.w-V40lcq0_iBma2o7x01Z9ZjPB2UAoDw2YzhCl0tS90"
+
         private val KEY_DEVICE_ID = stringPreferencesKey("device_id")
         private val KEY_MY_NAME = stringPreferencesKey("my_name")
         private val KEY_SUPABASE_URL = stringPreferencesKey("supabase_url")
@@ -31,8 +34,8 @@ class PrefsManager(private val context: Context) {
     }
 
     val myName: Flow<String> = context.dataStore.data.map { it[KEY_MY_NAME] ?: "" }
-    val supabaseUrl: Flow<String> = context.dataStore.data.map { it[KEY_SUPABASE_URL] ?: "" }
-    val supabaseKey: Flow<String> = context.dataStore.data.map { it[KEY_SUPABASE_KEY] ?: "" }
+    val supabaseUrl: Flow<String> = context.dataStore.data.map { it[KEY_SUPABASE_URL] ?: DEFAULT_SUPABASE_URL }
+    val supabaseKey: Flow<String> = context.dataStore.data.map { it[KEY_SUPABASE_KEY] ?: DEFAULT_SUPABASE_KEY }
     val roomCode: Flow<String> = context.dataStore.data.map { it[KEY_ROOM_CODE] ?: "" }
     val shiftPattern: Flow<String> = context.dataStore.data.map { it[KEY_PATTERN] ?: "" }
     val patternStartDate: Flow<String> = context.dataStore.data.map { it[KEY_PATTERN_START] ?: "" }

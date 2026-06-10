@@ -26,7 +26,9 @@ data class CalendarUiState(
     val shiftHistory: List<ShiftHistoryEntity> = emptyList(),
     val currentMood: MoodEntity? = null,
     val viewMode: ViewMode = ViewMode.MONTHLY,
-    val showDayDetail: Boolean = false
+    val showDayDetail: Boolean = false,
+    val myName: String = "",
+    val partnerName: String = ""
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -94,6 +96,18 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 .distinctUntilChanged()
                 .flatMapLatest { date -> repo.getHistoryForDate(date) }
                 .collect { history -> _uiState.update { it.copy(shiftHistory = history) } }
+        }
+
+        viewModelScope.launch {
+            app.prefsManager.myName.collect { name ->
+                _uiState.update { it.copy(myName = name) }
+            }
+        }
+
+        viewModelScope.launch {
+            app.supabaseSync?.friendName?.collect { name ->
+                _uiState.update { it.copy(partnerName = name) }
+            }
         }
     }
 
