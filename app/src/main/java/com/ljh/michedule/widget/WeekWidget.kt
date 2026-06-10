@@ -82,9 +82,9 @@ private fun WeekWidgetContent(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(ColorProvider(darkBg, darkBg))
-            .cornerRadius(20.dp)
+            .cornerRadius(16.dp)
             .clickable(actionStartActivity<MainActivity>())
-            .padding(horizontal = 4.dp, vertical = 8.dp)
+            .padding(horizontal = 2.dp, vertical = 4.dp)
     ) {
         Row(
             modifier = GlanceModifier.fillMaxWidth(),
@@ -108,43 +108,35 @@ private fun WeekWidgetContent(
                     GlanceModifier
                         .defaultWeight()
                         .background(ColorProvider(todayBg, todayBg))
-                        .cornerRadius(10.dp)
-                        .padding(vertical = 4.dp, horizontal = 1.dp)
+                        .cornerRadius(8.dp)
+                        .padding(vertical = 2.dp)
                 } else {
                     GlanceModifier
                         .defaultWeight()
-                        .padding(vertical = 4.dp, horizontal = 1.dp)
+                        .padding(vertical = 2.dp)
                 }
 
                 Column(
                     modifier = colModifier,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // 요일 + 날짜 한 줄
                     Text(
-                        text = dayNames[i],
+                        text = "${dayNames[i]}${date.dayOfMonth}",
                         style = TextStyle(
                             fontSize = 9.sp,
+                            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
                             color = ColorProvider(dayColor, dayColor)
                         )
                     )
-                    Text(
-                        text = "${date.dayOfMonth}",
-                        style = TextStyle(
-                            fontSize = 11.sp,
-                            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                            color = ColorProvider(
-                                if (isToday) purple else textPrimary,
-                                if (isToday) purple else textPrimary
-                            )
-                        )
-                    )
 
-                    Spacer(modifier = GlanceModifier.height(2.dp))
+                    Spacer(modifier = GlanceModifier.height(1.dp))
 
+                    // 내 일정 (크게)
                     Text(
                         text = myInfo?.type?.shortLabel ?: "─",
                         style = TextStyle(
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = ColorProvider(
                                 myInfo?.type?.color ?: muted.copy(alpha = 0.3f),
@@ -153,41 +145,22 @@ private fun WeekWidgetContent(
                         )
                     )
                     if (myInfo?.hasAlba == true) {
-                        Text(
-                            text = "알",
-                            style = TextStyle(
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ColorProvider(albaColor, albaColor)
-                            )
-                        )
+                        Text("알", style = TextStyle(fontSize = 7.sp, fontWeight = FontWeight.Bold, color = ColorProvider(albaColor, albaColor)))
                     }
 
-                    Spacer(modifier = GlanceModifier.height(1.dp))
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    // 상대 일정 (작게)
+                    val pLabel = partnerInfo?.type?.shortLabel
+                    if (pLabel != null) {
                         Text(
-                            text = partnerInfo?.type?.shortLabel ?: "",
+                            text = pLabel,
                             style = TextStyle(
-                                fontSize = 9.sp,
+                                fontSize = 8.sp,
                                 color = ColorProvider(
-                                    partnerInfo?.type?.color?.copy(alpha = 0.7f) ?: Color.Transparent,
-                                    partnerInfo?.type?.color?.copy(alpha = 0.7f) ?: Color.Transparent
+                                    partnerInfo.type?.color?.copy(alpha = 0.5f) ?: Color.Transparent,
+                                    partnerInfo.type?.color?.copy(alpha = 0.5f) ?: Color.Transparent
                                 )
                             )
                         )
-                        if (partnerInfo?.hasAlba == true) {
-                            Text(
-                                text = "+알",
-                                style = TextStyle(
-                                    fontSize = 7.sp,
-                                    color = ColorProvider(
-                                        albaColor.copy(alpha = 0.7f),
-                                        albaColor.copy(alpha = 0.7f)
-                                    )
-                                )
-                            )
-                        }
                     }
                 }
             }

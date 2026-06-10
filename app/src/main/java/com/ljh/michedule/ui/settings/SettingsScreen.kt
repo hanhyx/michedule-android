@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -45,6 +46,7 @@ fun SettingsScreen(
 
     val myName by prefsManager.myName.collectAsState(initial = "")
     val roomCode by prefsManager.roomCode.collectAsState(initial = "")
+    val syncPaused by prefsManager.syncPaused.collectAsState(initial = false)
 
     val alarmEnabled by prefsManager.alarmEnabled.collectAsState(initial = false)
     val alarmHoursBefore by prefsManager.alarmHoursBefore.collectAsState(initial = 2)
@@ -211,14 +213,42 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Cloud, contentDescription = null, tint = StatusOnline, modifier = Modifier.size(20.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(
+                            if (syncPaused) Icons.Default.CloudOff else Icons.Default.Cloud,
+                            contentDescription = null,
+                            tint = if (syncPaused) Color(0xFFFBBF24) else StatusOnline,
+                            modifier = Modifier.size(20.dp)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Column {
-                            Text("동기화 활성", color = StatusOnline, fontWeight = FontWeight.Bold)
-                            Text("변경사항이 자동으로 공유됩니다", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+                            Text(
+                                if (syncPaused) "동기화 일시정지" else "동기화 활성",
+                                color = if (syncPaused) Color(0xFFFBBF24) else StatusOnline,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                if (syncPaused) "일정 입력 후 다시 켜주세요" else "변경사항이 자동으로 공유됩니다",
+                                style = MaterialTheme.typography.bodySmall, color = TextMuted
+                            )
                         }
                     }
+                    Switch(
+                        checked = !syncPaused,
+                        onCheckedChange = { enabled ->
+                            scope.launch {
+                                prefsManager.setSyncPaused(!enabled)
+                                val app = context.applicationContext as MicheduleApp
+                                if (enabled) app.startSync() else app.stopSync()
+                            }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = StatusOnline,
+                            checkedTrackColor = StatusOnline.copy(alpha = 0.3f),
+                            uncheckedThumbColor = Color(0xFFFBBF24),
+                            uncheckedTrackColor = Color(0xFFFBBF24).copy(alpha = 0.2f)
+                        )
+                    )
                 }
                 Spacer(modifier = Modifier.height(10.dp))
                 Surface(
@@ -262,6 +292,85 @@ fun SettingsScreen(
                     Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("상대방에게 초대 코드 보내기")
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = DarkBorder)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                var changeCode by remember { mutableStateOf("") }
+                var showChangeInput by remember { mutableStateOf(false) }
+
+                if (showChangeInput) {
+                    Text("상대방 코드로 연결", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = changeCode,
+                            onValueChange = { changeCode = it.uppercase().take(8) },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text("코드 입력", color = TextMuted) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Purple80,
+                                unfocusedBorderColor = DarkBorder,
+                                cursorColor = Purple80,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                if (changeCode.isNotBlank()) {
+                                    scope.launch {
+                                        prefsManager.setRoomCode(changeCode.trim())
+                                        val app = context.applicationContext as MicheduleApp
+                                        app.startSync()
+                                        showChangeInput = false
+                                        changeCode = ""
+                                        Toast.makeText(context, "연결되었습니다!", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Purple40),
+                            shape = RoundedCornerShape(12.dp),
+                            enabled = changeCode.length >= 4
+                        ) { Text("연결") }
+                    }
+                } else {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = { showChangeInput = true },
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, DarkBorder),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp), tint = TextSecondary)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("다른 코드로 연결", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                scope.launch {
+                                    prefsManager.clearSync()
+                                    val app = context.applicationContext as MicheduleApp
+                                    app.stopSync()
+                                    Toast.makeText(context, "연결이 해제되었습니다", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFFF87171).copy(alpha = 0.5f))
+                        ) {
+                            Icon(Icons.Default.LinkOff, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFF87171))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("해제", color = Color(0xFFF87171), style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                 }
             } else {
                 var joinCode by remember { mutableStateOf("") }

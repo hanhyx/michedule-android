@@ -75,91 +75,61 @@ private fun TodayWidgetContent(
     val muted = Color(0xFF6B7280)
     val purple = Color(0xFFA78BFA)
     val albaColor = Color(0xFFF97316)
+    val myShift = myInfo.type
+    val partnerShift = partnerInfo.type
 
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(ColorProvider(darkBg, darkBg))
-            .cornerRadius(20.dp)
+            .cornerRadius(16.dp)
             .clickable(actionStartActivity<MainActivity>())
-            .padding(12.dp)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
         Column(modifier = GlanceModifier.fillMaxSize()) {
+            // 날짜
             Text(
-                text = today.format(DateTimeFormatter.ofPattern("M월 d일 EEEE")),
-                style = TextStyle(
-                    color = ColorProvider(purple, purple),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                text = today.format(DateTimeFormatter.ofPattern("M/d (E)")),
+                style = TextStyle(color = ColorProvider(purple, purple), fontSize = 10.sp, fontWeight = FontWeight.Bold)
             )
+            Spacer(modifier = GlanceModifier.height(2.dp))
 
-            Spacer(modifier = GlanceModifier.height(6.dp))
-
-            WidgetShiftRow("나", myInfo, muted, albaColor)
-
-            Spacer(modifier = GlanceModifier.height(4.dp))
-
-            WidgetShiftRow("상대", partnerInfo, muted, albaColor)
-        }
-    }
-}
-
-@Composable
-private fun WidgetShiftRow(
-    label: String,
-    info: WidgetShiftInfo,
-    muted: Color,
-    albaColor: Color
-) {
-    val shift = info.type
-    Row(
-        modifier = GlanceModifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = shift?.emoji ?: if (label == "나") "📋" else "👤",
-            style = TextStyle(fontSize = 18.sp)
-        )
-        Spacer(modifier = GlanceModifier.width(6.dp))
-        Column(modifier = GlanceModifier.defaultWeight()) {
-            Text(
-                text = label,
-                style = TextStyle(color = ColorProvider(muted, muted), fontSize = 9.sp)
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // 내 일정 (메인, 크게)
+            Row(
+                modifier = GlanceModifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = shift?.label ?: "미설정",
+                    text = myShift?.label ?: "미설정",
                     style = TextStyle(
-                        color = ColorProvider(shift?.color ?: muted, shift?.color ?: muted),
-                        fontSize = 13.sp,
+                        color = ColorProvider(myShift?.color ?: muted, myShift?.color ?: muted),
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
                 )
-                if (info.hasAlba) {
-                    Spacer(modifier = GlanceModifier.width(4.dp))
-                    Text(
-                        text = "+알바",
-                        style = TextStyle(
-                            color = ColorProvider(albaColor, albaColor),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    )
+                if (myInfo.hasAlba) {
+                    Spacer(modifier = GlanceModifier.width(3.dp))
+                    Text("+알바", style = TextStyle(color = ColorProvider(albaColor, albaColor), fontSize = 10.sp, fontWeight = FontWeight.Bold))
                 }
             }
-        }
-        if (shift != null) {
-            Text(
-                text = shift.timeRange,
-                style = TextStyle(
-                    color = ColorProvider(
-                        shift.color.copy(alpha = 0.6f),
-                        shift.color.copy(alpha = 0.6f)
-                    ),
-                    fontSize = 9.sp
+
+            Spacer(modifier = GlanceModifier.height(1.dp))
+
+            // 상대 일정 (작게, 한 줄)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("👤", style = TextStyle(fontSize = 9.sp))
+                Spacer(modifier = GlanceModifier.width(2.dp))
+                Text(
+                    text = partnerShift?.label ?: "─",
+                    style = TextStyle(
+                        color = ColorProvider(partnerShift?.color?.copy(alpha = 0.7f) ?: muted.copy(alpha = 0.5f), partnerShift?.color?.copy(alpha = 0.7f) ?: muted.copy(alpha = 0.5f)),
+                        fontSize = 9.sp
+                    )
                 )
-            )
+                if (partnerInfo.hasAlba) {
+                    Text("+알", style = TextStyle(color = ColorProvider(albaColor.copy(alpha = 0.7f), albaColor.copy(alpha = 0.7f)), fontSize = 8.sp))
+                }
+            }
         }
     }
 }

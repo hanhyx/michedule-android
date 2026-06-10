@@ -28,6 +28,7 @@ class PrefsManager(private val context: Context) {
         private val KEY_CALENDAR_LOCKED = booleanPreferencesKey("calendar_locked")
         private val KEY_CUSTOM_TIME_RANGES = stringPreferencesKey("custom_time_ranges")
         private val KEY_ALARM_DISABLED_TYPES = stringPreferencesKey("alarm_disabled_types")
+        private val KEY_SYNC_PAUSED = booleanPreferencesKey("sync_paused")
     }
 
     val deviceId: Flow<String> = context.dataStore.data.map { prefs ->
@@ -45,6 +46,7 @@ class PrefsManager(private val context: Context) {
     val alarmEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_ALARM_ENABLED] ?: false }
     val alarmHoursBefore: Flow<Int> = context.dataStore.data.map { it[KEY_ALARM_HOURS_BEFORE] ?: 2 }
     val calendarLocked: Flow<Boolean> = context.dataStore.data.map { it[KEY_CALENDAR_LOCKED] ?: false }
+    val syncPaused: Flow<Boolean> = context.dataStore.data.map { it[KEY_SYNC_PAUSED] ?: false }
 
     suspend fun setMyName(name: String) {
         context.dataStore.edit { it[KEY_MY_NAME] = name }
@@ -90,6 +92,10 @@ class PrefsManager(private val context: Context) {
 
     suspend fun setCalendarLocked(locked: Boolean) {
         context.dataStore.edit { it[KEY_CALENDAR_LOCKED] = locked }
+    }
+
+    suspend fun setSyncPaused(paused: Boolean) {
+        context.dataStore.edit { it[KEY_SYNC_PAUSED] = paused }
     }
 
     val customTimeRanges: Flow<String> = context.dataStore.data.map { it[KEY_CUSTOM_TIME_RANGES] ?: "" }

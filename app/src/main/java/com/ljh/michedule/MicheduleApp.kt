@@ -45,14 +45,27 @@ class MicheduleApp : Application() {
     }
 
     fun startSync() {
+        appScope.launch {
+            val paused = prefsManager.syncPaused.first()
+            if (paused) {
+                supabaseSync?.stop()
+                return@launch
+            }
+            supabaseSync?.stop()
+            val sync = SupabaseSync(repository, prefsManager, this@MicheduleApp)
+            supabaseSync = sync
+            sync.start(appScope)
+        }
+    }
+
+    fun stopSync() {
         supabaseSync?.stop()
-        val sync = SupabaseSync(repository, prefsManager, this)
-        supabaseSync = sync
-        sync.start(appScope)
+        supabaseSync = null
     }
 
     fun triggerUpload() {
         appScope.launch {
+            if (prefsManager.syncPaused.first()) return@launch
             supabaseSync?.uploadCurrentData()
         }
     }
