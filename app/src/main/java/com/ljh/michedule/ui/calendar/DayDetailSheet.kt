@@ -662,7 +662,7 @@ fun PartnerDayDetailSheet(
     shiftTypeManager: ShiftTypeManager,
     onDismiss: () -> Unit
 ) {
-    val shiftConfig = friendShift?.type?.let { shiftTypeManager.getById(it) }
+    val shiftConfig = friendShift?.type?.takeIf { it.isNotBlank() }?.let { shiftTypeManager.getById(it) }
     val partnerName = friendShift?.friendName?.ifBlank { "상대" } ?: "상대"
     val formatter = DateTimeFormatter.ofPattern("M월 d일 (E)")
 
@@ -731,30 +731,32 @@ fun PartnerDayDetailSheet(
                                 )
                             }
                         }
-                        val partnerExtras = friendShift?.getExtraShiftList() ?: emptyList()
-                        if (partnerExtras.isNotEmpty()) {
-                            Spacer(modifier = Modifier.weight(1f))
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                partnerExtras.take(3).forEach { extraId ->
-                                    val ec = shiftTypeManager.getById(extraId)
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = (ec?.color ?: Color(0xFFFBBF24)).copy(alpha = 0.2f)
-                                    ) {
-                                        Text(
-                                            "${ec?.emoji ?: "💼"} ${ec?.shortLabel ?: extraId}",
-                                            fontSize = 11.sp,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                            color = ec?.color ?: Color(0xFFFBBF24)
-                                        )
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
             } else {
                 Text("등록된 근무가 없습니다", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
+            }
+
+            // 추가 근무
+            val partnerExtras = friendShift?.getExtraShiftList() ?: emptyList()
+            if (partnerExtras.isNotEmpty()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    partnerExtras.forEach { extraId ->
+                        val ec = shiftTypeManager.getById(extraId)
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = (ec?.color ?: Color(0xFFFBBF24)).copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, (ec?.color ?: Color(0xFFFBBF24)).copy(alpha = 0.3f))
+                        ) {
+                            Text(
+                                "${ec?.emoji ?: "💼"} ${ec?.label ?: extraId}",
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                color = ec?.color ?: Color(0xFFFBBF24)
+                            )
+                        }
+                    }
+                }
             }
 
             // 메모

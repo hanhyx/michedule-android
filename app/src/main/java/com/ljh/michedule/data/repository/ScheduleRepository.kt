@@ -64,22 +64,22 @@ class ScheduleRepository(private val db: AppDatabase) {
         datePlanDao.deleteForDate(dateStr)
     }
 
-    suspend fun syncDatePlans(plans: List<DatePlanEntity>) {
+    suspend fun syncDatePlans(plans: List<DatePlanEntity>, myName: String) {
         val localPlans = datePlanDao.getAllPlans()
         val remoteDates = plans.map { it.date }.toSet()
 
-        // 상대방 데이터에서 사라진 plan은 로컬에서도 삭제
         localPlans.forEach { local ->
             if (local.date !in remoteDates) {
-                datePlanDao.deleteForDate(local.date)
+                val isMyPlan = local.createdBy == myName || local.createdBy == "나"
+                if (!isMyPlan) {
+                    datePlanDao.deleteForDate(local.date)
+                }
             }
         }
 
-        // 유저가 직접 취소한 날짜는 동기화하지 않음
         plans.filter { it.date !in cancelledPlanDates }
             .forEach { datePlanDao.upsert(it) }
 
-        // 상대방도 삭제해서 remoteDates에 없으면 cancelledPlanDates에서 제거
         cancelledPlanDates.removeAll { it !in remoteDates }
     }
 

@@ -206,6 +206,12 @@ class SupabaseSync(
             friendRow.shifts.forEach { (date, value) ->
                 val type = (value as? JsonPrimitive)?.content ?: return@forEach
                 newShiftsMap[date] = type
+            }
+
+            val allDates = (newShiftsMap.keys + memoMap.keys + moodMap.keys +
+                    todoCountMap.keys + extraShiftsMap.keys + albaSet)
+            allDates.forEach { date ->
+                val type = newShiftsMap[date] ?: ""
                 val extras = extraShiftsMap[date] ?: if (date in albaSet) "alba" else ""
                 friendShifts.add(
                     FriendShiftEntity(
@@ -227,7 +233,8 @@ class SupabaseSync(
                 val by = (obj["by"] as? JsonPrimitive)?.content ?: friendRow.user_name
                 DatePlanEntity(date = date, memo = memo, createdBy = by)
             }
-            repo.syncDatePlans(remotePlans)
+            val myName = prefsManager.myName.first()
+            repo.syncDatePlans(remotePlans, myName)
 
             if (!isFirstSync && appContext != null) {
                 val changes = detectChanges(lastKnownFriendShifts, newShiftsMap)
