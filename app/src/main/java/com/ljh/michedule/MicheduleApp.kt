@@ -1,6 +1,8 @@
 package com.ljh.michedule
 
 import android.app.Application
+import android.util.Log
+import com.google.firebase.messaging.FirebaseMessaging
 import com.ljh.michedule.data.PrefsManager
 import com.ljh.michedule.data.ShiftTypeManager
 import com.ljh.michedule.data.parseTimeRanges
@@ -38,6 +40,7 @@ class MicheduleApp : Application() {
         appScope.launch { prefsManager.ensureMyCode() }
         startSync()
         loadCustomTimeRanges()
+        initFcmToken()
 
         val prefs = getSharedPreferences("michedule_init", MODE_PRIVATE)
         if (!prefs.getBoolean("cleared_june_seed_v1", false)) {
@@ -91,6 +94,21 @@ class MicheduleApp : Application() {
         appScope.launch {
             if (prefsManager.syncPaused.first()) return@launch
             supabaseSync?.uploadCurrentData()
+        }
+    }
+
+    private fun initFcmToken() {
+        FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+            Log.d("FCM", "Token: ${token.take(20)}...")
+            appScope.launch {
+                prefsManager.setFcmToken(token)
+            }
+        }
+    }
+
+    fun sendDatePlanPush(date: String, memo: String) {
+        appScope.launch {
+            supabaseSync?.sendDatePlanPush(date, memo)
         }
     }
 

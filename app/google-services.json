@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "642280928038",
+    "project_id": "michedule",
+    "storage_bucket": "michedule.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:642280928038:android:860151b7df6f42dc2d87e7",
+        "android_client_info": {
+          "package_name": "com.ljh.michedule"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCGwbdQKkUCUhZEwkC6US4iaSyVpuGlbKU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

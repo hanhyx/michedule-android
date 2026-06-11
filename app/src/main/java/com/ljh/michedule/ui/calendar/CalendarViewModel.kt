@@ -197,6 +197,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             val myName = _uiState.value.myName.ifBlank { "나" }
             repo.setDatePlan(date, memo, myName)
             app.triggerUpload()
+            app.sendDatePlanPush(date.toString(), memo)
         }
     }
 

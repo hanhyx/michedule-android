@@ -18,6 +18,10 @@ import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.realtime.*
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.request.*
+import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.Serializable
@@ -38,6 +42,7 @@ data class ScheduleRow(
     val todo_counts: JsonObject = JsonObject(emptyMap()),
     val date_plans: JsonObject = JsonObject(emptyMap()),
     val shift_types: JsonObject = JsonObject(emptyMap()),
+    val fcm_token: String? = null,
     val updated_at: String? = null
 )
 
@@ -285,6 +290,55 @@ class SupabaseSync(
         nm.notify(9999, notification)
     }
 
+    suspend fun sendDatePlanPush(date: String, memo: String) {
+        try {
+            val partnerCode = prefsManager.partnerCode.first()
+            if (partnerCode.isBlank()) return
+            val isMutual = prefsManager.connectionMutual.first()
+            if (!isMutual) return
+
+            val partnerRow = client?.from(TABLE)
+                ?.select { filter { eq("user_code", partnerCode) } }
+                ?.decodeList<ScheduleRow>()
+                ?.firstOrNull()
+
+            val partnerToken = partnerRow?.fcm_token
+            if (partnerToken.isNullOrBlank()) {
+                Log.d(TAG, "Partner has no FCM token, skip push")
+                return
+            }
+
+            val myName = prefsManager.myName.first().ifBlank { "상대방" }
+            val url = prefsManager.supabaseUrl.first()
+            val key = prefsManager.supabaseKey.first()
+
+            val functionUrl = url.replace(".supabase.co", ".supabase.co/functions/v1/send-push")
+            val payload = buildJsonObject {
+                put("fcm_token", partnerToken)
+                put("title", "💕 ${myName}님의 만나요!")
+                put("body", if (memo.isNotBlank()) "${date}에 만나요! 📝 $memo" else "${date}에 만나자고 해요! 💕")
+                put("data", buildJsonObject {
+                    put("type", "date_plan")
+                    put("sender_name", myName)
+                    put("date", date)
+                    put("memo", memo)
+                })
+            }
+
+            val httpClient = HttpClient(OkHttp)
+            val response = httpClient.request(functionUrl) {
+                method = HttpMethod.Post
+                contentType(ContentType.Application.Json)
+                header("Authorization", "Bearer $key")
+                setBody(payload.toString())
+            }
+            Log.d(TAG, "Push sent, status=${response.status}")
+            httpClient.close()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send date plan push", e)
+        }
+    }
+
     suspend fun uploadCurrentData() {
         try {
             val myCode = prefsManager.ensureMyCode()
@@ -347,6 +401,8 @@ class SupabaseSync(
                 }
             }
 
+            val fcmToken = prefsManager.fcmToken.first().ifBlank { null }
+
             val row = ScheduleRow(
                 user_code = myCode,
                 user_name = myName,
@@ -357,7 +413,8 @@ class SupabaseSync(
                 moods = moodsJson,
                 todo_counts = todoCountsJson,
                 date_plans = datePlansJson,
-                shift_types = shiftTypesJson
+                shift_types = shiftTypesJson,
+                fcm_token = fcmToken
             )
 
             client?.from(TABLE)?.upsert(row)
