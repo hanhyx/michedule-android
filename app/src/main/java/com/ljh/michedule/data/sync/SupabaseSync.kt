@@ -10,6 +10,8 @@ import com.ljh.michedule.data.PrefsManager
 import com.ljh.michedule.data.ShiftTypeManager
 import com.ljh.michedule.data.db.DatePlanEntity
 import com.ljh.michedule.data.db.FriendShiftEntity
+import com.ljh.michedule.data.db.MoodEntity
+import com.ljh.michedule.data.db.ShiftEntity
 import com.ljh.michedule.data.db.ShiftTypeConfig
 import com.ljh.michedule.data.repository.ScheduleRepository
 import com.ljh.michedule.model.ShiftType
@@ -82,6 +84,7 @@ class SupabaseSync(
                     install(Realtime)
                 }
 
+                restoreOwnDataIfEmpty(myCode)
                 uploadCurrentData()
                 _connected.value = true
                 Log.d(TAG, "Connected as: $myCode")
@@ -342,6 +345,48 @@ class SupabaseSync(
             httpClient.close()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send date plan push", e)
+        }
+    }
+
+    private suspend fun restoreOwnDataIfEmpty(myCode: String) {
+        try {
+            val localShifts = repo.getAllShifts()
+            if (localShifts.isNotEmpty()) return
+
+            val rows = client?.from(TABLE)
+                ?.select { filter { eq("user_code", myCode) } }
+                ?.decodeList<ScheduleRow>() ?: return
+
+            val myRow = rows.firstOrNull() ?: return
+            if (myRow.shifts.isEmpty()) return
+
+            Log.d(TAG, "Restoring own data from Supabase for $myCode")
+
+            myRow.shifts.forEach { (date, value) ->
+                val type = (value as? JsonPrimitive)?.content ?: return@forEach
+                val memo = (myRow.memos[date] as? JsonPrimitive)?.content
+                val hasAlba = (myRow.albas[date] as? JsonPrimitive)?.booleanOrNull == true
+                val extraArr = myRow.extra_shifts[date] as? JsonArray
+                val extras = extraArr?.mapNotNull { (it as? JsonPrimitive)?.content }?.joinToString(",") ?: ""
+                val finalExtras = extras.ifBlank { if (hasAlba) "alba" else "" }
+                repo.upsertShift(ShiftEntity(date = date, type = type, memo = memo, hasAlba = hasAlba, extraShifts = finalExtras))
+            }
+
+            myRow.moods.forEach { (date, value) ->
+                val emoji = (value as? JsonPrimitive)?.content ?: return@forEach
+                repo.setMood(java.time.LocalDate.parse(date), emoji, "")
+            }
+
+            myRow.date_plans.forEach { (date, value) ->
+                val obj = value as? JsonObject ?: return@forEach
+                val memo = (obj["memo"] as? JsonPrimitive)?.content ?: ""
+                val by = (obj["by"] as? JsonPrimitive)?.content ?: ""
+                repo.setDatePlan(java.time.LocalDate.parse(date), memo, by)
+            }
+
+            Log.d(TAG, "Restored ${myRow.shifts.size} shifts, ${myRow.moods.size} moods, ${myRow.date_plans.size} plans")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to restore own data", e)
         }
     }
 

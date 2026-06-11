@@ -79,6 +79,10 @@ class ScheduleRepository(private val db: AppDatabase) {
         cancelledPlanDates.removeAll { it !in remoteDates }
     }
 
+    suspend fun upsertShift(entity: ShiftEntity) {
+        shiftDao.upsert(entity)
+    }
+
     suspend fun setShift(date: LocalDate, type: String) {
         val existing = shiftDao.getShift(date.toString())
         shiftDao.upsert(ShiftEntity(
