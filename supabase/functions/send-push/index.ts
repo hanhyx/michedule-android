@@ -22,7 +22,10 @@ async function getAccessToken(): Promise<string> {
   const pemContent = serviceAccount.private_key
     .replace("-----BEGIN PRIVATE KEY-----", "")
     .replace("-----END PRIVATE KEY-----", "")
-    .replace(/\n/g, "");
+    .replace(/\\n/g, "")
+    .replace(/\n/g, "")
+    .replace(/\r/g, "")
+    .replace(/\s/g, "");
   const keyData = Uint8Array.from(atob(pemContent), (c) => c.charCodeAt(0));
 
   const key = await crypto.subtle.importKey(

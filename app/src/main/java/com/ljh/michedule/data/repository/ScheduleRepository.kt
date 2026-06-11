@@ -53,6 +53,13 @@ class ScheduleRepository(private val db: AppDatabase) {
     }
 
     suspend fun syncDatePlans(plans: List<DatePlanEntity>) {
+        val remoteDates = plans.map { it.date }.toSet()
+        val localPlans = datePlanDao.getAllPlans()
+        localPlans.forEach { local ->
+            if (local.date !in remoteDates) {
+                datePlanDao.deleteForDate(local.date)
+            }
+        }
         plans.forEach { datePlanDao.upsert(it) }
     }
 
