@@ -45,8 +45,8 @@ class WeekWidget : GlanceAppWidget() {
             val partnerTypeConfigs = try {
                 db.shiftTypeConfigDao().getPartner().associateBy { it.id }
             } catch (_: Exception) { emptyMap() }
-            val typeConfigs = myTypeConfigs + ShiftTypeConfig.DEFAULTS.associateBy { it.id }
-            val pTypeMap = partnerTypeConfigs + ShiftTypeConfig.DEFAULTS.associateBy { it.id }
+            val typeConfigs = ShiftTypeConfig.DEFAULTS.associateBy { it.id } + myTypeConfigs
+            val pTypeMap = ShiftTypeConfig.DEFAULTS.associateBy { it.id } + partnerTypeConfigs
 
             val mine = db.shiftDao().getAllShifts()
                 .filter { it.date in weekStartStr..weekEndStr }

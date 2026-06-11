@@ -59,7 +59,7 @@ class TodayWidget : GlanceAppWidget() {
             val partnerTypeConfigs = try {
                 db.shiftTypeConfigDao().getPartner().associateBy { it.id }
             } catch (_: Exception) { emptyMap() }
-            val typeConfigs = myTypeConfigs + ShiftTypeConfig.DEFAULTS.associateBy { it.id }
+            val typeConfigs = ShiftTypeConfig.DEFAULTS.associateBy { it.id } + myTypeConfigs
 
             val myEntity = db.shiftDao().getShift(todayStr)
             val myMood = try {
@@ -81,7 +81,7 @@ class TodayWidget : GlanceAppWidget() {
                 todoTexts = myTodos.take(3).map { (if (it.isDone) "✅ " else "☐ ") + it.title }
             )
 
-            val pTypeMap = partnerTypeConfigs + ShiftTypeConfig.DEFAULTS.associateBy { it.id }
+            val pTypeMap = ShiftTypeConfig.DEFAULTS.associateBy { it.id } + partnerTypeConfigs
             val partner = try {
                 val friends = db.friendShiftDao().getShiftsInRange(todayStr, todayStr).firstOrNull()
                 val fe = friends?.firstOrNull()

@@ -37,7 +37,10 @@ class MicheduleApp : Application() {
         prefsManager = PrefsManager(this)
         shiftTypeManager = ShiftTypeManager(database.shiftTypeConfigDao(), appScope)
 
-        appScope.launch { prefsManager.ensureMyCode() }
+        appScope.launch {
+            setupDebugAccountIfNeeded()
+            prefsManager.ensureMyCode()
+        }
         startSync()
         loadCustomTimeRanges()
         initFcmToken()
@@ -131,6 +134,21 @@ class MicheduleApp : Application() {
                 ShiftType.customTimeRanges = result
             }
         }
+    }
+
+    private suspend fun setupDebugAccountIfNeeded() {
+        if (!BuildConfig.DEBUG) return
+        val currentCode = prefsManager.ensureMyCode()
+        if (currentCode == "I33J1S") return
+        val prefs = getSharedPreferences("michedule_init", MODE_PRIVATE)
+        if (prefs.getBoolean("debug_account_set_v1", false)) return
+        prefsManager.setMyCode("I33J1S")
+        prefsManager.setMyName("송도여신")
+        prefsManager.setPartnerCode("0BBT88")
+        prefsManager.setPartnerName("부천왕자")
+        prefsManager.setConnectionMutual(true)
+        prefs.edit().putBoolean("debug_account_set_v1", true).apply()
+        Log.d("MicheduleApp", "Debug account set to 송도여신 (I33J1S)")
     }
 
     private fun migrateCreatedByToCode() {

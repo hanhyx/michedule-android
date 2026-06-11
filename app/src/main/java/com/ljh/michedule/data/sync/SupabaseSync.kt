@@ -438,7 +438,7 @@ class SupabaseSync(
             }
             val albasJson = buildJsonObject {
                 allShifts.forEach { s ->
-                    if (s.hasAlba || s.extraShifts.contains("alba")) put(s.date, true)
+                    if (s.extraShifts.contains("alba")) put(s.date, true)
                 }
             }
             val extraShiftsJson = buildJsonObject {
