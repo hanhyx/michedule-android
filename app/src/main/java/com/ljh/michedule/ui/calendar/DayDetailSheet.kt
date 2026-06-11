@@ -643,6 +643,182 @@ private fun TimeRangeEditDialog(
 
 // ── Date Plan Section ──
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PartnerDayDetailSheet(
+    date: LocalDate,
+    friendShift: FriendShiftEntity?,
+    datePlan: DatePlanEntity?,
+    shiftTypeManager: ShiftTypeManager,
+    onDismiss: () -> Unit
+) {
+    val shiftConfig = friendShift?.type?.let { shiftTypeManager.getById(it) }
+    val partnerName = friendShift?.friendName?.ifBlank { "상대" } ?: "상대"
+    val formatter = DateTimeFormatter.ofPattern("M월 d일 (E)")
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = DarkCard,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = TextMuted) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("💕", fontSize = 20.sp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        "${partnerName}의 일정",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        date.format(formatter),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextMuted
+                    )
+                }
+            }
+
+            HorizontalDivider(color = DarkBorder)
+
+            // 근무 유형
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("📋", fontSize = 16.sp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("근무", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+            }
+            if (shiftConfig != null) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    color = shiftConfig.bgColor
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(shiftConfig.emoji, fontSize = 20.sp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                shiftConfig.label,
+                                fontWeight = FontWeight.Bold,
+                                color = shiftConfig.color
+                            )
+                            if (shiftConfig.defaultTimeRange.isNotBlank()) {
+                                Text(
+                                    shiftConfig.defaultTimeRange,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = shiftConfig.color.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                        if (friendShift?.hasAlba == true) {
+                            Spacer(modifier = Modifier.weight(1f))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = Color(0xFFFBBF24).copy(alpha = 0.2f)
+                            ) {
+                                Text(
+                                    "🍺 알바",
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    color = Color(0xFFFBBF24)
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text("등록된 근무가 없습니다", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
+            }
+
+            // 메모
+            if (!friendShift?.memo.isNullOrBlank()) {
+                HorizontalDivider(color = DarkBorder)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("📝", fontSize = 16.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("메모", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                }
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    color = DarkSurface
+                ) {
+                    Text(
+                        friendShift?.memo ?: "",
+                        modifier = Modifier.padding(12.dp),
+                        color = TextPrimary,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+
+            // 기분
+            if (!friendShift?.mood.isNullOrBlank()) {
+                HorizontalDivider(color = DarkBorder)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("😊", fontSize = 16.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("기분", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                }
+                Text(friendShift?.mood ?: "", fontSize = 28.sp)
+            }
+
+            // 할 일 개수
+            if ((friendShift?.todoCount ?: 0) > 0) {
+                HorizontalDivider(color = DarkBorder)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("✅", fontSize = 16.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("할 일", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Purple40.copy(alpha = 0.3f)
+                    ) {
+                        Text(
+                            "${friendShift?.todoCount}개",
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            color = Purple80
+                        )
+                    }
+                }
+            }
+
+            // 만나요
+            if (datePlan != null) {
+                HorizontalDivider(color = DarkBorder)
+                val heartColor = Color(0xFFEC4899)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    color = heartColor.copy(alpha = 0.1f),
+                    border = BorderStroke(1.dp, heartColor.copy(alpha = 0.3f))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text("💕 데이트 예정!", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = heartColor)
+                        if (datePlan.memo.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(datePlan.memo, fontSize = 13.sp, color = TextPrimary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun DatePlanSection(
     datePlan: DatePlanEntity?,

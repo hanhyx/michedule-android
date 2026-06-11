@@ -191,31 +191,41 @@ fun CalendarScreen(
     }
 
     if (uiState.showDayDetail) {
-        DayDetailSheet(
-            date = uiState.selectedDate,
-            shift = uiState.shifts[uiState.selectedDate.toString()],
-            events = uiState.events[uiState.selectedDate.toString()] ?: emptyList(),
-            todos = uiState.todos,
-            mood = uiState.currentMood,
-            shiftHistory = uiState.shiftHistory,
-            shiftTypeManager = stm,
-            onDismiss = { viewModel.closeDayDetail() },
-            onShiftSelect = { type -> viewModel.setShift(uiState.selectedDate, type) },
-            onShiftSelectById = { typeId -> viewModel.setShiftById(uiState.selectedDate, typeId) },
-            onShiftClear = { viewModel.clearShift(uiState.selectedDate) },
-            onAlbaToggle = { hasAlba -> viewModel.toggleAlba(uiState.selectedDate, hasAlba) },
-            onShiftTimeEdit = { type, range -> viewModel.updateShiftTimeRange(type, range) },
-            onMemoChange = { memo -> viewModel.setMemo(uiState.selectedDate, memo) },
-            onAddEvent = { onNavigateToAddEvent(uiState.selectedDate.toString()) },
-            onDeleteEvent = { viewModel.deleteEvent(it) },
-            onAddTodo = { title, time, isHabit -> viewModel.addTodo(title, time, isHabit) },
-            onToggleTodo = { id, done -> viewModel.toggleTodo(id, done) },
-            onDeleteTodo = { viewModel.deleteTodo(it) },
-            onMoodSelect = { emoji, note -> viewModel.setMood(emoji, note) },
-            datePlan = uiState.currentDatePlan,
-            onDatePlanSet = { memo -> viewModel.setDatePlan(uiState.selectedDate, memo) },
-            onDatePlanDelete = { viewModel.deleteDatePlan(uiState.selectedDate) }
-        )
+        if (uiState.viewingPartner) {
+            PartnerDayDetailSheet(
+                date = uiState.selectedDate,
+                friendShift = uiState.friendShifts[uiState.selectedDate.toString()],
+                datePlan = uiState.datePlans[uiState.selectedDate.toString()],
+                shiftTypeManager = stm,
+                onDismiss = { viewModel.closeDayDetail() }
+            )
+        } else {
+            DayDetailSheet(
+                date = uiState.selectedDate,
+                shift = uiState.shifts[uiState.selectedDate.toString()],
+                events = uiState.events[uiState.selectedDate.toString()] ?: emptyList(),
+                todos = uiState.todos,
+                mood = uiState.currentMood,
+                shiftHistory = uiState.shiftHistory,
+                shiftTypeManager = stm,
+                onDismiss = { viewModel.closeDayDetail() },
+                onShiftSelect = { type -> viewModel.setShift(uiState.selectedDate, type) },
+                onShiftSelectById = { typeId -> viewModel.setShiftById(uiState.selectedDate, typeId) },
+                onShiftClear = { viewModel.clearShift(uiState.selectedDate) },
+                onAlbaToggle = { hasAlba -> viewModel.toggleAlba(uiState.selectedDate, hasAlba) },
+                onShiftTimeEdit = { type, range -> viewModel.updateShiftTimeRange(type, range) },
+                onMemoChange = { memo -> viewModel.setMemo(uiState.selectedDate, memo) },
+                onAddEvent = { onNavigateToAddEvent(uiState.selectedDate.toString()) },
+                onDeleteEvent = { viewModel.deleteEvent(it) },
+                onAddTodo = { title, time, isHabit -> viewModel.addTodo(title, time, isHabit) },
+                onToggleTodo = { id, done -> viewModel.toggleTodo(id, done) },
+                onDeleteTodo = { viewModel.deleteTodo(it) },
+                onMoodSelect = { emoji, note -> viewModel.setMood(emoji, note) },
+                datePlan = uiState.currentDatePlan,
+                onDatePlanSet = { memo -> viewModel.setDatePlan(uiState.selectedDate, memo) },
+                onDatePlanDelete = { viewModel.deleteDatePlan(uiState.selectedDate) }
+            )
+        }
     }
 
     // OCR 선택 바텀시트
@@ -501,7 +511,7 @@ private fun MonthlyScreen(
                     else viewModel.clearShift(date)
                 }
             },
-            onDateLongPress = { if (!uiState.viewingPartner) viewModel.selectDate(it) },
+            onDateLongPress = { viewModel.selectDate(it) },
             modifier = Modifier.weight(1f)
         )
         CompactStatsBar(uiState, stm)

@@ -52,15 +52,20 @@ class ScheduleRepository(private val db: AppDatabase) {
         datePlanDao.deleteForDate(date.toString())
     }
 
-    suspend fun syncDatePlans(plans: List<DatePlanEntity>, partnerName: String) {
-        val remoteDates = plans.map { it.date }.toSet()
+    suspend fun syncDatePlans(plans: List<DatePlanEntity>, partnerName: String, myName: String) {
         val localPlans = datePlanDao.getAllPlans()
+        val remoteDates = plans.map { it.date }.toSet()
+
+        // 상대방이 삭제한 plan은 로컬에서도 삭제 (상대방이 만든 것만)
         localPlans.forEach { local ->
-            if (local.date !in remoteDates && local.createdBy == partnerName) {
+            if (local.date !in remoteDates && local.createdBy != myName && local.createdBy != "나") {
                 datePlanDao.deleteForDate(local.date)
             }
         }
-        plans.forEach { datePlanDao.upsert(it) }
+
+        // 상대방이 만든 plan만 동기화, 내가 만든 plan은 상대방 데이터에서 다시 받지 않음
+        plans.filter { it.createdBy != myName && it.createdBy != "나" }
+            .forEach { datePlanDao.upsert(it) }
     }
 
     suspend fun setShift(date: LocalDate, type: String) {
