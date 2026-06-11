@@ -7,6 +7,7 @@ import com.ljh.michedule.MicheduleApp
 import com.ljh.michedule.alarm.ShiftAlarmManager
 import com.ljh.michedule.data.ShiftTypeManager
 import com.ljh.michedule.data.db.*
+import com.ljh.michedule.data.ocr.OcrScheduleResult
 import com.ljh.michedule.model.ShiftType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -314,6 +315,19 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     fun clearMonth() {
         viewModelScope.launch { repo.clearMonth(_uiState.value.currentMonth) }
+    }
+
+    fun applyOcrResult(result: OcrScheduleResult): Int {
+        val count = result.shifts.size
+        viewModelScope.launch {
+            result.shifts.forEach { (date, typeId) ->
+                repo.setShift(date, typeId)
+                repo.recordShiftChange(date, null, typeId)
+            }
+            _uiState.update { it.copy(currentMonth = result.yearMonth) }
+            app.triggerUpload()
+        }
+        return count
     }
 
     fun getDdayInfo(): DdayInfo {

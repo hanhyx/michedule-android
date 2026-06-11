@@ -1,5 +1,9 @@
 package com.ljh.michedule.ui.calendar
 
+import android.Manifest
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -14,18 +18,28 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
+import com.ljh.michedule.MicheduleApp
 import com.ljh.michedule.data.ShiftTypeManager
 import com.ljh.michedule.data.db.EventEntity
 import com.ljh.michedule.data.db.DatePlanEntity
 import com.ljh.michedule.data.db.FriendShiftEntity
 import com.ljh.michedule.data.db.ShiftTypeConfig
+import com.ljh.michedule.data.ocr.ScheduleOcr
+import com.ljh.michedule.data.ocr.ScheduleParser
 import com.ljh.michedule.model.ShiftType
 import com.ljh.michedule.ui.theme.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -40,6 +54,69 @@ fun CalendarScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val stm = viewModel.shiftTypeManager
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var showOcrSheet by remember { mutableStateOf(false) }
+    var ocrProcessing by remember { mutableStateOf(false) }
+
+    val cameraImageUri = remember { mutableStateOf<android.net.Uri?>(null) }
+
+    fun processOcrImage(uri: android.net.Uri) {
+        ocrProcessing = true
+        scope.launch {
+            try {
+                val app = context.applicationContext as MicheduleApp
+                val userName = app.prefsManager.myName.first()
+                val blocks = withContext(Dispatchers.IO) { ScheduleOcr.recognizeBlocks(context, uri) }
+                val fullText = withContext(Dispatchers.IO) { ScheduleOcr.recognizeFullText(context, uri) }
+                val allTypes = stm.allTypes.value
+
+                val result = withContext(Dispatchers.IO) {
+                    ScheduleParser.parse(fullText, blocks, userName, allTypes, uiState.currentMonth)
+                }
+
+                if (result != null && result.shifts.isNotEmpty()) {
+                    val count = viewModel.applyOcrResult(result)
+                    Toast.makeText(context, "${result.yearMonth.monthValue}월 근무표에서 ${count}일분 일정이 입력되었습니다", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(context, "근무 정보를 인식하지 못했습니다. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "인식 오류: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                ocrProcessing = false
+            }
+        }
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) processOcrImage(uri)
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            cameraImageUri.value?.let { processOcrImage(it) }
+        }
+    }
+
+    val cameraPermLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            val ocrDir = File(context.cacheDir, "ocr").apply { mkdirs() }
+            val file = File(ocrDir, "schedule_${System.currentTimeMillis()}.jpg")
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            cameraImageUri.value = uri
+            cameraLauncher.launch(uri)
+        } else {
+            Toast.makeText(context, "카메라 권한이 필요합니다", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     Column(
         modifier = modifier
@@ -52,6 +129,17 @@ fun CalendarScreen(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
+            IconButton(
+                onClick = { showOcrSheet = true },
+                modifier = Modifier.align(Alignment.CenterStart)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CameraAlt,
+                    contentDescription = "근무표 사진 인식",
+                    tint = Purple40,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
             ViewModeToggle(
                 mode = uiState.viewMode,
                 onModeChange = { viewModel.setViewMode(it) }
@@ -102,6 +190,75 @@ fun CalendarScreen(
             onDatePlanSet = { memo -> viewModel.setDatePlan(uiState.selectedDate, memo) },
             onDatePlanDelete = { viewModel.deleteDatePlan(uiState.selectedDate) }
         )
+    }
+
+    // OCR 선택 바텀시트
+    if (showOcrSheet) {
+        AlertDialog(
+            onDismissRequest = { showOcrSheet = false },
+            containerColor = DarkCard,
+            title = {
+                Text("📷 근무표 사진 인식", color = Color.White, fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "근무표 사진을 촬영하거나 이미지를 선택하면\n자동으로 근무 일정이 입력됩니다",
+                        color = TextMuted,
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            showOcrSheet = false
+                            cameraPermLauncher.launch(Manifest.permission.CAMERA)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Purple40),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("카메라로 촬영")
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            showOcrSheet = false
+                            galleryLauncher.launch("image/*")
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, DarkBorder)
+                    ) {
+                        Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp), tint = TextSecondary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("갤러리에서 선택", color = TextSecondary)
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showOcrSheet = false }) {
+                    Text("취소", color = TextMuted)
+                }
+            }
+        )
+    }
+
+    // OCR 처리 중 로딩 오버레이
+    if (ocrProcessing) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.6f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(color = Purple40)
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("근무표 인식 중...", color = Color.White, fontSize = 14.sp)
+            }
+        }
     }
 }
 

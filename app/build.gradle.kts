@@ -14,8 +14,8 @@ android {
         applicationId = "com.ljh.michedule"
         minSdk = 26
         targetSdk = 35
-        versionCode = 35
-        versionName = "3.1.1"
+        versionCode = 36
+        versionName = "3.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -83,6 +83,8 @@ dependencies {
     implementation(libs.supabase.postgrest)
     implementation(libs.supabase.realtime)
     implementation(libs.ktor.client.okhttp)
+
+    implementation("com.google.mlkit:text-recognition-korean:16.0.1")
 
     debugImplementation(libs.androidx.ui.tooling)
 }
