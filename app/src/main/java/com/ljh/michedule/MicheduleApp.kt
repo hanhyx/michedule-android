@@ -90,14 +90,6 @@ class MicheduleApp : Application() {
         }
     }
 
-    fun updateMyName(oldName: String, newName: String) {
-        appScope.launch {
-            prefsManager.setMyName(newName)
-            repository.updateDatePlanCreatedBy(oldName, newName)
-            triggerUpload()
-        }
-    }
-
     fun triggerUpload() {
         appScope.launch {
             if (prefsManager.syncPaused.first()) return@launch

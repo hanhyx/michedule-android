@@ -48,35 +48,24 @@ class ScheduleRepository(private val db: AppDatabase) {
         datePlanDao.upsert(DatePlanEntity(date = date.toString(), memo = memo, createdBy = createdBy))
     }
 
-    suspend fun updateDatePlanCreatedBy(oldName: String, newName: String) {
-        datePlanDao.updateCreatedBy(oldName, newName)
-    }
-
-    private val cancelledPlanDates = mutableSetOf<String>()
-
     suspend fun deleteDatePlan(date: LocalDate) {
-        val dateStr = date.toString()
-        cancelledPlanDates.add(dateStr)
-        datePlanDao.deleteForDate(dateStr)
+        datePlanDao.deleteForDate(date.toString())
     }
 
-    suspend fun syncDatePlans(plans: List<DatePlanEntity>) {
+    suspend fun syncDatePlans(plans: List<DatePlanEntity>, partnerName: String, myName: String) {
         val localPlans = datePlanDao.getAllPlans()
         val remoteDates = plans.map { it.date }.toSet()
 
-        // 상대방 데이터에서 사라진 plan은 로컬에서도 삭제
+        // 상대방이 삭제한 plan은 로컬에서도 삭제 (상대방이 만든 것만)
         localPlans.forEach { local ->
-            if (local.date !in remoteDates) {
+            if (local.date !in remoteDates && local.createdBy != myName && local.createdBy != "나") {
                 datePlanDao.deleteForDate(local.date)
             }
         }
 
-        // 유저가 직접 취소한 날짜는 동기화하지 않음
-        plans.filter { it.date !in cancelledPlanDates }
+        // 상대방이 만든 plan만 동기화, 내가 만든 plan은 상대방 데이터에서 다시 받지 않음
+        plans.filter { it.createdBy != myName && it.createdBy != "나" }
             .forEach { datePlanDao.upsert(it) }
-
-        // 상대방도 삭제해서 remoteDates에 없으면 cancelledPlanDates에서 제거
-        cancelledPlanDates.removeAll { it !in remoteDates }
     }
 
     suspend fun setShift(date: LocalDate, type: String) {
@@ -106,15 +95,6 @@ class ScheduleRepository(private val db: AppDatabase) {
             shiftDao.upsert(existing.copy(hasAlba = hasAlba))
         } else {
             shiftDao.upsert(ShiftEntity(date = date.toString(), type = "", hasAlba = hasAlba))
-        }
-    }
-
-    suspend fun toggleExtraShift(date: LocalDate, extraId: String) {
-        val existing = shiftDao.getShift(date.toString())
-        if (existing != null) {
-            shiftDao.upsert(existing.withExtraShiftToggled(extraId))
-        } else {
-            shiftDao.upsert(ShiftEntity(date = date.toString(), type = "", extraShifts = extraId))
         }
     }
 

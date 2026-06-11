@@ -48,8 +48,7 @@ class WeekWidget : GlanceAppWidget() {
                     it.date to WidgetShiftInfo(
                         ShiftType.fromString(it.type),
                         typeConfigs[it.type],
-                        it.hasAlba,
-                        it.extraShifts
+                        it.hasAlba
                     )
                 }
 
@@ -61,8 +60,7 @@ class WeekWidget : GlanceAppWidget() {
                     it.date to WidgetShiftInfo(
                         ShiftType.fromString(it.type),
                         typeConfigs[it.type],
-                        it.hasAlba,
-                        it.extraShifts
+                        it.hasAlba
                     )
                 }
             } catch (_: Exception) {
@@ -203,9 +201,7 @@ private fun WeekWidgetContent(
                                     )
                                 )
                             )
-                            val wExtras = myInfo?.getExtraShiftList() ?: emptyList()
-                            val wDisplay = wExtras.ifEmpty { if (myInfo?.hasAlba == true) listOf("alba") else emptyList() }
-                            if (wDisplay.isNotEmpty()) {
+                            if (myInfo?.hasAlba == true) {
                                 Text(
                                     "💼",
                                     style = TextStyle(fontSize = 8.sp)

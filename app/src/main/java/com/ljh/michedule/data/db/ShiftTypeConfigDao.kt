@@ -23,9 +23,6 @@ interface ShiftTypeConfigDao {
     @Query("DELETE FROM shift_type_configs WHERE id = :id AND isBuiltIn = 0")
     suspend fun deleteCustom(id: String)
 
-    @Query("DELETE FROM shift_type_configs WHERE id = :id")
-    suspend fun deleteById(id: String)
-
     @Query("SELECT COUNT(*) FROM shift_type_configs")
     suspend fun count(): Int
 

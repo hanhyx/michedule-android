@@ -7,7 +7,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -20,10 +19,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -94,11 +91,8 @@ fun SettingsScreen(
             Button(
                 onClick = {
                     scope.launch {
-                        val oldName = myName
-                        val newName = editName.trim()
-                        if (oldName != newName) {
-                            (context.applicationContext as MicheduleApp).updateMyName(oldName, newName)
-                        }
+                        prefsManager.setMyName(editName.trim())
+                        (context.applicationContext as MicheduleApp).triggerUpload()
                         Toast.makeText(context, "저장됨", Toast.LENGTH_SHORT).show()
                     }
                 },
@@ -576,152 +570,20 @@ private val COLOR_PALETTE = listOf(
 private fun ShiftTypeManagementCard(shiftTypeManager: ShiftTypeManager) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val primaryTypes by shiftTypeManager.primaryTypes.collectAsState()
-    val extraTypes by shiftTypeManager.extraTypes.collectAsState()
+    val allTypes by shiftTypeManager.allTypes.collectAsState()
+    val cycleTypes by shiftTypeManager.cycleTypes.collectAsState()
     var editingConfig by remember { mutableStateOf<ShiftTypeConfig?>(null) }
-    var showAddPrimaryDialog by remember { mutableStateOf(false) }
-    var showAddExtraDialog by remember { mutableStateOf(false) }
-
-    var draggedPrimary by remember { mutableStateOf(primaryTypes) }
-    LaunchedEffect(primaryTypes) { draggedPrimary = primaryTypes }
-
-    var dragIndex by remember { mutableIntStateOf(-1) }
-    var dragOffset by remember { mutableFloatStateOf(0f) }
-    val itemHeight = 52f
+    var showAddDialog by remember { mutableStateOf(false) }
 
     SettingsCard(title = "근무유형 관리") {
-
-        // ── 기본 근무 섹션 ──
         Text(
-            "기본 근무 (탭 순환)",
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-            color = Purple80
-        )
-        Text(
-            "드래그하여 순서를 변경하세요. 탭 순서에 반영됩니다.",
+            "이름, 색상, 순환 순서를 커스텀할 수 있습니다",
             style = MaterialTheme.typography.bodySmall,
             color = TextMuted
         )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Column(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            draggedPrimary.forEachIndexed { index, config ->
-                val offsetY = when {
-                    dragIndex == index -> dragOffset
-                    dragIndex >= 0 -> {
-                        val targetIndex = (dragIndex + (dragOffset / itemHeight).toInt())
-                            .coerceIn(0, draggedPrimary.lastIndex)
-                        when {
-                            index in (dragIndex + 1)..targetIndex -> -itemHeight
-                            index in targetIndex until dragIndex -> itemHeight
-                            else -> 0f
-                        }
-                    }
-                    else -> 0f
-                }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .offset { IntOffset(0, offsetY.toInt()) }
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(config.bgColor)
-                        .clickable { editingConfig = config }
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.Menu,
-                        contentDescription = "드래그",
-                        tint = TextMuted,
-                        modifier = Modifier
-                            .size(20.dp)
-                            .pointerInput(Unit) {
-                                detectVerticalDragGestures(
-                                    onDragStart = {
-                                        dragIndex = index
-                                        dragOffset = 0f
-                                    },
-                                    onDragEnd = {
-                                        if (dragIndex >= 0) {
-                                            val targetIndex = (dragIndex + (dragOffset / itemHeight).toInt())
-                                                .coerceIn(0, draggedPrimary.lastIndex)
-                                            if (targetIndex != dragIndex) {
-                                                val reordered = draggedPrimary.toMutableList()
-                                                val item = reordered.removeAt(dragIndex)
-                                                reordered.add(targetIndex, item)
-                                                draggedPrimary = reordered
-                                                scope.launch {
-                                                    shiftTypeManager.reorder(reordered)
-                                                    (context.applicationContext as MicheduleApp).triggerUpload()
-                                                }
-                                            }
-                                        }
-                                        dragIndex = -1
-                                        dragOffset = 0f
-                                    },
-                                    onVerticalDrag = { _, dragAmount ->
-                                        dragOffset += dragAmount
-                                    }
-                                )
-                            }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(config.emoji, fontSize = 18.sp)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(config.label, fontWeight = FontWeight.SemiBold, color = config.color, fontSize = 14.sp)
-                        Text(config.defaultTimeRange, fontSize = 10.sp, color = config.color.copy(alpha = 0.7f))
-                    }
-                    Icon(Icons.Default.Edit, contentDescription = null, tint = TextMuted, modifier = Modifier.size(16.dp))
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-            }
-        }
-
-        if (draggedPrimary.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                "탭 순서: ${draggedPrimary.joinToString(" → ") { it.shortLabel }} → 삭제",
-                style = MaterialTheme.typography.bodySmall,
-                color = Purple80
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-        OutlinedButton(
-            onClick = { showAddPrimaryDialog = true },
-            shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, Purple80.copy(alpha = 0.5f)),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = Purple80)
-            Spacer(modifier = Modifier.width(4.dp))
-            Text("기본 근무 추가", color = Purple80)
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-        HorizontalDivider(color = DarkBorder)
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ── 추가 근무 섹션 ──
-        Text(
-            "추가 근무 (토글)",
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-            color = Color(0xFFF97316)
-        )
-        Text(
-            "하루에 여러 개를 동시에 켤 수 있습니다.",
-            style = MaterialTheme.typography.bodySmall,
-            color = TextMuted
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        extraTypes.forEach { config ->
+        allTypes.forEach { config ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -737,21 +599,44 @@ private fun ShiftTypeManagementCard(shiftTypeManager: ShiftTypeManager) {
                     Text(config.label, fontWeight = FontWeight.SemiBold, color = config.color, fontSize = 14.sp)
                     Text(config.defaultTimeRange, fontSize = 10.sp, color = config.color.copy(alpha = 0.7f))
                 }
+                if (config.inCycle) {
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = config.color.copy(alpha = 0.2f)
+                    ) {
+                        Text(
+                            "순환",
+                            fontSize = 9.sp,
+                            color = config.color,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
                 Icon(Icons.Default.Edit, contentDescription = null, tint = TextMuted, modifier = Modifier.size(16.dp))
             }
             Spacer(modifier = Modifier.height(6.dp))
         }
 
+        if (cycleTypes.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "탭 순서: ${cycleTypes.joinToString(" → ") { it.shortLabel }} → 삭제",
+                style = MaterialTheme.typography.bodySmall,
+                color = Purple80
+            )
+        }
+
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedButton(
-            onClick = { showAddExtraDialog = true },
+            onClick = { showAddDialog = true },
             shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, Color(0xFFF97316).copy(alpha = 0.5f)),
+            border = BorderStroke(1.dp, Purple80.copy(alpha = 0.5f)),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFFF97316))
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = Purple80)
             Spacer(modifier = Modifier.width(4.dp))
-            Text("추가 근무 추가", color = Color(0xFFF97316))
+            Text("새 근무유형 추가", color = Purple80)
         }
     }
 
@@ -765,52 +650,32 @@ private fun ShiftTypeManagementCard(shiftTypeManager: ShiftTypeManager) {
                     (context.applicationContext as MicheduleApp).triggerUpload()
                 }
             },
-            onDelete = {
+            onDelete = if (!editingConfig!!.isBuiltIn) { {
                 scope.launch {
-                    shiftTypeManager.deleteType(editingConfig!!.id)
+                    shiftTypeManager.deleteCustom(editingConfig!!.id)
                     editingConfig = null
                     (context.applicationContext as MicheduleApp).triggerUpload()
                 }
-            },
+            } } else null,
             onDismiss = { editingConfig = null }
         )
     }
 
-    if (showAddPrimaryDialog) {
+    if (showAddDialog) {
         ShiftTypeEditDialog(
             config = null,
-            defaultCategory = "primary",
             onSave = { newConfig ->
                 scope.launch {
                     val order = shiftTypeManager.nextSortOrder()
                     val id = "custom_${UUID.randomUUID().toString().take(6)}"
-                    shiftTypeManager.save(newConfig.copy(id = id, sortOrder = order, isBuiltIn = false, category = "primary"))
-                    showAddPrimaryDialog = false
+                    shiftTypeManager.save(newConfig.copy(id = id, sortOrder = order, isBuiltIn = false))
+                    showAddDialog = false
                     (context.applicationContext as MicheduleApp).triggerUpload()
                     Toast.makeText(context, "${newConfig.label} 추가됨", Toast.LENGTH_SHORT).show()
                 }
             },
             onDelete = null,
-            onDismiss = { showAddPrimaryDialog = false }
-        )
-    }
-
-    if (showAddExtraDialog) {
-        ShiftTypeEditDialog(
-            config = null,
-            defaultCategory = "extra",
-            onSave = { newConfig ->
-                scope.launch {
-                    val order = shiftTypeManager.nextSortOrder()
-                    val id = "custom_${UUID.randomUUID().toString().take(6)}"
-                    shiftTypeManager.save(newConfig.copy(id = id, sortOrder = order, isBuiltIn = false, category = "extra", inCycle = false))
-                    showAddExtraDialog = false
-                    (context.applicationContext as MicheduleApp).triggerUpload()
-                    Toast.makeText(context, "${newConfig.label} 추가됨", Toast.LENGTH_SHORT).show()
-                }
-            },
-            onDelete = null,
-            onDismiss = { showAddExtraDialog = false }
+            onDismiss = { showAddDialog = false }
         )
     }
 }
@@ -818,19 +683,17 @@ private fun ShiftTypeManagementCard(shiftTypeManager: ShiftTypeManager) {
 @Composable
 private fun ShiftTypeEditDialog(
     config: ShiftTypeConfig?,
-    defaultCategory: String = "primary",
     onSave: (ShiftTypeConfig) -> Unit,
     onDelete: (() -> Unit)?,
     onDismiss: () -> Unit
 ) {
     val isNew = config == null
-    val category = config?.category ?: defaultCategory
     var label by remember { mutableStateOf(config?.label ?: "") }
     var shortLabel by remember { mutableStateOf(config?.shortLabel ?: "") }
     var emoji by remember { mutableStateOf(config?.emoji ?: "") }
     var colorHex by remember { mutableStateOf(config?.colorHex ?: COLOR_PALETTE[0]) }
     var timeRange by remember { mutableStateOf(config?.defaultTimeRange ?: "09:00 - 18:00") }
-    var inCycle by remember { mutableStateOf(config?.inCycle ?: (category == "primary")) }
+    var inCycle by remember { mutableStateOf(config?.inCycle ?: true) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     val bgColorHex = remember(colorHex) {
@@ -901,24 +764,22 @@ private fun ShiftTypeEditDialog(
                     onSelect = { colorHex = it }
                 )
 
-                if (category == "primary") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("탭 순환에 포함", color = TextPrimary, fontSize = 14.sp)
-                        Switch(
-                            checked = inCycle,
-                            onCheckedChange = { inCycle = it },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Purple80,
-                                checkedTrackColor = Purple40,
-                                uncheckedThumbColor = TextMuted,
-                                uncheckedTrackColor = DarkSurface
-                            )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("탭 순환에 포함", color = TextPrimary, fontSize = 14.sp)
+                    Switch(
+                        checked = inCycle,
+                        onCheckedChange = { inCycle = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Purple80,
+                            checkedTrackColor = Purple40,
+                            uncheckedThumbColor = TextMuted,
+                            uncheckedTrackColor = DarkSurface
                         )
-                    }
+                    )
                 }
             }
         },
@@ -946,9 +807,8 @@ private fun ShiftTypeEditDialog(
                             bgColorHex = bgColorHex,
                             defaultTimeRange = timeRange.trim().ifBlank { "시간 미정" },
                             sortOrder = config?.sortOrder ?: 0,
-                            inCycle = if (category == "extra") false else inCycle,
-                            isBuiltIn = config?.isBuiltIn ?: false,
-                            category = category
+                            inCycle = inCycle,
+                            isBuiltIn = config?.isBuiltIn ?: false
                         )
                         onSave(result)
                     },
