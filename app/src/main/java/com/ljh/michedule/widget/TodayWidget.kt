@@ -30,8 +30,12 @@ import java.time.format.DateTimeFormatter
 data class WidgetShiftInfo(
     val type: ShiftType?,
     val config: ShiftTypeConfig? = null,
-    val hasAlba: Boolean = false
-)
+    val hasAlba: Boolean = false,
+    val extraShifts: String = ""
+) {
+    fun getExtraShiftList(): List<String> =
+        extraShifts.split(",").filter { it.isNotBlank() }
+}
 
 data class WidgetDayDetail(
     val shift: WidgetShiftInfo,
@@ -65,7 +69,8 @@ class TodayWidget : GlanceAppWidget() {
                 shift = WidgetShiftInfo(
                     type = myEntity?.let { ShiftType.fromString(it.type) },
                     config = myEntity?.type?.let { typeConfigs[it] },
-                    hasAlba = myEntity?.hasAlba ?: false
+                    hasAlba = myEntity?.hasAlba ?: false,
+                    extraShifts = myEntity?.extraShifts ?: ""
                 ),
                 memo = myEntity?.memo,
                 mood = myMood?.emoji,
@@ -79,7 +84,8 @@ class TodayWidget : GlanceAppWidget() {
                     shift = WidgetShiftInfo(
                         type = fe?.let { ShiftType.fromString(it.type) },
                         config = fe?.type?.let { typeConfigs[it] },
-                        hasAlba = fe?.hasAlba ?: false
+                        hasAlba = fe?.hasAlba ?: false,
+                        extraShifts = fe?.extraShifts ?: ""
                     ),
                     memo = fe?.memo,
                     mood = fe?.mood,
@@ -179,13 +185,15 @@ private fun TodayWidgetContent(
                         }
                     }
 
-                    if (myDetail.shift.hasAlba) {
+                    val myExtras = myDetail.shift.getExtraShiftList()
+                    val myDisplayExtras = myExtras.ifEmpty { if (myDetail.shift.hasAlba) listOf("alba") else emptyList() }
+                    myDisplayExtras.take(2).forEach { extraId ->
                         Spacer(modifier = GlanceModifier.height(3.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("💼", style = TextStyle(fontSize = 10.sp))
                             Spacer(modifier = GlanceModifier.width(3.dp))
                             Text(
-                                "알바",
+                                extraId,
                                 style = TextStyle(
                                     color = ColorProvider(albaColor, albaColor),
                                     fontSize = 10.sp,
@@ -261,7 +269,9 @@ private fun TodayWidgetContent(
                             )
                         )
                     }
-                    if (partnerDetail.shift.hasAlba) {
+                    val pExtras = partnerDetail.shift.getExtraShiftList()
+                    val pDisplayExtras = pExtras.ifEmpty { if (partnerDetail.shift.hasAlba) listOf("alba") else emptyList() }
+                    pDisplayExtras.take(2).forEach { _ ->
                         Spacer(modifier = GlanceModifier.width(4.dp))
                         Box(
                             modifier = GlanceModifier

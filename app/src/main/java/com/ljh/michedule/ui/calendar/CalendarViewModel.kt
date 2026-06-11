@@ -264,6 +264,13 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun toggleExtraShift(date: LocalDate, extraId: String) {
+        viewModelScope.launch {
+            repo.toggleExtraShift(date, extraId)
+            app.triggerUpload()
+        }
+    }
+
     fun setMemo(date: LocalDate, memo: String?) {
         viewModelScope.launch { repo.setMemo(date, memo) }
     }

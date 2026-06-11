@@ -38,6 +38,7 @@ data class ScheduleRow(
     val shifts: JsonObject = JsonObject(emptyMap()),
     val memos: JsonObject = JsonObject(emptyMap()),
     val albas: JsonObject = JsonObject(emptyMap()),
+    val extra_shifts: JsonObject = JsonObject(emptyMap()),
     val moods: JsonObject = JsonObject(emptyMap()),
     val todo_counts: JsonObject = JsonObject(emptyMap()),
     val date_plans: JsonObject = JsonObject(emptyMap()),
@@ -181,6 +182,11 @@ class SupabaseSync(
             val albaSet = friendRow.albas.mapNotNull { (date, value) ->
                 if ((value as? JsonPrimitive)?.booleanOrNull == true) date else null
             }.toSet()
+            val extraShiftsMap = friendRow.extra_shifts.mapNotNull { (date, value) ->
+                val arr = value as? kotlinx.serialization.json.JsonArray ?: return@mapNotNull null
+                val ids = arr.mapNotNull { (it as? JsonPrimitive)?.content }
+                if (ids.isNotEmpty()) date to ids.joinToString(",") else null
+            }.toMap()
             val memoMap = friendRow.memos.mapNotNull { (date, value) ->
                 val m = (value as? JsonPrimitive)?.content
                 if (!m.isNullOrBlank()) date to m else null
@@ -197,6 +203,7 @@ class SupabaseSync(
             friendRow.shifts.forEach { (date, value) ->
                 val type = (value as? JsonPrimitive)?.content ?: return@forEach
                 newShiftsMap[date] = type
+                val extras = extraShiftsMap[date] ?: if (date in albaSet) "alba" else ""
                 friendShifts.add(
                     FriendShiftEntity(
                         date = date,
@@ -205,7 +212,8 @@ class SupabaseSync(
                         hasAlba = date in albaSet,
                         memo = memoMap[date],
                         mood = moodMap[date],
-                        todoCount = todoCountMap[date] ?: 0
+                        todoCount = todoCountMap[date] ?: 0,
+                        extraShifts = extras
                     )
                 )
             }
@@ -216,8 +224,7 @@ class SupabaseSync(
                 val by = (obj["by"] as? JsonPrimitive)?.content ?: friendRow.user_name
                 DatePlanEntity(date = date, memo = memo, createdBy = by)
             }
-            val myName = prefsManager.myName.first()
-            repo.syncDatePlans(remotePlans, friendRow.user_name, myName)
+            repo.syncDatePlans(remotePlans)
 
             if (!isFirstSync && appContext != null) {
                 val changes = detectChanges(lastKnownFriendShifts, newShiftsMap)
@@ -359,7 +366,15 @@ class SupabaseSync(
             }
             val albasJson = buildJsonObject {
                 allShifts.forEach { s ->
-                    if (s.hasAlba) put(s.date, true)
+                    if (s.hasAlba || s.extraShifts.contains("alba")) put(s.date, true)
+                }
+            }
+            val extraShiftsJson = buildJsonObject {
+                allShifts.forEach { s ->
+                    val extras = s.getExtraShiftList()
+                    if (extras.isNotEmpty()) {
+                        put(s.date, kotlinx.serialization.json.JsonArray(extras.map { JsonPrimitive(it) }))
+                    }
                 }
             }
 
@@ -380,13 +395,12 @@ class SupabaseSync(
 
             val allDatePlans = repo.getAllDatePlans()
             val datePlansJson = buildJsonObject {
-                allDatePlans.filter { it.createdBy == myName || it.createdBy == "나" }
-                    .forEach { plan ->
-                        put(plan.date, buildJsonObject {
-                            put("memo", plan.memo)
-                            put("by", plan.createdBy)
-                        })
-                    }
+                allDatePlans.forEach { plan ->
+                    put(plan.date, buildJsonObject {
+                        put("memo", plan.memo)
+                        put("by", plan.createdBy)
+                    })
+                }
             }
 
             val shiftTypesJson = buildJsonObject {
@@ -410,6 +424,7 @@ class SupabaseSync(
                 shifts = shiftsJson,
                 memos = memosJson,
                 albas = albasJson,
+                extra_shifts = extraShiftsJson,
                 moods = moodsJson,
                 todo_counts = todoCountsJson,
                 date_plans = datePlansJson,

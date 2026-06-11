@@ -13,8 +13,16 @@ class ShiftTypeManager(
     private val _allTypes = MutableStateFlow<List<ShiftTypeConfig>>(emptyList())
     val allTypes: StateFlow<List<ShiftTypeConfig>> = _allTypes.asStateFlow()
 
+    val primaryTypes: StateFlow<List<ShiftTypeConfig>> =
+        _allTypes.map { list -> list.filter { it.isPrimary }.sortedBy { it.sortOrder } }
+            .stateIn(scope, SharingStarted.Eagerly, emptyList())
+
+    val extraTypes: StateFlow<List<ShiftTypeConfig>> =
+        _allTypes.map { list -> list.filter { it.isExtra }.sortedBy { it.sortOrder } }
+            .stateIn(scope, SharingStarted.Eagerly, emptyList())
+
     val cycleTypes: StateFlow<List<ShiftTypeConfig>> =
-        _allTypes.map { list -> list.filter { it.inCycle }.sortedBy { it.sortOrder } }
+        _allTypes.map { list -> list.filter { it.isPrimary }.sortedBy { it.sortOrder } }
             .stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     private val typeMap = MutableStateFlow<Map<String, ShiftTypeConfig>>(emptyMap())
@@ -49,6 +57,10 @@ class ShiftTypeManager(
 
     suspend fun save(config: ShiftTypeConfig) {
         dao.upsert(config)
+    }
+
+    suspend fun deleteType(id: String) {
+        dao.deleteById(id)
     }
 
     suspend fun deleteCustom(id: String) {

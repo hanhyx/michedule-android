@@ -213,6 +213,7 @@ fun CalendarScreen(
                 onShiftSelectById = { typeId -> viewModel.setShiftById(uiState.selectedDate, typeId) },
                 onShiftClear = { viewModel.clearShift(uiState.selectedDate) },
                 onAlbaToggle = { hasAlba -> viewModel.toggleAlba(uiState.selectedDate, hasAlba) },
+                onExtraShiftToggle = { extraId -> viewModel.toggleExtraShift(uiState.selectedDate, extraId) },
                 onShiftTimeEdit = { type, range -> viewModel.updateShiftTimeRange(type, range) },
                 onMemoChange = { memo -> viewModel.setMemo(uiState.selectedDate, memo) },
                 onAddEvent = { onNavigateToAddEvent(uiState.selectedDate.toString()) },
@@ -221,6 +222,7 @@ fun CalendarScreen(
                 onToggleTodo = { id, done -> viewModel.toggleTodo(id, done) },
                 onDeleteTodo = { viewModel.deleteTodo(it) },
                 onMoodSelect = { emoji, note -> viewModel.setMood(emoji, note) },
+                myName = uiState.myName.ifBlank { "나" },
                 datePlan = uiState.currentDatePlan,
                 onDatePlanSet = { memo -> viewModel.setDatePlan(uiState.selectedDate, memo) },
                 onDatePlanDelete = { viewModel.deleteDatePlan(uiState.selectedDate) }
@@ -647,7 +649,8 @@ private fun MonthlyCalendarGrid(
                                 day = dayNum,
                                 shiftConfig = friendShiftEntity?.type?.let { stm.getById(it) },
                                 hasAlba = friendShiftEntity?.hasAlba ?: false,
-                                albaConfig = stm.getById("alba"),
+                                extraShifts = friendShiftEntity?.extraShifts ?: "",
+                                shiftTypeManager = stm,
                                 memo = friendShiftEntity?.memo,
                                 mood = friendShiftEntity?.mood,
                                 todoCount = friendShiftEntity?.todoCount ?: 0,
@@ -665,7 +668,8 @@ private fun MonthlyCalendarGrid(
                                 day = dayNum,
                                 shiftConfig = shiftEntity?.type?.takeIf { it.isNotBlank() }?.let { stm.getById(it) },
                                 hasAlba = shiftEntity?.hasAlba ?: false,
-                                albaConfig = stm.getById("alba"),
+                                extraShifts = shiftEntity?.extraShifts ?: "",
+                                shiftTypeManager = stm,
                                 memo = shiftEntity?.memo,
                                 mood = mood?.emoji,
                                 moodNote = mood?.note,
@@ -698,8 +702,10 @@ private fun MonthlyCalendarGrid(
 private fun SoloCell(
     day: Int,
     shiftConfig: ShiftTypeConfig?,
-    hasAlba: Boolean,
+    hasAlba: Boolean = false,
     albaConfig: ShiftTypeConfig? = null,
+    extraShifts: String = "",
+    shiftTypeManager: ShiftTypeManager? = null,
     memo: String?,
     mood: String?,
     moodNote: String? = null,
@@ -782,24 +788,25 @@ private fun SoloCell(
             }
         }
 
-        // 알바
-        if (hasAlba) {
-            val ac = albaConfig
-            val albaColor = ac?.color ?: ShiftAlba
+        // 추가 근무
+        val extraList = extraShifts.split(",").filter { it.isNotBlank() }
+        val displayExtras = if (extraList.isEmpty() && hasAlba) listOf("alba") else extraList
+        displayExtras.take(2).forEach { extraId ->
+            val ec = shiftTypeManager?.getById(extraId) ?: albaConfig
+            val extraColor = ec?.color ?: ShiftAlba
             Spacer(modifier = Modifier.height(2.dp))
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(4.dp))
-                    .background(albaColor.copy(alpha = 0.15f))
+                    .background(extraColor.copy(alpha = 0.15f))
                     .padding(horizontal = 3.dp, vertical = 2.dp)
             ) {
-                Text(ac?.label ?: "알바", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = albaColor, maxLines = 1, lineHeight = 12.sp)
-                val albaTime = ac?.defaultTimeRange ?: "시간 미정"
-                if (albaTime != "시간 미정") {
-                    Text(albaTime.replace(" - ", "~"), fontSize = 8.sp, color = albaColor.copy(alpha = 0.7f), maxLines = 1, lineHeight = 10.sp)
-                }
+                Text(ec?.label ?: extraId, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = extraColor, maxLines = 1, lineHeight = 12.sp)
             }
+        }
+        if (displayExtras.size > 2) {
+            Text("+${displayExtras.size - 2}", fontSize = 8.sp, color = TextMuted, lineHeight = 10.sp)
         }
 
         // 감정 메모
@@ -1189,7 +1196,10 @@ private fun CompactStatsBar(uiState: CalendarUiState, stm: ShiftTypeManager) {
             if (entity.type.isNotBlank()) {
                 map[entity.type] = (map[entity.type] ?: 0) + 1
             }
-            if (entity.hasAlba) {
+            entity.getExtraShiftList().forEach { extraId ->
+                map[extraId] = (map[extraId] ?: 0) + 1
+            }
+            if (entity.hasAlba && entity.extraShifts.isBlank()) {
                 map["alba"] = (map["alba"] ?: 0) + 1
             }
         }
