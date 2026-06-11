@@ -12,6 +12,11 @@ data class OcrScheduleResult(
     val shifts: Map<LocalDate, String>
 )
 
+data class OcrCandidate(
+    val name: String,
+    val result: OcrScheduleResult
+)
+
 object ScheduleParser {
 
     private val BUILTIN_ALIASES = mapOf(
@@ -45,6 +50,118 @@ object ScheduleParser {
             Log.w(TAG, "Failed to parse any shifts")
         }
         return result
+    }
+
+    fun parseAllCandidates(
+        fullText: String,
+        blocks: List<OcrTextBlock>,
+        shiftTypes: List<ShiftTypeConfig>,
+        fallbackYearMonth: YearMonth = YearMonth.now()
+    ): List<OcrCandidate> {
+        val yearMonth = detectYearMonth(fullText) ?: fallbackYearMonth
+        val aliasMap = buildAliasMap(shiftTypes)
+
+        val tableCandidates = tryParseTableAll(blocks, yearMonth, aliasMap)
+        if (tableCandidates.isNotEmpty()) return tableCandidates
+
+        val inlineCandidates = tryParseInlineAll(fullText, yearMonth, aliasMap)
+        if (inlineCandidates.isNotEmpty()) return inlineCandidates
+
+        val freeForm = tryParseFreeForm(fullText, yearMonth, aliasMap)
+        if (freeForm != null) return listOf(OcrCandidate("인식된 근무", freeForm))
+
+        return emptyList()
+    }
+
+    private fun tryParseTableAll(
+        blocks: List<OcrTextBlock>,
+        yearMonth: YearMonth,
+        aliasMap: Map<String, String>
+    ): List<OcrCandidate> {
+        if (blocks.size < 10) return emptyList()
+
+        val yTolerance = blocks.map { it.height }.average().toFloat() * 0.5f
+        val rows = groupByY(blocks, yTolerance)
+        if (rows.size < 3) return emptyList()
+
+        val dateRow = findDateRow(rows, yearMonth) ?: return emptyList()
+        val dateColumns = dateRow.sortedBy { it.left }
+            .mapNotNull { block ->
+                val day = block.text.replace(Regex("[^0-9]"), "").toIntOrNull()
+                if (day != null && day in 1..yearMonth.lengthOfMonth()) day to block.centerX else null
+            }
+        if (dateColumns.size < 5) return emptyList()
+
+        val candidates = mutableListOf<OcrCandidate>()
+        val dateY = dateRow.first().centerY
+
+        for (row in rows) {
+            if (row === dateRow) continue
+            if (row.first().centerY < dateY) continue
+
+            val shiftCount = row.count { aliasMap.containsKey(it.text) }
+            if (shiftCount < 3) continue
+
+            val nameBlock = row.minByOrNull { it.left }
+            val nameText = if (nameBlock != null && !aliasMap.containsKey(nameBlock.text)) {
+                val num = nameBlock.text.replace(Regex("[^0-9]"), "").toIntOrNull()
+                if (num != null && num in 1..31) null else nameBlock.text
+            } else null
+
+            val shifts = mutableMapOf<LocalDate, String>()
+            val sortedRow = row.sortedBy { it.left }
+            for ((day, dateX) in dateColumns) {
+                val closest = sortedRow.minByOrNull { kotlin.math.abs(it.centerX - dateX) }
+                if (closest != null && kotlin.math.abs(closest.centerX - dateX) < closest.width * 2) {
+                    val shiftId = aliasMap[closest.text]
+                    if (shiftId != null) {
+                        shifts[yearMonth.atDay(day)] = shiftId
+                    }
+                }
+            }
+
+            if (shifts.isNotEmpty()) {
+                val label = nameText ?: "행 ${candidates.size + 1}"
+                candidates.add(OcrCandidate(label, OcrScheduleResult(yearMonth, shifts)))
+            }
+        }
+        return candidates
+    }
+
+    private fun tryParseInlineAll(
+        text: String,
+        yearMonth: YearMonth,
+        aliasMap: Map<String, String>
+    ): List<OcrCandidate> {
+        val lines = text.lines().map { it.trim() }.filter { it.isNotBlank() }
+        val candidates = mutableListOf<OcrCandidate>()
+
+        for (line in lines) {
+            val tokens = tokenizeLine(line)
+            val matchCount = tokens.count { aliasMap.containsKey(it) }
+            if (matchCount < 5) continue
+
+            val nameMatch = Regex("""^(.+?)[:\s：]+""").find(line)
+            val name = nameMatch?.groupValues?.get(1)?.trim() ?: "행 ${candidates.size + 1}"
+            val cleaned = if (nameMatch != null) line.substring(nameMatch.range.last + 1).trim() else line
+
+            val shiftTokens = tokenizeLine(cleaned)
+            val shifts = mutableMapOf<LocalDate, String>()
+            var day = 1
+            val maxDay = yearMonth.lengthOfMonth()
+            for (token in shiftTokens) {
+                if (day > maxDay) break
+                val shiftId = aliasMap[token]
+                if (shiftId != null) {
+                    shifts[yearMonth.atDay(day)] = shiftId
+                    day++
+                }
+            }
+            if (shifts.size >= 3) {
+                candidates.add(OcrCandidate(name, OcrScheduleResult(yearMonth, shifts)))
+            }
+        }
+        return candidates
     }
 
     private fun buildAliasMap(shiftTypes: List<ShiftTypeConfig>): Map<String, String> {

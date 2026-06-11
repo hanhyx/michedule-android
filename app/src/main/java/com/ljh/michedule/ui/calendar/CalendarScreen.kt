@@ -31,6 +31,7 @@ import com.ljh.michedule.data.db.EventEntity
 import com.ljh.michedule.data.db.DatePlanEntity
 import com.ljh.michedule.data.db.FriendShiftEntity
 import com.ljh.michedule.data.db.ShiftTypeConfig
+import com.ljh.michedule.data.ocr.OcrCandidate
 import com.ljh.michedule.data.ocr.ScheduleOcr
 import com.ljh.michedule.data.ocr.ScheduleParser
 import com.ljh.michedule.model.ShiftType
@@ -59,8 +60,19 @@ fun CalendarScreen(
 
     var showOcrSheet by remember { mutableStateOf(false) }
     var ocrProcessing by remember { mutableStateOf(false) }
+    var ocrCandidates by remember { mutableStateOf<List<OcrCandidate>>(emptyList()) }
+    var showCandidateDialog by remember { mutableStateOf(false) }
 
     val cameraImageUri = remember { mutableStateOf<android.net.Uri?>(null) }
+
+    fun applyCandidateResult(candidate: OcrCandidate) {
+        val count = viewModel.applyOcrResult(candidate.result)
+        Toast.makeText(
+            context,
+            "${candidate.name}: ${candidate.result.yearMonth.monthValue}월 ${count}일분 일정 입력 완료",
+            Toast.LENGTH_LONG
+        ).show()
+    }
 
     fun processOcrImage(uri: android.net.Uri) {
         ocrProcessing = true
@@ -72,15 +84,29 @@ fun CalendarScreen(
                 val fullText = withContext(Dispatchers.IO) { ScheduleOcr.recognizeFullText(context, uri) }
                 val allTypes = stm.allTypes.value
 
-                val result = withContext(Dispatchers.IO) {
-                    ScheduleParser.parse(fullText, blocks, userName, allTypes, uiState.currentMonth)
+                val candidates = withContext(Dispatchers.IO) {
+                    ScheduleParser.parseAllCandidates(fullText, blocks, allTypes, uiState.currentMonth)
                 }
 
-                if (result != null && result.shifts.isNotEmpty()) {
-                    val count = viewModel.applyOcrResult(result)
-                    Toast.makeText(context, "${result.yearMonth.monthValue}월 근무표에서 ${count}일분 일정이 입력되었습니다", Toast.LENGTH_LONG).show()
-                } else {
-                    Toast.makeText(context, "근무 정보를 인식하지 못했습니다. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
+                when {
+                    candidates.isEmpty() -> {
+                        Toast.makeText(context, "근무 정보를 인식하지 못했습니다. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
+                    }
+                    candidates.size == 1 -> {
+                        applyCandidateResult(candidates.first())
+                    }
+                    else -> {
+                        val autoMatch = if (userName.isNotBlank()) {
+                            candidates.firstOrNull { it.name.contains(userName) }
+                        } else null
+
+                        if (autoMatch != null) {
+                            applyCandidateResult(autoMatch)
+                        } else {
+                            ocrCandidates = candidates
+                            showCandidateDialog = true
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 Toast.makeText(context, "인식 오류: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -259,6 +285,78 @@ fun CalendarScreen(
                 Text("근무표 인식 중...", color = Color.White, fontSize = 14.sp)
             }
         }
+    }
+
+    // 후보 선택 다이얼로그
+    if (showCandidateDialog && ocrCandidates.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = {
+                showCandidateDialog = false
+                ocrCandidates = emptyList()
+            },
+            containerColor = DarkCard,
+            title = {
+                Text("👤 누구의 근무표인가요?", color = Color.White, fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        "${ocrCandidates.size}명의 근무 일정이 인식되었습니다",
+                        color = TextMuted,
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    ocrCandidates.forEach { candidate ->
+                        val shiftSummary = candidate.result.shifts.values
+                            .groupBy { it }
+                            .entries
+                            .sortedByDescending { it.value.size }
+                            .take(3)
+                            .joinToString(" ") { (typeId, days) ->
+                                val config = stm.getById(typeId)
+                                "${config?.emoji ?: ""}${config?.shortLabel ?: typeId}${days.size}"
+                            }
+
+                        OutlinedButton(
+                            onClick = {
+                                showCandidateDialog = false
+                                applyCandidateResult(candidate)
+                                ocrCandidates = emptyList()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Purple40.copy(alpha = 0.5f))
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.Start
+                            ) {
+                                Text(
+                                    candidate.name,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    "${candidate.result.shifts.size}일  |  $shiftSummary",
+                                    color = TextMuted,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = {
+                    showCandidateDialog = false
+                    ocrCandidates = emptyList()
+                }) {
+                    Text("취소", color = TextMuted)
+                }
+            }
+        )
     }
 }
 
