@@ -279,7 +279,10 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun setMemo(date: LocalDate, memo: String?) {
-        viewModelScope.launch { repo.setMemo(date, memo) }
+        viewModelScope.launch {
+            repo.setMemo(date, memo)
+            app.triggerUpload()
+        }
     }
 
     fun addEvent(event: EventEntity) {
@@ -296,20 +299,28 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 date = _uiState.value.selectedDate.toString(),
                 title = title, time = time, isHabit = isHabit
             ))
+            app.triggerUpload()
         }
     }
 
     fun toggleTodo(id: Long, done: Boolean) {
-        viewModelScope.launch { repo.toggleTodo(id, done) }
+        viewModelScope.launch {
+            repo.toggleTodo(id, done)
+            app.triggerUpload()
+        }
     }
 
     fun deleteTodo(id: Long) {
-        viewModelScope.launch { repo.deleteTodo(id) }
+        viewModelScope.launch {
+            repo.deleteTodo(id)
+            app.triggerUpload()
+        }
     }
 
     fun setMood(emoji: String, note: String) {
         viewModelScope.launch {
             repo.setMood(_uiState.value.selectedDate, emoji, note)
+            app.triggerUpload()
         }
     }
 
