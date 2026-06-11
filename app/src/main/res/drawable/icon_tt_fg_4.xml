@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TT4: 캘린더 페이지 넘김 + 하트 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="18" android:translateY="16">
+
+        <!-- Calendar page -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M8,8 Q8,4 12,4 L60,4 Q64,4 64,8 L64,60 Q64,64 60,64 L12,64 Q8,64 8,60 Z"/>
+
+        <!-- Page curl -->
+        <path
+            android:fillColor="#D4B5FD"
+            android:pathData="M48,64 L64,48 L64,60 Q64,64 60,64 Z"/>
+
+        <!-- Header -->
+        <path
+            android:fillColor="#8B5CF6"
+            android:pathData="M8,8 Q8,4 12,4 L60,4 Q64,4 64,8 L64,16 L8,16 Z"/>
+
+        <!-- Heart on page -->
+        <path
+            android:fillColor="#EC4899"
+            android:pathData="M36,30
+                C36,26 31,22 26,26
+                C21,30 26,36 36,46
+                C46,36 51,30 46,26
+                C41,22 36,26 36,30 Z"/>
+
+    </group>
+</vector>

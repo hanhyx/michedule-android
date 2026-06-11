@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:translateX="18"
+        android:translateY="18">
+
+        <!-- heart 1 (purple, left) -->
+        <path
+            android:fillColor="#8B5CF6"
+            android:pathData="M30,28
+                C30,22 24,17 18,22
+                C12,27 18,36 30,48
+                C42,36 48,27 42,22
+                C36,17 30,22 30,28 Z"/>
+
+        <!-- heart 2 (pink, right, overlapping) -->
+        <path
+            android:fillColor="#EC4899"
+            android:fillAlpha="0.7"
+            android:pathData="M42,28
+                C42,22 36,17 30,22
+                C24,27 30,36 42,48
+                C54,36 60,27 54,22
+                C48,17 42,22 42,28 Z"/>
+
+        <!-- clock tick marks on overlap area -->
+        <path android:pathData="M36,22 L36,25" android:strokeWidth="1.5" android:strokeColor="#FFFFFF" android:strokeLineCap="round"/>
+        <path android:pathData="M36,39 L36,42" android:strokeWidth="1.5" android:strokeColor="#FFFFFF" android:strokeLineCap="round"/>
+        <path android:pathData="M28,32 L31,32" android:strokeWidth="1.5" android:strokeColor="#FFFFFF" android:strokeLineCap="round"/>
+        <path android:pathData="M41,32 L44,32" android:strokeWidth="1.5" android:strokeColor="#FFFFFF" android:strokeLineCap="round"/>
+
+        <!-- clock hands -->
+        <path android:pathData="M36,32 L36,26" android:strokeWidth="2" android:strokeColor="#FFFFFF" android:strokeLineCap="round"/>
+        <path android:pathData="M36,32 L41,32" android:strokeWidth="2" android:strokeColor="#F9A8D4" android:strokeLineCap="round"/>
+
+        <!-- center dot -->
+        <path android:fillColor="#FFFFFF" android:pathData="M34.5,30.5 A1.5,1.5 0 1,1 37.5,30.5 A1.5,1.5 0 1,1 34.5,30.5"/>
+
+        <!-- sparkles -->
+        <path android:pathData="M12,48 L12,54" android:strokeWidth="1.5" android:strokeColor="#C4B5FD" android:strokeLineCap="round"/>
+        <path android:pathData="M9,51 L15,51" android:strokeWidth="1.5" android:strokeColor="#C4B5FD" android:strokeLineCap="round"/>
+        <path android:pathData="M56,16 L56,22" android:strokeWidth="1.5" android:strokeColor="#F9A8D4" android:strokeLineCap="round"/>
+        <path android:pathData="M53,19 L59,19" android:strokeWidth="1.5" android:strokeColor="#F9A8D4" android:strokeLineCap="round"/>
+
+    </group>
+</vector>

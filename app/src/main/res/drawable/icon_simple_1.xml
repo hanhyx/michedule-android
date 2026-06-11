@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="20" android:translateY="18">
+
+        <!-- Simple rounded calendar -->
+        <path
+            android:fillColor="#7C3AED"
+            android:pathData="M6,14 Q6,6 14,6 L54,6 Q62,6 62,14 L62,58 Q62,66 54,66 L14,66 Q6,66 6,58 Z"/>
+
+        <!-- White heart, centered -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M34,30
+                C34,26 29,22 24,26
+                C19,30 24,37 34,47
+                C44,37 49,30 44,26
+                C39,22 34,26 34,30 Z"/>
+
+        <!-- Two calendar pins -->
+        <path android:pathData="M24,3 L24,14" android:strokeWidth="3" android:strokeColor="#FFFFFF" android:strokeLineCap="round"/>
+        <path android:pathData="M44,3 L44,14" android:strokeWidth="3" android:strokeColor="#FFFFFF" android:strokeLineCap="round"/>
+
+    </group>
+</vector>

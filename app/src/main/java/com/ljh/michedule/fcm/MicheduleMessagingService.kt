@@ -18,6 +18,7 @@ class MicheduleMessagingService : FirebaseMessagingService() {
     companion object {
         private const val TAG = "FCM"
         const val CHANNEL_DATE_PLAN = "michedule_date_plan"
+        const val CHANNEL_CHAT = "michedule_chat"
     }
 
     override fun onNewToken(token: String) {
@@ -35,6 +36,7 @@ class MicheduleMessagingService : FirebaseMessagingService() {
         val type = message.data["type"] ?: return
         when (type) {
             "date_plan" -> showDatePlanNotification(message.data)
+            "chat" -> showChatNotification(message.data)
         }
     }
 
@@ -70,6 +72,25 @@ class MicheduleMessagingService : FirebaseMessagingService() {
         nm.notify(date.hashCode(), notification)
     }
 
+    private fun showChatNotification(data: Map<String, String>) {
+        val senderName = data["sender_name"] ?: "상대방"
+        val content = data["content"] ?: "새 메시지"
+
+        createChatChannel()
+
+        val notification = NotificationCompat.Builder(this, CHANNEL_CHAT)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle("💬 $senderName")
+            .setContentText(content)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setVibrate(longArrayOf(0, 200, 100, 200))
+            .build()
+
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(7777, notification)
+    }
+
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -78,6 +99,21 @@ class MicheduleMessagingService : FirebaseMessagingService() {
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "상대방이 만나요를 설정했을 때 알림"
+                enableVibration(true)
+            }
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.createNotificationChannel(channel)
+        }
+    }
+
+    private fun createChatChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_CHAT,
+                "채팅 알림",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "채팅 메시지 수신 알림"
                 enableVibration(true)
             }
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

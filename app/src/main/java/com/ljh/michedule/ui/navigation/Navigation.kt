@@ -2,6 +2,7 @@ package com.ljh.michedule.ui.navigation
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -18,6 +19,7 @@ import androidx.navigation.navArgument
 import com.ljh.michedule.data.PrefsManager
 import com.ljh.michedule.ui.calendar.CalendarScreen
 import com.ljh.michedule.ui.calendar.CalendarViewModel
+import com.ljh.michedule.ui.chat.ChatScreen
 import com.ljh.michedule.ui.event.AddEventScreen
 import com.ljh.michedule.ui.settings.SettingsScreen
 import com.ljh.michedule.ui.theme.*
@@ -26,6 +28,7 @@ import java.time.YearMonth
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     data object Calendar : Screen("calendar", "캘린더", Icons.Default.CalendarMonth)
+    data object Chat : Screen("chat", "채팅", Icons.AutoMirrored.Filled.Chat)
     data object Settings : Screen("settings", "설정", Icons.Default.Settings)
 }
 
@@ -36,7 +39,7 @@ fun MicheduleNavHost(prefsManager: PrefsManager) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    val bottomBarScreens = listOf(Screen.Calendar, Screen.Settings)
+    val bottomBarScreens = listOf(Screen.Calendar, Screen.Chat, Screen.Settings)
     val showBottomBar = currentRoute in bottomBarScreens.map { it.route }
 
     Scaffold(
@@ -83,6 +86,18 @@ fun MicheduleNavHost(prefsManager: PrefsManager) {
                     viewModel = calendarViewModel,
                     onNavigateToAddEvent = { date ->
                         navController.navigate("addEvent/$date")
+                    }
+                )
+            }
+
+            composable(Screen.Chat.route) {
+                ChatScreen(
+                    onNavigateToSettings = {
+                        navController.navigate(Screen.Settings.route) {
+                            popUpTo(Screen.Calendar.route) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 )
             }

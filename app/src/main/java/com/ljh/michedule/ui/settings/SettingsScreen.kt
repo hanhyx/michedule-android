@@ -3,6 +3,8 @@ package com.ljh.michedule.ui.settings
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
@@ -30,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.ljh.michedule.MicheduleApp
 import com.ljh.michedule.data.PrefsManager
 import com.ljh.michedule.data.ShiftTypeManager
@@ -113,12 +117,26 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
 
     val myName by prefsManager.myName.collectAsState(initial = "")
     val myCode by prefsManager.myCode.collectAsState(initial = "")
+    val myPhotoUri by prefsManager.myPhotoUri.collectAsState(initial = "")
     val partnerCode by prefsManager.partnerCode.collectAsState(initial = "")
     val partnerName by prefsManager.partnerName.collectAsState(initial = "")
+    val partnerPhotoUri by prefsManager.partnerPhotoUri.collectAsState(initial = "")
     val syncPaused by prefsManager.syncPaused.collectAsState(initial = false)
     val connectionMutual by prefsManager.connectionMutual.collectAsState(initial = false)
 
     var editName by remember(myName) { mutableStateOf(myName) }
+
+    val myPhotoPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { app.saveProfilePhoto(it, isPartner = false) }
+    }
+
+    val partnerPhotoPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { app.saveProfilePhoto(it, isPartner = true) }
+    }
 
     Column(
         modifier = Modifier
@@ -127,16 +145,65 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        SettingsCard(title = "내 이름") {
-            OutlinedTextField(
-                value = editName,
-                onValueChange = { editName = it },
-                placeholder = { Text("이름 입력", color = TextMuted) },
-                modifier = Modifier.fillMaxWidth(),
-                colors = settingsFieldColors(),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true
-            )
+        SettingsCard(title = "내 프로필") {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier.clickable { myPhotoPicker.launch("image/*") },
+                    contentAlignment = Alignment.BottomEnd
+                ) {
+                    if (myPhotoUri.isNotBlank()) {
+                        AsyncImage(
+                            model = myPhotoUri,
+                            contentDescription = "내 프로필 사진",
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .border(2.dp, Purple80, CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .background(DarkSurface)
+                                .border(2.dp, DarkBorder, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("👤", fontSize = 28.sp)
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clip(CircleShape)
+                            .background(Purple40)
+                            .border(1.5.dp, DarkCard, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.CameraAlt,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    OutlinedTextField(
+                        value = editName,
+                        onValueChange = { editName = it },
+                        placeholder = { Text("이름 입력", color = TextMuted) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = settingsFieldColors(),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(8.dp))
             Button(
                 onClick = {
@@ -277,6 +344,70 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                                 uncheckedTrackColor = Color(0xFFFBBF24).copy(alpha = 0.2f)
                             )
                         )
+                    }
+                }
+
+                if (connectionMutual) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier.clickable { partnerPhotoPicker.launch("image/*") },
+                            contentAlignment = Alignment.BottomEnd
+                        ) {
+                            if (partnerPhotoUri.isNotBlank()) {
+                                AsyncImage(
+                                    model = partnerPhotoUri,
+                                    contentDescription = "상대 프로필",
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape)
+                                        .border(2.dp, Color(0xFFF472B6), CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape)
+                                        .background(DarkSurface)
+                                        .border(2.dp, DarkBorder, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("💜", fontSize = 22.sp)
+                                }
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFF472B6))
+                                    .border(1.dp, DarkCard, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.CameraAlt,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(10.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                partnerName.ifBlank { partnerCode },
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextPrimary
+                            )
+                            Text(
+                                "사진을 탭하여 상대 프로필 설정",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextMuted
+                            )
+                        }
                     }
                 }
 

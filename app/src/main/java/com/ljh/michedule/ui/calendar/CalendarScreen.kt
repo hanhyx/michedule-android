@@ -18,13 +18,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import coil.compose.AsyncImage
 import com.ljh.michedule.MicheduleApp
 import com.ljh.michedule.data.ShiftTypeManager
 import com.ljh.michedule.data.db.EventEntity
@@ -499,7 +502,9 @@ private fun MonthlyScreen(
             PartnerViewToggle(
                 viewingPartner = uiState.viewingPartner,
                 myName = uiState.myName.ifBlank { "나" },
+                myPhotoUri = uiState.myPhotoUri,
                 partnerName = uiState.partnerName.ifBlank { "상대" },
+                partnerPhotoUri = uiState.partnerPhotoUri,
                 onToggle = { viewModel.toggleViewingPartner() }
             )
         }
@@ -526,47 +531,108 @@ private fun MonthlyScreen(
 private fun PartnerViewToggle(
     viewingPartner: Boolean,
     myName: String,
+    myPhotoUri: String,
     partnerName: String,
+    partnerPhotoUri: String,
     onToggle: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 2.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val selectedBg = Purple80
-        val unselectedBg = DarkCard
+        MemberAvatar(
+            name = myName,
+            photoUri = myPhotoUri,
+            isSelected = !viewingPartner,
+            defaultEmoji = "👤",
+            onClick = { if (viewingPartner) onToggle() }
+        )
 
-        Surface(
-            onClick = { if (viewingPartner) onToggle() },
-            shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp),
-            color = if (!viewingPartner) selectedBg else unselectedBg,
-            border = BorderStroke(1.dp, DarkBorder)
-        ) {
-            Text(
-                "👤 $myName",
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp),
-                fontSize = 11.sp,
-                fontWeight = if (!viewingPartner) FontWeight.Bold else FontWeight.Normal,
-                color = if (!viewingPartner) Color.White else TextMuted
-            )
+        Spacer(modifier = Modifier.width(20.dp))
+
+        MemberAvatar(
+            name = partnerName,
+            photoUri = partnerPhotoUri,
+            isSelected = viewingPartner,
+            defaultEmoji = "💜",
+            onClick = { if (!viewingPartner) onToggle() }
+        )
+    }
+}
+
+@Composable
+private fun MemberAvatar(
+    name: String,
+    photoUri: String,
+    isSelected: Boolean,
+    defaultEmoji: String,
+    onClick: () -> Unit
+) {
+    val photoSize = 32.dp
+    val alpha = if (isSelected) 1f else 0.5f
+
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box {
+            if (photoUri.isNotBlank()) {
+                AsyncImage(
+                    model = photoUri,
+                    contentDescription = name,
+                    modifier = Modifier
+                        .size(photoSize)
+                        .clip(CircleShape)
+                        .then(
+                            if (isSelected) Modifier.border(2.dp, Purple80, CircleShape)
+                            else Modifier
+                        ),
+                    contentScale = ContentScale.Crop,
+                    alpha = alpha
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(photoSize)
+                        .clip(CircleShape)
+                        .background(if (isSelected) DarkSurface else DarkCard)
+                        .then(
+                            if (isSelected) Modifier.border(2.dp, Purple80, CircleShape)
+                            else Modifier
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(defaultEmoji, fontSize = 16.sp, modifier = Modifier.graphicsLayer { this.alpha = alpha })
+                }
+            }
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(StatusOnline)
+                        .border(1.5.dp, DarkBg, CircleShape)
+                        .align(Alignment.BottomEnd)
+                )
+            }
         }
-        Surface(
-            onClick = { if (!viewingPartner) onToggle() },
-            shape = RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp),
-            color = if (viewingPartner) selectedBg else unselectedBg,
-            border = BorderStroke(1.dp, DarkBorder)
-        ) {
-            Text(
-                "💕 $partnerName",
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp),
-                fontSize = 11.sp,
-                fontWeight = if (viewingPartner) FontWeight.Bold else FontWeight.Normal,
-                color = if (viewingPartner) Color.White else TextMuted
-            )
-        }
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        Text(
+            name,
+            fontSize = 10.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            color = if (isSelected) Color.White else TextMuted,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -647,6 +713,8 @@ private fun MonthlyCalendarGrid(
                         val datePlan = uiState.datePlans[dateStr]
 
                         if (uiState.viewingPartner) {
+                            val partnerTodos = friendShiftEntity?.getTodoList() ?: emptyList()
+                            val partnerTodoCount = partnerTodos.size.takeIf { it > 0 } ?: (friendShiftEntity?.todoCount ?: 0)
                             SoloCell(
                                 day = dayNum,
                                 shiftConfig = friendShiftEntity?.type?.takeIf { it.isNotBlank() }?.let { stm.getByIdForPartner(it) },
@@ -657,7 +725,8 @@ private fun MonthlyCalendarGrid(
                                 memo = friendShiftEntity?.memo,
                                 mood = friendShiftEntity?.mood,
                                 moodNote = friendShiftEntity?.moodNote,
-                                todoCount = friendShiftEntity?.todoCount ?: 0,
+                                todoCount = partnerTodoCount,
+                                todoFirstTitle = partnerTodos.firstOrNull()?.first,
                                 events = emptyList(),
                                 datePlan = datePlan,
                                 isToday = date == today,
@@ -668,6 +737,7 @@ private fun MonthlyCalendarGrid(
                                 modifier = Modifier.weight(1f).fillMaxHeight()
                             )
                         } else {
+                            val myTodosForDate = uiState.todos.filter { it.date == dateStr }
                             SoloCell(
                                 day = dayNum,
                                 shiftConfig = shiftEntity?.type?.takeIf { it.isNotBlank() }?.let { stm.getById(it) },
@@ -677,7 +747,8 @@ private fun MonthlyCalendarGrid(
                                 memo = shiftEntity?.memo,
                                 mood = mood?.emoji,
                                 moodNote = mood?.note,
-                                todoCount = uiState.todos.count { it.date == dateStr },
+                                todoCount = myTodosForDate.size,
+                                todoFirstTitle = myTodosForDate.firstOrNull()?.title,
                                 events = uiState.events[dateStr] ?: emptyList(),
                                 datePlan = datePlan,
                                 isToday = date == today,
@@ -715,6 +786,7 @@ private fun SoloCell(
     mood: String?,
     moodNote: String? = null,
     todoCount: Int,
+    todoFirstTitle: String? = null,
     events: List<EventEntity> = emptyList(),
     datePlan: DatePlanEntity? = null,
     isToday: Boolean,
@@ -830,7 +902,9 @@ private fun SoloCell(
         }
 
         // 할일
-        if (todoCount > 0) {
+        if (todoCount == 1 && !todoFirstTitle.isNullOrBlank()) {
+            Text("📋$todoFirstTitle", fontSize = 8.sp, color = Color(0xFF6EE7B7), maxLines = 1, overflow = TextOverflow.Ellipsis, lineHeight = 10.sp)
+        } else if (todoCount > 1) {
             Text("📋$todoCount", fontSize = 8.sp, color = Color(0xFF6EE7B7), lineHeight = 10.sp)
         }
     }

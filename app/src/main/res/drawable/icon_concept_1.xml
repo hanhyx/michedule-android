@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:translateX="20"
+        android:translateY="18">
+
+        <!-- calendar body - rounded -->
+        <path
+            android:fillColor="#1C1633"
+            android:pathData="M6,14 Q6,8 12,8 L56,8 Q62,8 62,14 L62,58 Q62,64 56,64 L12,64 Q6,64 6,58 Z"/>
+
+        <!-- header gradient bar -->
+        <path
+            android:fillColor="#8B5CF6"
+            android:pathData="M6,14 Q6,8 12,8 L56,8 Q62,8 62,14 L62,22 L6,22 Z"/>
+
+        <!-- header accent line -->
+        <path
+            android:fillColor="#EC4899"
+            android:pathData="M6,20 L62,20 L62,22 L6,22 Z"/>
+
+        <!-- grid dots row 1 -->
+        <path android:fillColor="#4C3D6E" android:pathData="M16,30 A2,2 0 1,1 20,30 A2,2 0 1,1 16,30"/>
+        <path android:fillColor="#4C3D6E" android:pathData="M26,30 A2,2 0 1,1 30,30 A2,2 0 1,1 26,30"/>
+        <path android:fillColor="#4C3D6E" android:pathData="M36,30 A2,2 0 1,1 40,30 A2,2 0 1,1 36,30"/>
+        <path android:fillColor="#4C3D6E" android:pathData="M46,30 A2,2 0 1,1 50,30 A2,2 0 1,1 46,30"/>
+
+        <!-- grid dots row 2 -->
+        <path android:fillColor="#4C3D6E" android:pathData="M16,40 A2,2 0 1,1 20,40 A2,2 0 1,1 16,40"/>
+        <path android:fillColor="#4C3D6E" android:pathData="M46,40 A2,2 0 1,1 50,40 A2,2 0 1,1 46,40"/>
+
+        <!-- heart center -->
+        <path
+            android:fillColor="#F472B6"
+            android:pathData="M34,38
+                C34,35.5 31,33 28,35.5
+                C25,38 28,42 34,48
+                C40,42 43,38 40,35.5
+                C37,33 34,35.5 34,38 Z"/>
+
+        <!-- grid dots row 3 -->
+        <path android:fillColor="#4C3D6E" android:pathData="M16,50 A2,2 0 1,1 20,50 A2,2 0 1,1 16,50"/>
+        <path android:fillColor="#4C3D6E" android:pathData="M26,50 A2,2 0 1,1 30,50 A2,2 0 1,1 26,50"/>
+        <path android:fillColor="#4C3D6E" android:pathData="M36,50 A2,2 0 1,1 40,50 A2,2 0 1,1 36,50"/>
+        <path android:fillColor="#4C3D6E" android:pathData="M46,50 A2,2 0 1,1 50,50 A2,2 0 1,1 46,50"/>
+
+    </group>
+</vector>

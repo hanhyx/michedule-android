@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="16" android:translateY="16">
+
+        <!-- Sun half (day shift) - left -->
+        <path
+            android:fillColor="#FBBF24"
+            android:pathData="M38,38 A18,18 0 0,1 38,2 Z"/>
+
+        <!-- Sun rays -->
+        <path android:pathData="M38,0 L38,-4" android:strokeWidth="2" android:strokeColor="#FBBF24" android:strokeLineCap="round"/>
+        <path android:pathData="M25,5 L22,2" android:strokeWidth="2" android:strokeColor="#FBBF24" android:strokeLineCap="round"/>
+        <path android:pathData="M18,18 L14,18" android:strokeWidth="2" android:strokeColor="#FBBF24" android:strokeLineCap="round"/>
+
+        <!-- Moon half (night shift) - right -->
+        <path
+            android:fillColor="#818CF8"
+            android:pathData="M38,2 A18,18 0 0,1 38,38 Z"/>
+
+        <!-- Moon crescent cutout -->
+        <path
+            android:fillColor="#0F0A1A"
+            android:pathData="M50,12 A10,10 0 0,1 50,28 A12,12 0 0,0 50,12 Z"/>
+
+        <!-- Stars -->
+        <path android:fillColor="#C4B5FD" android:pathData="M58,8 L59,11 L62,12 L59,13 L58,16 L57,13 L54,12 L57,11 Z"/>
+        <path android:fillColor="#C4B5FD" android:pathData="M62,24 A1,1 0 1,1 64,24 A1,1 0 1,1 62,24"/>
+        <path android:fillColor="#C4B5FD" android:pathData="M56,30 A1,1 0 1,1 58,30 A1,1 0 1,1 56,30"/>
+
+        <!-- Divider line -->
+        <path android:pathData="M38,0 L38,40" android:strokeWidth="1" android:strokeColor="#FFFFFF" android:strokeAlpha="0.3"/>
+
+        <!-- Heart at center bottom -->
+        <path
+            android:fillColor="#EC4899"
+            android:pathData="M38,42
+                C38,39 35,37 32,39
+                C29,42 32,46 38,52
+                C44,46 47,42 44,39
+                C41,37 38,39 38,42 Z"/>
+
+        <!-- Calendar icon tiny, top center -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.9"
+            android:pathData="M34,56 Q34,54 36,54 L40,54 Q42,54 42,56 L42,62 Q42,64 40,64 L36,64 Q34,64 34,62 Z"/>
+        <path android:fillColor="#A78BFA" android:pathData="M34,56 Q34,54 36,54 L40,54 Q42,54 42,56 L42,58 L34,58 Z"/>
+
+    </group>
+</vector>

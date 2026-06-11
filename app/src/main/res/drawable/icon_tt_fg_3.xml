@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TT3: 나무 모양 (타임트리 오마주) - 나뭇잎이 하트 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="22" android:translateY="14">
+
+        <!-- Tree trunk -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M30,44 L30,62 L34,62 L34,44 Z"/>
+
+        <!-- Heart-shaped tree crown -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M32,16
+                C32,10 24,4 16,10
+                C8,16 16,26 32,42
+                C48,26 56,16 48,10
+                C40,4 32,10 32,16 Z"/>
+
+        <!-- Ground line -->
+        <path android:pathData="M18,62 L46,62" android:strokeWidth="3" android:strokeColor="#FFFFFF" android:strokeLineCap="round"/>
+
+    </group>
+</vector>

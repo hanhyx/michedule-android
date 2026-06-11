@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TT2: 하트 + 작은 캘린더 겹침 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="18" android:translateY="16">
+
+        <!-- Heart -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M36,24
+                C36,18 28,12 20,18
+                C12,24 20,36 36,52
+                C52,36 60,24 52,18
+                C44,12 36,18 36,24 Z"/>
+
+        <!-- Mini calendar in heart center -->
+        <path
+            android:fillColor="#8B5CF6"
+            android:pathData="M26,28 Q26,26 28,26 L44,26 Q46,26 46,28 L46,42 Q46,44 44,44 L28,44 Q26,44 26,42 Z"/>
+
+        <!-- Calendar header -->
+        <path
+            android:fillColor="#6D28D9"
+            android:pathData="M26,28 Q26,26 28,26 L44,26 Q46,26 46,28 L46,32 L26,32 Z"/>
+
+        <!-- Calendar dots -->
+        <path android:fillColor="#FFFFFF" android:pathData="M30,35 A1.5,1.5 0 1,1 33,35 A1.5,1.5 0 1,1 30,35"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M37,35 A1.5,1.5 0 1,1 40,35 A1.5,1.5 0 1,1 37,35"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M30,40 A1.5,1.5 0 1,1 33,40 A1.5,1.5 0 1,1 30,40"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M37,40 A1.5,1.5 0 1,1 40,40 A1.5,1.5 0 1,1 37,40"/>
+
+    </group>
+</vector>

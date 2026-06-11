@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="18" android:translateY="18">
+
+        <!-- Rounded square outline -->
+        <path
+            android:pathData="M8,12 Q8,4 16,4 L56,4 Q64,4 64,12 L64,60 Q64,68 56,68 L16,68 Q8,68 8,60 Z"
+            android:strokeWidth="4"
+            android:strokeColor="#7C3AED"
+            android:fillColor="#00000000"
+            android:strokeLineJoin="round"/>
+
+        <!-- Header bar -->
+        <path
+            android:fillColor="#7C3AED"
+            android:pathData="M8,12 Q8,4 16,4 L56,4 Q64,4 64,12 L64,18 L8,18 Z"/>
+
+        <!-- Heart inside -->
+        <path
+            android:fillColor="#EC4899"
+            android:pathData="M36,34
+                C36,30 32,26 28,30
+                C24,34 28,40 36,48
+                C44,40 48,34 44,30
+                C40,26 36,30 36,34 Z"/>
+
+    </group>
+</vector>

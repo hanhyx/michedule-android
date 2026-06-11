@@ -31,6 +31,8 @@ class PrefsManager(private val context: Context) {
         private val KEY_SYNC_PAUSED = booleanPreferencesKey("sync_paused")
         private val KEY_CONNECTION_MUTUAL = booleanPreferencesKey("connection_mutual")
         private val KEY_FCM_TOKEN = stringPreferencesKey("fcm_token")
+        private val KEY_MY_PHOTO_URI = stringPreferencesKey("my_photo_uri")
+        private val KEY_PARTNER_PHOTO_URI = stringPreferencesKey("partner_photo_uri")
 
         private fun generateCode(): String {
             val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -52,6 +54,8 @@ class PrefsManager(private val context: Context) {
     val syncPaused: Flow<Boolean> = context.dataStore.data.map { it[KEY_SYNC_PAUSED] ?: false }
     val connectionMutual: Flow<Boolean> = context.dataStore.data.map { it[KEY_CONNECTION_MUTUAL] ?: false }
     val fcmToken: Flow<String> = context.dataStore.data.map { it[KEY_FCM_TOKEN] ?: "" }
+    val myPhotoUri: Flow<String> = context.dataStore.data.map { it[KEY_MY_PHOTO_URI] ?: "" }
+    val partnerPhotoUri: Flow<String> = context.dataStore.data.map { it[KEY_PARTNER_PHOTO_URI] ?: "" }
 
     suspend fun ensureMyCode(): String {
         var code = ""
@@ -120,12 +124,21 @@ class PrefsManager(private val context: Context) {
         context.dataStore.edit { it[KEY_FCM_TOKEN] = token }
     }
 
+    suspend fun setMyPhotoUri(uri: String) {
+        context.dataStore.edit { it[KEY_MY_PHOTO_URI] = uri }
+    }
+
+    suspend fun setPartnerPhotoUri(uri: String) {
+        context.dataStore.edit { it[KEY_PARTNER_PHOTO_URI] = uri }
+    }
+
     suspend fun clearPartner() {
         context.dataStore.edit {
             it.remove(KEY_PARTNER_CODE)
             it.remove(KEY_PARTNER_NAME)
             it.remove(KEY_SYNC_PAUSED)
             it.remove(KEY_CONNECTION_MUTUAL)
+            it.remove(KEY_PARTNER_PHOTO_URI)
         }
     }
 

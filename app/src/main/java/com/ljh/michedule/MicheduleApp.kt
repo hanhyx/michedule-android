@@ -1,12 +1,14 @@
 package com.ljh.michedule
 
 import android.app.Application
+import android.net.Uri
 import android.util.Log
 import com.google.firebase.messaging.FirebaseMessaging
 import com.ljh.michedule.data.PrefsManager
 import com.ljh.michedule.data.ShiftTypeManager
 import com.ljh.michedule.data.parseTimeRanges
 import com.ljh.michedule.data.db.AppDatabase
+import com.ljh.michedule.data.repository.ChatRepository
 import com.ljh.michedule.data.repository.ScheduleRepository
 import com.ljh.michedule.data.sync.SupabaseSync
 import com.ljh.michedule.model.ShiftType
@@ -25,6 +27,8 @@ class MicheduleApp : Application() {
         private set
     lateinit var shiftTypeManager: ShiftTypeManager
         private set
+    lateinit var chatRepository: ChatRepository
+        private set
     var supabaseSync: SupabaseSync? = null
         private set
 
@@ -36,6 +40,7 @@ class MicheduleApp : Application() {
         repository = ScheduleRepository(database)
         prefsManager = PrefsManager(this)
         shiftTypeManager = ShiftTypeManager(database.shiftTypeConfigDao(), appScope)
+        chatRepository = ChatRepository(database.chatMessageDao(), prefsManager, this)
 
         appScope.launch {
             setupDebugAccountIfNeeded()
@@ -105,6 +110,26 @@ class MicheduleApp : Application() {
         appScope.launch {
             if (prefsManager.syncPaused.first()) return@launch
             supabaseSync?.uploadCurrentData()
+        }
+    }
+
+    fun saveProfilePhoto(sourceUri: Uri, isPartner: Boolean = false) {
+        appScope.launch {
+            try {
+                val fileName = if (isPartner) "partner_profile.jpg" else "my_profile.jpg"
+                val file = java.io.File(filesDir, fileName)
+                contentResolver.openInputStream(sourceUri)?.use { input ->
+                    file.outputStream().use { output -> input.copyTo(output) }
+                }
+                val savedUri = Uri.fromFile(file).toString()
+                if (isPartner) {
+                    prefsManager.setPartnerPhotoUri(savedUri)
+                } else {
+                    prefsManager.setMyPhotoUri(savedUri)
+                }
+            } catch (e: Exception) {
+                Log.e("MicheduleApp", "Failed to save profile photo", e)
+            }
         }
     }
 

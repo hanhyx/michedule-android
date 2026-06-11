@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="14" android:translateY="14">
+
+        <!-- Left circle (purple) -->
+        <path
+            android:fillColor="#7C3AED"
+            android:fillAlpha="0.4"
+            android:pathData="M30,40 A20,20 0 1,1 30,40.01 Z"/>
+
+        <!-- Right circle (pink) -->
+        <path
+            android:fillColor="#EC4899"
+            android:fillAlpha="0.4"
+            android:pathData="M50,40 A20,20 0 1,1 50,40.01 Z"/>
+
+        <!-- Overlap highlight -->
+        <path
+            android:fillColor="#A855F7"
+            android:fillAlpha="0.6"
+            android:pathData="M40,24 A20,20 0 0,1 50,40 A20,20 0 0,1 40,56 A20,20 0 0,0 30,40 A20,20 0 0,0 40,24 Z"/>
+
+        <!-- Heart in center -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M40,35
+                C40,32.5 37.5,30 35,32.5
+                C32.5,35 35,39 40,44
+                C45,39 47.5,35 45,32.5
+                C42.5,30 40,32.5 40,35 Z"/>
+
+        <!-- Calendar marks in left circle -->
+        <path android:fillColor="#C4B5FD" android:pathData="M16,34 A1.5,1.5 0 1,1 19,34 A1.5,1.5 0 1,1 16,34"/>
+        <path android:fillColor="#C4B5FD" android:pathData="M22,34 A1.5,1.5 0 1,1 25,34 A1.5,1.5 0 1,1 22,34"/>
+        <path android:fillColor="#C4B5FD" android:pathData="M16,40 A1.5,1.5 0 1,1 19,40 A1.5,1.5 0 1,1 16,40"/>
+        <path android:fillColor="#C4B5FD" android:pathData="M22,40 A1.5,1.5 0 1,1 25,40 A1.5,1.5 0 1,1 22,40"/>
+        <path android:fillColor="#C4B5FD" android:pathData="M16,46 A1.5,1.5 0 1,1 19,46 A1.5,1.5 0 1,1 16,46"/>
+        <path android:fillColor="#C4B5FD" android:pathData="M22,46 A1.5,1.5 0 1,1 25,46 A1.5,1.5 0 1,1 22,46"/>
+
+        <!-- Calendar marks in right circle -->
+        <path android:fillColor="#F9A8D4" android:pathData="M55,34 A1.5,1.5 0 1,1 58,34 A1.5,1.5 0 1,1 55,34"/>
+        <path android:fillColor="#F9A8D4" android:pathData="M61,34 A1.5,1.5 0 1,1 64,34 A1.5,1.5 0 1,1 61,34"/>
+        <path android:fillColor="#F9A8D4" android:pathData="M55,40 A1.5,1.5 0 1,1 58,40 A1.5,1.5 0 1,1 55,40"/>
+        <path android:fillColor="#F9A8D4" android:pathData="M61,40 A1.5,1.5 0 1,1 64,40 A1.5,1.5 0 1,1 61,40"/>
+        <path android:fillColor="#F9A8D4" android:pathData="M55,46 A1.5,1.5 0 1,1 58,46 A1.5,1.5 0 1,1 55,46"/>
+        <path android:fillColor="#F9A8D4" android:pathData="M61,46 A1.5,1.5 0 1,1 64,46 A1.5,1.5 0 1,1 61,46"/>
+
+    </group>
+</vector>

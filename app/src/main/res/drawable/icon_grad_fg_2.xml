@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- G2: 하트 안의 체크마크 (인디고→보라→핑크) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="18" android:translateY="18">
+
+        <!-- Large heart outline -->
+        <path
+            android:pathData="M36,22
+                C36,16 28,10 20,18
+                C12,26 20,38 36,54
+                C52,38 60,26 52,18
+                C44,10 36,16 36,22 Z"
+            android:strokeWidth="3.5"
+            android:strokeColor="#FFFFFF"
+            android:fillColor="#00000000"
+            android:strokeLineJoin="round"/>
+
+        <!-- Checkmark inside -->
+        <path
+            android:pathData="M24,32 L32,40 L48,24"
+            android:strokeWidth="4"
+            android:strokeColor="#FFFFFF"
+            android:fillColor="#00000000"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"/>
+
+    </group>
+</vector>

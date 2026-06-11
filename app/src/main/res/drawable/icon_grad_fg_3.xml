@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- G3: 두 사람 실루엣 + 캘린더 (방사형 보라 배경) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="16" android:translateY="18">
+
+        <!-- Person 1 head -->
+        <path android:fillColor="#FFFFFF" android:pathData="M24,18 A6,6 0 1,1 24,18.01 Z"/>
+        <!-- Person 1 body -->
+        <path
+            android:pathData="M24,24 Q16,28 16,36 L32,36 Q32,28 24,24"
+            android:fillColor="#FFFFFF"/>
+
+        <!-- Person 2 head -->
+        <path android:fillColor="#FFFFFF" android:pathData="M52,18 A6,6 0 1,1 52,18.01 Z"/>
+        <!-- Person 2 body -->
+        <path
+            android:pathData="M52,24 Q44,28 44,36 L60,36 Q60,28 52,24"
+            android:fillColor="#FFFFFF"/>
+
+        <!-- Small heart between -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M38,22
+                C38,20 36,18.5 34,20
+                C32,22 34,25 38,29
+                C42,25 44,22 42,20
+                C40,18.5 38,20 38,22 Z"/>
+
+        <!-- Calendar below -->
+        <path
+            android:pathData="M18,42 Q18,40 20,40 L56,40 Q58,40 58,42 L58,58 Q58,60 56,60 L20,60 Q18,60 18,58 Z"
+            android:strokeWidth="2"
+            android:strokeColor="#FFFFFF"
+            android:fillColor="#00000000"/>
+        <path android:pathData="M18,46 L58,46" android:strokeWidth="1.5" android:strokeColor="#FFFFFF"/>
+
+        <!-- Calendar dots -->
+        <path android:fillColor="#FFFFFF" android:pathData="M24,50 A1.5,1.5 0 1,1 27,50 A1.5,1.5 0 1,1 24,50"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M32,50 A1.5,1.5 0 1,1 35,50 A1.5,1.5 0 1,1 32,50"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M40,50 A1.5,1.5 0 1,1 43,50 A1.5,1.5 0 1,1 40,50"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M48,50 A1.5,1.5 0 1,1 51,50 A1.5,1.5 0 1,1 48,50"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M24,56 A1.5,1.5 0 1,1 27,56 A1.5,1.5 0 1,1 24,56"/>
+        <path android:fillColor="#FFFFFF" android:pathData="M32,56 A1.5,1.5 0 1,1 35,56 A1.5,1.5 0 1,1 32,56"/>
+
+    </group>
+</vector>

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="14" android:translateY="12">
+
+        <!-- Shield/badge shape -->
+        <path
+            android:fillColor="#1C1633"
+            android:pathData="M40,6 Q68,6 68,20 L68,48 Q68,72 40,78 Q12,72 12,48 L12,20 Q12,6 40,6 Z"/>
+        <path
+            android:pathData="M40,6 Q68,6 68,20 L68,48 Q68,72 40,78 Q12,72 12,48 L12,20 Q12,6 40,6 Z"
+            android:strokeWidth="2.5"
+            android:strokeColor="#7C3AED"
+            android:fillColor="#00000000"/>
+
+        <!-- Inner gradient band -->
+        <path
+            android:fillColor="#7C3AED"
+            android:fillAlpha="0.3"
+            android:pathData="M16,20 L64,20 L64,30 L16,30 Z"/>
+
+        <!-- Calendar grid in band -->
+        <path android:fillColor="#C4B5FD" android:pathData="M22,22 A1.5,1.5 0 1,1 25,22 A1.5,1.5 0 1,1 22,22"/>
+        <path android:fillColor="#C4B5FD" android:pathData="M29,22 A1.5,1.5 0 1,1 32,22 A1.5,1.5 0 1,1 29,22"/>
+        <path android:fillColor="#C4B5FD" android:pathData="M36,22 A1.5,1.5 0 1,1 39,22 A1.5,1.5 0 1,1 36,22"/>
+        <path android:fillColor="#EC4899" android:pathData="M43,22 A1.5,1.5 0 1,1 46,22 A1.5,1.5 0 1,1 43,22"/>
+        <path android:fillColor="#C4B5FD" android:pathData="M50,22 A1.5,1.5 0 1,1 53,22 A1.5,1.5 0 1,1 50,22"/>
+        <path android:fillColor="#C4B5FD" android:pathData="M57,22 A1.5,1.5 0 1,1 60,22 A1.5,1.5 0 1,1 57,22"/>
+        <path android:fillColor="#C4B5FD" android:pathData="M22,27 A1.5,1.5 0 1,1 25,27 A1.5,1.5 0 1,1 22,27"/>
+        <path android:fillColor="#C4B5FD" android:pathData="M29,27 A1.5,1.5 0 1,1 32,27 A1.5,1.5 0 1,1 29,27"/>
+        <path android:fillColor="#EC4899" android:pathData="M36,27 A1.5,1.5 0 1,1 39,27 A1.5,1.5 0 1,1 36,27"/>
+        <path android:fillColor="#C4B5FD" android:pathData="M43,27 A1.5,1.5 0 1,1 46,27 A1.5,1.5 0 1,1 43,27"/>
+        <path android:fillColor="#C4B5FD" android:pathData="M50,27 A1.5,1.5 0 1,1 53,27 A1.5,1.5 0 1,1 50,27"/>
+        <path android:fillColor="#C4B5FD" android:pathData="M57,27 A1.5,1.5 0 1,1 60,27 A1.5,1.5 0 1,1 57,27"/>
+
+        <!-- Large heart center -->
+        <path
+            android:fillColor="#EC4899"
+            android:pathData="M40,40
+                C40,36 36,32 32,36
+                C28,40 32,46 40,56
+                C48,46 52,40 48,36
+                C44,32 40,36 40,40 Z"/>
+
+        <!-- Checkmark on heart -->
+        <path
+            android:pathData="M34,44 L38,48 L46,40"
+            android:strokeWidth="3"
+            android:strokeColor="#FFFFFF"
+            android:fillColor="#00000000"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"/>
+
+        <!-- Crown accent top -->
+        <path
+            android:fillColor="#FBBF24"
+            android:pathData="M34,8 L36,12 L38,8 L40,12 L42,8 L44,12 L46,8 L46,14 L34,14 Z"/>
+
+    </group>
+</vector>

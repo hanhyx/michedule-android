@@ -31,7 +31,9 @@ data class CalendarUiState(
     val showDayDetail: Boolean = false,
     val myName: String = "",
     val myCode: String = "",
+    val myPhotoUri: String = "",
     val partnerName: String = "",
+    val partnerPhotoUri: String = "",
     val isLocked: Boolean = false,
     val viewingPartner: Boolean = false,
     val connectionMutual: Boolean = false,
@@ -128,8 +130,20 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         }
 
         viewModelScope.launch {
+            app.prefsManager.myPhotoUri.collect { uri ->
+                _uiState.update { it.copy(myPhotoUri = uri) }
+            }
+        }
+
+        viewModelScope.launch {
             app.prefsManager.partnerName.collect { name ->
                 _uiState.update { it.copy(partnerName = name) }
+            }
+        }
+
+        viewModelScope.launch {
+            app.prefsManager.partnerPhotoUri.collect { uri ->
+                _uiState.update { it.copy(partnerPhotoUri = uri) }
             }
         }
 

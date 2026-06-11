@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TT1: 캘린더+하트 합체 심볼 (하트가 캘린더 몸체) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="22" android:translateY="18">
+
+        <!-- Calendar pins -->
+        <path android:pathData="M22,6 L22,18" android:strokeWidth="4" android:strokeColor="#FFFFFF" android:strokeLineCap="round"/>
+        <path android:pathData="M42,6 L42,18" android:strokeWidth="4" android:strokeColor="#FFFFFF" android:strokeLineCap="round"/>
+
+        <!-- Calendar top bar -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M4,14 Q4,10 8,10 L56,10 Q60,10 60,14 L60,22 L4,22 Z"/>
+
+        <!-- Heart as calendar body -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M32,26
+                C32,20 22,14 12,22
+                C2,30 12,42 32,60
+                C52,42 62,30 52,22
+                C42,14 32,20 32,26 Z"/>
+
+    </group>
+</vector>
