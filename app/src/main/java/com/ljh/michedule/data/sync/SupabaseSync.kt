@@ -197,10 +197,17 @@ class SupabaseSync(
                 val m = (value as? JsonPrimitive)?.content
                 if (!m.isNullOrBlank()) date to m else null
             }.toMap()
-            val moodMap = friendRow.moods.mapNotNull { (date, value) ->
-                val m = (value as? JsonPrimitive)?.content
-                if (!m.isNullOrBlank()) date to m else null
-            }.toMap()
+            val moodEmojiMap = mutableMapOf<String, String>()
+            val moodNoteMap = mutableMapOf<String, String>()
+            friendRow.moods.forEach { (date, value) ->
+                val raw = (value as? JsonPrimitive)?.content ?: return@forEach
+                if (raw.isBlank()) return@forEach
+                val parts = raw.split("|", limit = 2)
+                moodEmojiMap[date] = parts[0]
+                if (parts.size > 1 && parts[1].isNotBlank()) {
+                    moodNoteMap[date] = parts[1]
+                }
+            }
             val todoCountMap = friendRow.todo_counts.mapNotNull { (date, value) ->
                 val c = (value as? JsonPrimitive)?.intOrNull
                 if (c != null && c > 0) date to c else null
@@ -221,7 +228,7 @@ class SupabaseSync(
                 newShiftsMap[date] = type
             }
 
-            val allDates = (newShiftsMap.keys + memoMap.keys + moodMap.keys +
+            val allDates = (newShiftsMap.keys + memoMap.keys + moodEmojiMap.keys +
                     todoCountMap.keys + extraShiftsMap.keys + albaSet + todoTextsMap.keys)
             allDates.forEach { date ->
                 val type = newShiftsMap[date] ?: ""
@@ -233,7 +240,8 @@ class SupabaseSync(
                         friendName = friendRow.user_name,
                         hasAlba = date in albaSet,
                         memo = memoMap[date],
-                        mood = moodMap[date],
+                        mood = moodEmojiMap[date],
+                        moodNote = moodNoteMap[date],
                         todoCount = todoCountMap[date] ?: 0,
                         extraShifts = extras,
                         todoTexts = todoTextsMap[date] ?: ""
@@ -400,8 +408,11 @@ class SupabaseSync(
             }
 
             myRow.moods.forEach { (date, value) ->
-                val emoji = (value as? JsonPrimitive)?.content ?: return@forEach
-                repo.setMood(java.time.LocalDate.parse(date), emoji, "")
+                val raw = (value as? JsonPrimitive)?.content ?: return@forEach
+                val parts = raw.split("|", limit = 2)
+                val emoji = parts[0]
+                val note = if (parts.size > 1) parts[1] else ""
+                repo.setMood(java.time.LocalDate.parse(date), emoji, note)
             }
 
             myRow.date_plans.forEach { (date, value) ->
@@ -453,7 +464,11 @@ class SupabaseSync(
             val allMoods = repo.getAllMoods()
             val moodsJson = buildJsonObject {
                 allMoods.forEach { m ->
-                    put(m.date, m.emoji)
+                    if (m.note.isNotBlank()) {
+                        put(m.date, "${m.emoji}|${m.note}")
+                    } else {
+                        put(m.date, m.emoji)
+                    }
                 }
             }
 

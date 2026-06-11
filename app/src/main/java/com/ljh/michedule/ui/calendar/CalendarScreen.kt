@@ -656,6 +656,7 @@ private fun MonthlyCalendarGrid(
                                 usePartnerTypes = true,
                                 memo = friendShiftEntity?.memo,
                                 mood = friendShiftEntity?.mood,
+                                moodNote = friendShiftEntity?.moodNote,
                                 todoCount = friendShiftEntity?.todoCount ?: 0,
                                 events = emptyList(),
                                 datePlan = datePlan,

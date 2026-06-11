@@ -11,6 +11,7 @@ data class FriendShiftEntity(
     val hasAlba: Boolean = false,
     val memo: String? = null,
     val mood: String? = null,
+    val moodNote: String? = null,
     val todoCount: Int = 0,
     val extraShifts: String = "",
     val todoTexts: String = ""
