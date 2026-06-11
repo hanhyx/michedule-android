@@ -38,7 +38,14 @@ class WeekWidget : GlanceAppWidget() {
         val weekEndStr = weekEnd.toString()
         val db = AppDatabase.getInstance(context)
 
-        val (myShifts, partnerShifts) = withContext(Dispatchers.IO) {
+        data class WeekData(
+            val myShifts: Map<String, WidgetShiftInfo>,
+            val partnerShifts: Map<String, WidgetShiftInfo>,
+            val myTypeMap: Map<String, ShiftTypeConfig>,
+            val partnerTypeMap: Map<String, ShiftTypeConfig>
+        )
+
+        val data = withContext(Dispatchers.IO) {
             val myTypeConfigs = try {
                 db.shiftTypeConfigDao().getAll().associateBy { it.id }
             } catch (_: Exception) { emptyMap() }
@@ -75,11 +82,11 @@ class WeekWidget : GlanceAppWidget() {
                 emptyMap<String, WidgetShiftInfo>()
             }
 
-            mine to partner
+            WeekData(mine, partner, typeConfigs, pTypeMap)
         }
 
         provideContent {
-            WeekWidgetContent(today, weekStart, myShifts, partnerShifts)
+            WeekWidgetContent(today, weekStart, data.myShifts, data.partnerShifts, data.myTypeMap, data.partnerTypeMap)
         }
     }
 }
@@ -89,7 +96,9 @@ private fun WeekWidgetContent(
     today: LocalDate,
     weekStart: LocalDate,
     myShifts: Map<String, WidgetShiftInfo>,
-    partnerShifts: Map<String, WidgetShiftInfo>
+    partnerShifts: Map<String, WidgetShiftInfo>,
+    myTypeMap: Map<String, ShiftTypeConfig> = emptyMap(),
+    partnerTypeMap: Map<String, ShiftTypeConfig> = emptyMap()
 ) {
     val darkBg = Color(0xFF13131E)
     val cardBg = Color(0xFF1C1C2E)
@@ -212,8 +221,9 @@ private fun WeekWidgetContent(
                             val wExtras = myInfo?.getExtraShiftList() ?: emptyList()
                             val wDisplay = wExtras.ifEmpty { if (myInfo?.hasAlba == true) listOf("alba") else emptyList() }
                             if (wDisplay.isNotEmpty()) {
+                                val firstEc = myTypeMap[wDisplay.first()]
                                 Text(
-                                    "💼",
+                                    firstEc?.emoji ?: "💼",
                                     style = TextStyle(fontSize = 8.sp)
                                 )
                             }
@@ -269,8 +279,10 @@ private fun WeekWidgetContent(
                                     }
                                 }
                                 if (pHasExtra) {
+                                    val pFirstExtra = pExtras.firstOrNull() ?: "alba"
+                                    val pEc = partnerTypeMap[pFirstExtra]
                                     Text(
-                                        "💼",
+                                        pEc?.emoji ?: "💼",
                                         style = TextStyle(fontSize = 8.sp)
                                     )
                                 }

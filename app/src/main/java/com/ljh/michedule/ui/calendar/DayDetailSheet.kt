@@ -792,6 +792,13 @@ fun PartnerDayDetailSheet(
                     Text("기분", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
                 }
                 Text(friendShift?.mood ?: "", fontSize = 28.sp)
+                if (!friendShift?.moodNote.isNullOrBlank()) {
+                    Text(
+                        friendShift?.moodNote ?: "",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFFD4B896)
+                    )
+                }
             }
 
             // 할 일

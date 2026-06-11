@@ -42,7 +42,8 @@ data class WidgetDayDetail(
     val memo: String? = null,
     val mood: String? = null,
     val todoTexts: List<String> = emptyList(),
-    val name: String = ""
+    val name: String = "",
+    val typeConfigMap: Map<String, ShiftTypeConfig> = emptyMap()
 )
 
 class TodayWidget : GlanceAppWidget() {
@@ -78,7 +79,8 @@ class TodayWidget : GlanceAppWidget() {
                 ),
                 memo = myEntity?.memo,
                 mood = myMood?.emoji,
-                todoTexts = myTodos.take(3).map { (if (it.isDone) "✅ " else "☐ ") + it.title }
+                todoTexts = myTodos.take(3).map { (if (it.isDone) "✅ " else "☐ ") + it.title },
+                typeConfigMap = typeConfigs
             )
 
             val pTypeMap = ShiftTypeConfig.DEFAULTS.associateBy { it.id } + partnerTypeConfigs
@@ -94,7 +96,8 @@ class TodayWidget : GlanceAppWidget() {
                     ),
                     memo = fe?.memo,
                     mood = fe?.mood,
-                    name = fe?.friendName ?: ""
+                    name = fe?.friendName ?: "",
+                    typeConfigMap = pTypeMap
                 )
             } catch (_: Exception) { WidgetDayDetail(WidgetShiftInfo(null)) }
 
@@ -195,14 +198,18 @@ private fun TodayWidgetContent(
                         val myExtras = myDetail.shift.getExtraShiftList()
                         val myDisplayExtras = myExtras.ifEmpty { if (myDetail.shift.hasAlba) listOf("alba") else emptyList() }
                         myDisplayExtras.take(2).forEach { extraId ->
+                            val ec = myDetail.typeConfigMap[extraId]
+                            val ecEmoji = ec?.emoji ?: "💼"
+                            val ecLabel = ec?.label ?: extraId
+                            val ecColor = ec?.color ?: albaColor
                             Spacer(modifier = GlanceModifier.height(3.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("💼", style = TextStyle(fontSize = 10.sp))
+                                Text(ecEmoji, style = TextStyle(fontSize = 10.sp))
                                 Spacer(modifier = GlanceModifier.width(3.dp))
                                 Text(
-                                    extraId,
+                                    ecLabel,
                                     style = TextStyle(
-                                        color = ColorProvider(albaColor, albaColor),
+                                        color = ColorProvider(ecColor, ecColor),
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -308,14 +315,18 @@ private fun TodayWidgetContent(
                     val pExtras = partnerDetail.shift.getExtraShiftList()
                     val pDisplayExtras = pExtras.ifEmpty { if (partnerDetail.shift.hasAlba) listOf("alba") else emptyList() }
                     pDisplayExtras.take(2).forEach { extraId ->
+                        val ec = partnerDetail.typeConfigMap[extraId]
+                        val ecEmoji = ec?.emoji ?: "💼"
+                        val ecLabel = ec?.label ?: extraId
+                        val ecColor = ec?.color ?: albaColor
                         Spacer(modifier = GlanceModifier.height(3.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("💼", style = TextStyle(fontSize = 9.sp))
+                            Text(ecEmoji, style = TextStyle(fontSize = 9.sp))
                             Spacer(modifier = GlanceModifier.width(3.dp))
                             Text(
-                                extraId,
+                                ecLabel,
                                 style = TextStyle(
-                                    color = ColorProvider(albaColor, albaColor),
+                                    color = ColorProvider(ecColor, ecColor),
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold
                                 )
