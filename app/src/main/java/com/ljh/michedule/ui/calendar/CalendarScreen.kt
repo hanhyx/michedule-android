@@ -916,8 +916,8 @@ private fun WeeklyTimelineScreen(viewModel: CalendarViewModel, uiState: Calendar
                         val shift = uiState.shifts[dateStr]?.let { ShiftType.fromString(it.type) }
                         val friendShift = uiState.friendShifts[dateStr]?.let { ShiftType.fromString(it.type) }
 
-                        val isMyWorkHour = shift != null && isWithinShift(hour, shift)
-                        val isPartnerWorkHour = friendShift != null && isWithinShift(hour, friendShift)
+                        val isMyWorkHour = isWithinTimeRange(hour, shiftConfig?.defaultTimeRange, shift)
+                        val isPartnerWorkHour = isWithinTimeRange(hour, friendConfig?.defaultTimeRange, friendShift)
 
                         Box(
                             modifier = Modifier
@@ -943,9 +943,9 @@ private fun WeeklyTimelineScreen(viewModel: CalendarViewModel, uiState: Calendar
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
-                            if (isMyWorkHour && shift != null && isShiftStartHour(hour, shift)) {
+                            if (isMyWorkHour && (shiftConfig != null || shift != null) && isStartHour(hour, shiftConfig?.defaultTimeRange, shift)) {
                                 Text(
-                                    text = shiftConfig?.shortLabel ?: shift.shortLabel,
+                                    text = shiftConfig?.shortLabel ?: shift?.shortLabel ?: "",
                                     fontSize = 8.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = shiftConfig?.color ?: Color.Gray
@@ -965,20 +965,42 @@ private fun WeeklyTimelineScreen(viewModel: CalendarViewModel, uiState: Calendar
     }
 }
 
-private fun isWithinShift(hour: Int, shift: ShiftType): Boolean = when (shift) {
-    ShiftType.DAY -> hour in 8..16
-    ShiftType.NIGHT -> hour >= 18 || hour < 6
-    ShiftType.NIGHT_EARLY -> hour >= 16 || hour < 4
-    ShiftType.OFF -> false
-    ShiftType.ALBA -> hour in 9..17
+private fun parseTimeRange(timeRange: String?): Pair<Int, Int>? {
+    if (timeRange.isNullOrBlank()) return null
+    val match = Regex("""(\d{1,2}):?\d*\s*-\s*(\d{1,2})""").find(timeRange) ?: return null
+    val start = match.groupValues[1].toIntOrNull() ?: return null
+    val end = match.groupValues[2].toIntOrNull() ?: return null
+    return start to end
 }
 
-private fun isShiftStartHour(hour: Int, shift: ShiftType): Boolean = when (shift) {
-    ShiftType.DAY -> hour == 8
-    ShiftType.NIGHT -> hour == 18
-    ShiftType.NIGHT_EARLY -> hour == 16
-    ShiftType.OFF -> false
-    ShiftType.ALBA -> hour == 9
+private fun isWithinTimeRange(hour: Int, timeRange: String?, fallbackShift: ShiftType?): Boolean {
+    val parsed = parseTimeRange(timeRange)
+    if (parsed != null) {
+        val (start, end) = parsed
+        return if (start <= end) hour in start until end
+        else hour >= start || hour < end
+    }
+    if (fallbackShift == null) return false
+    return when (fallbackShift) {
+        ShiftType.DAY -> hour in 6..16
+        ShiftType.NIGHT -> hour >= 18 || hour < 6
+        ShiftType.NIGHT_EARLY -> hour >= 16 || hour < 4
+        ShiftType.OFF -> false
+        ShiftType.ALBA -> hour in 9..17
+    }
+}
+
+private fun isStartHour(hour: Int, timeRange: String?, fallbackShift: ShiftType?): Boolean {
+    val parsed = parseTimeRange(timeRange)
+    if (parsed != null) return hour == parsed.first
+    if (fallbackShift == null) return false
+    return when (fallbackShift) {
+        ShiftType.DAY -> hour == 6
+        ShiftType.NIGHT -> hour == 18
+        ShiftType.NIGHT_EARLY -> hour == 16
+        ShiftType.OFF -> false
+        ShiftType.ALBA -> hour == 9
+    }
 }
 
 // ══════════════════════════════════════════════
@@ -1107,8 +1129,8 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
                 .padding(horizontal = 8.dp)
         ) {
             (0..23).forEach { hour ->
-                val isMyWork = myShift != null && isWithinShift(hour, myShift)
-                val isPartnerWork = partnerShift != null && isWithinShift(hour, partnerShift)
+                val isMyWork = isWithinTimeRange(hour, myShiftConfig?.defaultTimeRange, myShift)
+                val isPartnerWork = isWithinTimeRange(hour, partnerShiftConfig?.defaultTimeRange, partnerShift)
                 val hourEvents = events.filter {
                     it.startTime?.substringBefore(":")?.toIntOrNull() == hour
                 }
@@ -1141,7 +1163,7 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
                             .border(0.5.dp, DarkBorder.copy(alpha = 0.3f), RoundedCornerShape(4.dp)),
                         contentAlignment = Alignment.CenterStart
                     ) {
-                        if (isMyWork && myShift != null && isShiftStartHour(hour, myShift)) {
+                        if (isMyWork && (myShiftConfig != null || myShift != null) && isStartHour(hour, myShiftConfig?.defaultTimeRange, myShift)) {
                             Text(
                                 text = " ${myShiftConfig?.emoji ?: ""} ${myShiftConfig?.label ?: ""}",
                                 fontSize = 10.sp,
@@ -1172,7 +1194,7 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
                             .border(0.5.dp, DarkBorder.copy(alpha = 0.3f), RoundedCornerShape(4.dp)),
                         contentAlignment = Alignment.CenterStart
                     ) {
-                        if (isPartnerWork && partnerShift != null && isShiftStartHour(hour, partnerShift)) {
+                        if (isPartnerWork && (partnerShiftConfig != null || partnerShift != null) && isStartHour(hour, partnerShiftConfig?.defaultTimeRange, partnerShift)) {
                             Text(
                                 text = " ${partnerShiftConfig?.emoji ?: ""} ${partnerShiftConfig?.label ?: ""}",
                                 fontSize = 10.sp,

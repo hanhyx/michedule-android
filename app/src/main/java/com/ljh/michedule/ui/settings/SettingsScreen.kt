@@ -9,6 +9,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,20 +47,10 @@ fun SettingsScreen(
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val app = context.applicationContext as MicheduleApp
 
-    val myName by prefsManager.myName.collectAsState(initial = "")
-    val myCode by prefsManager.myCode.collectAsState(initial = "")
-    val partnerCode by prefsManager.partnerCode.collectAsState(initial = "")
-    val partnerName by prefsManager.partnerName.collectAsState(initial = "")
-    val syncPaused by prefsManager.syncPaused.collectAsState(initial = false)
-    val connectionMutual by prefsManager.connectionMutual.collectAsState(initial = false)
-
-    val alarmEnabled by prefsManager.alarmEnabled.collectAsState(initial = false)
-    val alarmHoursBefore by prefsManager.alarmHoursBefore.collectAsState(initial = 2)
-    val alarmDisabledTypes by prefsManager.alarmDisabledTypes.collectAsState(initial = emptySet())
-
-    var editName by remember(myName) { mutableStateOf(myName) }
-    var showClearConfirm by remember { mutableStateOf(false) }
+    val tabs = listOf("프로필", "근무", "기타")
+    val pagerState = rememberPagerState(pageCount = { tabs.size })
 
     LaunchedEffect(Unit) {
         prefsManager.ensureMyCode()
@@ -68,18 +60,73 @@ fun SettingsScreen(
         modifier = modifier
             .fillMaxSize()
             .background(DarkBg)
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
             text = "설정",
             style = MaterialTheme.typography.displayLarge,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(vertical = 8.dp)
+            modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp)
         )
 
-        // My Name
+        TabRow(
+            selectedTabIndex = pagerState.currentPage,
+            containerColor = DarkBg,
+            contentColor = Purple80,
+            divider = { HorizontalDivider(color = DarkBorder) }
+        ) {
+            tabs.forEachIndexed { index, title ->
+                Tab(
+                    selected = pagerState.currentPage == index,
+                    onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
+                    text = {
+                        Text(
+                            title,
+                            fontWeight = if (pagerState.currentPage == index) FontWeight.Bold else FontWeight.Normal,
+                            color = if (pagerState.currentPage == index) Purple80 else TextMuted
+                        )
+                    }
+                )
+            }
+        }
+
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            when (page) {
+                0 -> ProfileTab(prefsManager, app)
+                1 -> WorkTab(prefsManager, app, onAutofill)
+                2 -> OtherTab(app, onClearMonth)
+            }
+        }
+    }
+}
+
+// ══════════════════════════════════════════════
+//  TAB 1: 프로필
+// ══════════════════════════════════════════════
+
+@Composable
+private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    val myName by prefsManager.myName.collectAsState(initial = "")
+    val myCode by prefsManager.myCode.collectAsState(initial = "")
+    val partnerCode by prefsManager.partnerCode.collectAsState(initial = "")
+    val partnerName by prefsManager.partnerName.collectAsState(initial = "")
+    val syncPaused by prefsManager.syncPaused.collectAsState(initial = false)
+    val connectionMutual by prefsManager.connectionMutual.collectAsState(initial = false)
+
+    var editName by remember(myName) { mutableStateOf(myName) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
         SettingsCard(title = "내 이름") {
             OutlinedTextField(
                 value = editName,
@@ -96,7 +143,7 @@ fun SettingsScreen(
                     scope.launch {
                         val newName = editName.trim()
                         if (myName != newName) {
-                            (context.applicationContext as MicheduleApp).updateMyName(newName)
+                            app.updateMyName(newName)
                         }
                         Toast.makeText(context, "저장됨", Toast.LENGTH_SHORT).show()
                     }
@@ -109,113 +156,6 @@ fun SettingsScreen(
             }
         }
 
-        // Alarm settings
-        SettingsCard(title = "출근 알람") {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text("출근 전 알람", fontWeight = FontWeight.Medium, color = TextPrimary)
-                    Text(
-                        text = if (alarmEnabled) "출근 ${alarmHoursBefore}시간 전 알림" else "꺼짐",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextMuted
-                    )
-                }
-                Switch(
-                    checked = alarmEnabled,
-                    onCheckedChange = { enabled ->
-                        scope.launch {
-                            prefsManager.setAlarmEnabled(enabled)
-                            if (enabled) {
-                                Toast.makeText(context, "알람이 설정되었습니다", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Purple80,
-                        checkedTrackColor = Purple40,
-                        uncheckedThumbColor = TextMuted,
-                        uncheckedTrackColor = DarkSurface
-                    )
-                )
-            }
-            if (alarmEnabled) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text("출근 몇 시간 전?", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    listOf(1, 2, 3, 4).forEach { hours ->
-                        val isSelected = alarmHoursBefore == hours
-                        Surface(
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isSelected) Purple40 else DarkSurface,
-                            onClick = {
-                                scope.launch { prefsManager.setAlarmHoursBefore(hours) }
-                            }
-                        ) {
-                            Text(
-                                text = "${hours}시간",
-                                modifier = Modifier.padding(vertical = 10.dp),
-                                textAlign = TextAlign.Center,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) Purple80 else TextMuted,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "예: 야간(18:00) → ${alarmHoursBefore}시간 전 = ${18 - alarmHoursBefore}:00 알림",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted
-                )
-
-                HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 12.dp))
-                Text("근무 유형별 알림", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
-                Spacer(modifier = Modifier.height(8.dp))
-
-                val stm = (context.applicationContext as MicheduleApp).shiftTypeManager
-                val alarmTypes by stm.allTypes.collectAsState()
-                alarmTypes.filter { it.id != "off" }.forEach { cfg ->
-                    val code = cfg.id
-                    val label = "${cfg.emoji} ${cfg.label}"
-                    val isEnabled = code !in alarmDisabledTypes
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 2.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(label, style = MaterialTheme.typography.bodyMedium,
-                            color = if (isEnabled) TextPrimary else TextMuted)
-                        Switch(
-                            checked = isEnabled,
-                            onCheckedChange = { enabled ->
-                                scope.launch { prefsManager.toggleAlarmForType(code, enabled) }
-                            },
-                            modifier = Modifier.height(28.dp),
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Purple80,
-                                checkedTrackColor = Purple40,
-                                uncheckedThumbColor = TextMuted,
-                                uncheckedTrackColor = DarkSurface
-                            )
-                        )
-                    }
-                }
-            }
-        }
-
-        // My Code (always visible)
         SettingsCard(title = "일정 공유") {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -327,7 +267,6 @@ fun SettingsScreen(
                             onCheckedChange = { enabled ->
                                 scope.launch {
                                     prefsManager.setSyncPaused(!enabled)
-                                    val app = context.applicationContext as MicheduleApp
                                     if (enabled) app.startSync() else app.stopSync()
                                 }
                             },
@@ -367,7 +306,6 @@ fun SettingsScreen(
                             onClick = {
                                 if (changeCode.isNotBlank() && changeCode != myCode) {
                                     scope.launch {
-                                        val app = context.applicationContext as MicheduleApp
                                         app.connectPartner(changeCode.trim())
                                         showChangeInput = false
                                         changeCode = ""
@@ -396,7 +334,6 @@ fun SettingsScreen(
                         }
                         OutlinedButton(
                             onClick = {
-                                val app = context.applicationContext as MicheduleApp
                                 app.disconnectPartner()
                                 Toast.makeText(context, "연결이 해제되었습니다", Toast.LENGTH_SHORT).show()
                             },
@@ -410,7 +347,6 @@ fun SettingsScreen(
                     }
                 }
             } else {
-                // not connected
                 var joinCode by remember { mutableStateOf("") }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -440,7 +376,6 @@ fun SettingsScreen(
                         onClick = {
                             if (joinCode.isNotBlank() && joinCode != myCode) {
                                 scope.launch {
-                                    val app = context.applicationContext as MicheduleApp
                                     app.connectPartner(joinCode.trim())
                                     Toast.makeText(context, "코드 등록 완료! 상대방도 내 코드를 입력하면 연결됩니다", Toast.LENGTH_LONG).show()
                                 }
@@ -464,14 +399,163 @@ fun SettingsScreen(
             }
         }
 
-        // Shift type management
-        val app = context.applicationContext as MicheduleApp
+        Spacer(modifier = Modifier.height(80.dp))
+    }
+}
+
+// ══════════════════════════════════════════════
+//  TAB 2: 근무
+// ══════════════════════════════════════════════
+
+@Composable
+private fun WorkTab(
+    prefsManager: PrefsManager,
+    app: MicheduleApp,
+    onAutofill: (pattern: List<String>, startDate: String, endDate: String) -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    val alarmEnabled by prefsManager.alarmEnabled.collectAsState(initial = false)
+    val alarmHoursBefore by prefsManager.alarmHoursBefore.collectAsState(initial = 2)
+    val alarmDisabledTypes by prefsManager.alarmDisabledTypes.collectAsState(initial = emptySet())
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        SettingsCard(title = "출근 알람") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("출근 전 알람", fontWeight = FontWeight.Medium, color = TextPrimary)
+                    Text(
+                        text = if (alarmEnabled) "출근 ${alarmHoursBefore}시간 전 알림" else "꺼짐",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextMuted
+                    )
+                }
+                Switch(
+                    checked = alarmEnabled,
+                    onCheckedChange = { enabled ->
+                        scope.launch {
+                            prefsManager.setAlarmEnabled(enabled)
+                            if (enabled) {
+                                Toast.makeText(context, "알람이 설정되었습니다", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Purple80,
+                        checkedTrackColor = Purple40,
+                        uncheckedThumbColor = TextMuted,
+                        uncheckedTrackColor = DarkSurface
+                    )
+                )
+            }
+            if (alarmEnabled) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("출근 몇 시간 전?", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(1, 2, 3, 4).forEach { hours ->
+                        val isSelected = alarmHoursBefore == hours
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) Purple40 else DarkSurface,
+                            onClick = {
+                                scope.launch { prefsManager.setAlarmHoursBefore(hours) }
+                            }
+                        ) {
+                            Text(
+                                text = "${hours}시간",
+                                modifier = Modifier.padding(vertical = 10.dp),
+                                textAlign = TextAlign.Center,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) Purple80 else TextMuted,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "예: 야간(18:00) → ${alarmHoursBefore}시간 전 = ${18 - alarmHoursBefore}:00 알림",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextMuted
+                )
+
+                HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 12.dp))
+                Text("근무 유형별 알림", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val stm = app.shiftTypeManager
+                val alarmTypes by stm.allTypes.collectAsState()
+                alarmTypes.filter { it.id != "off" }.forEach { cfg ->
+                    val code = cfg.id
+                    val label = "${cfg.emoji} ${cfg.label}"
+                    val isEnabled = code !in alarmDisabledTypes
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(label, style = MaterialTheme.typography.bodyMedium,
+                            color = if (isEnabled) TextPrimary else TextMuted)
+                        Switch(
+                            checked = isEnabled,
+                            onCheckedChange = { enabled ->
+                                scope.launch { prefsManager.toggleAlarmForType(code, enabled) }
+                            },
+                            modifier = Modifier.height(28.dp),
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Purple80,
+                                checkedTrackColor = Purple40,
+                                uncheckedThumbColor = TextMuted,
+                                uncheckedTrackColor = DarkSurface
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
         ShiftTypeManagementCard(shiftTypeManager = app.shiftTypeManager)
 
-        // Pattern autofill
         PatternAutofillCard(onAutofill = onAutofill, shiftTypeManager = app.shiftTypeManager)
 
-        // Data management
+        Spacer(modifier = Modifier.height(80.dp))
+    }
+}
+
+// ══════════════════════════════════════════════
+//  TAB 3: 기타
+// ══════════════════════════════════════════════
+
+@Composable
+private fun OtherTab(app: MicheduleApp, onClearMonth: () -> Unit) {
+    val context = LocalContext.current
+    var showClearConfirm by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
         SettingsCard(title = "데이터 관리") {
             OutlinedButton(
                 onClick = { showClearConfirm = true },
@@ -485,7 +569,6 @@ fun SettingsScreen(
             }
         }
 
-        // App info
         SettingsCard(title = "앱 정보") {
             val versionName = try {
                 context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "?"

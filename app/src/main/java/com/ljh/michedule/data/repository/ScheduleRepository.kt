@@ -140,11 +140,12 @@ class ScheduleRepository(private val db: AppDatabase) {
     }
 
     suspend fun clearShift(date: LocalDate) {
-        val existing = shiftDao.getShift(date.toString())
-        if (existing?.memo.isNullOrBlank()) {
-            shiftDao.delete(date.toString())
+        val existing = shiftDao.getShift(date.toString()) ?: return
+        val hasOtherData = !existing.memo.isNullOrBlank() || existing.extraShifts.isNotBlank()
+        if (hasOtherData) {
+            shiftDao.upsert(existing.copy(type = ""))
         } else {
-            shiftDao.upsert(existing!!.copy(type = ""))
+            shiftDao.delete(date.toString())
         }
     }
 
