@@ -379,7 +379,7 @@ private fun TodayHeroBanner(uiState: CalendarUiState, stm: ShiftTypeManager) {
     val today = LocalDate.now()
     val todayStr = today.toString()
     val myShift = uiState.shifts[todayStr]?.let { stm.getById(it.type) }
-    val partnerShift = uiState.friendShifts[todayStr]?.let { stm.getById(it.type) }
+    val partnerShift = uiState.friendShifts[todayStr]?.let { stm.getByIdForPartner(it.type) }
     val mood = uiState.moods[todayStr]
 
     val myDisplayName = uiState.myName.ifBlank { "나" }
@@ -647,10 +647,11 @@ private fun MonthlyCalendarGrid(
                         if (uiState.viewingPartner) {
                             SoloCell(
                                 day = dayNum,
-                                shiftConfig = friendShiftEntity?.type?.let { stm.getById(it) },
+                                shiftConfig = friendShiftEntity?.type?.takeIf { it.isNotBlank() }?.let { stm.getByIdForPartner(it) },
                                 hasAlba = friendShiftEntity?.hasAlba ?: false,
                                 extraShifts = friendShiftEntity?.extraShifts ?: "",
                                 shiftTypeManager = stm,
+                                usePartnerTypes = true,
                                 memo = friendShiftEntity?.memo,
                                 mood = friendShiftEntity?.mood,
                                 todoCount = friendShiftEntity?.todoCount ?: 0,
@@ -706,6 +707,7 @@ private fun SoloCell(
     albaConfig: ShiftTypeConfig? = null,
     extraShifts: String = "",
     shiftTypeManager: ShiftTypeManager? = null,
+    usePartnerTypes: Boolean = false,
     memo: String?,
     mood: String?,
     moodNote: String? = null,
@@ -792,7 +794,7 @@ private fun SoloCell(
         val extraList = extraShifts.split(",").filter { it.isNotBlank() }
         val displayExtras = if (extraList.isEmpty() && hasAlba) listOf("alba") else extraList
         displayExtras.take(2).forEach { extraId ->
-            val ec = shiftTypeManager?.getById(extraId) ?: albaConfig
+            val ec = (if (usePartnerTypes) shiftTypeManager?.getByIdForPartner(extraId) else shiftTypeManager?.getById(extraId)) ?: albaConfig
             val extraColor = ec?.color ?: ShiftAlba
             Spacer(modifier = Modifier.height(2.dp))
             Column(
@@ -908,7 +910,7 @@ private fun WeeklyTimelineScreen(viewModel: CalendarViewModel, uiState: Calendar
                         val d = weekStart.plusDays(dayIdx.toLong())
                         val dateStr = d.toString()
                         val shiftConfig = uiState.shifts[dateStr]?.type?.takeIf { it.isNotBlank() }?.let { stm.getById(it) }
-                        val friendConfig = uiState.friendShifts[dateStr]?.type?.let { stm.getById(it) }
+                        val friendConfig = uiState.friendShifts[dateStr]?.type?.let { stm.getByIdForPartner(it) }
                         val shift = uiState.shifts[dateStr]?.let { ShiftType.fromString(it.type) }
                         val friendShift = uiState.friendShifts[dateStr]?.let { ShiftType.fromString(it.type) }
 
@@ -986,7 +988,7 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
     val date = uiState.selectedDate
     val dateStr = date.toString()
     val myShiftConfig = uiState.shifts[dateStr]?.type?.takeIf { it.isNotBlank() }?.let { stm.getById(it) }
-    val partnerShiftConfig = uiState.friendShifts[dateStr]?.type?.let { stm.getById(it) }
+    val partnerShiftConfig = uiState.friendShifts[dateStr]?.type?.let { stm.getByIdForPartner(it) }
     val myShift = uiState.shifts[dateStr]?.let { ShiftType.fromString(it.type) }
     val partnerShift = uiState.friendShifts[dateStr]?.let { ShiftType.fromString(it.type) }
     val memo = uiState.shifts[dateStr]?.memo

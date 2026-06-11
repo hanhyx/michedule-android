@@ -66,6 +66,7 @@ class ScheduleRepository(private val db: AppDatabase) {
 
     suspend fun syncDatePlans(plans: List<DatePlanEntity>, myName: String) {
         val localPlans = datePlanDao.getAllPlans()
+        val localPlanMap = localPlans.associateBy { it.date }
         val remoteDates = plans.map { it.date }.toSet()
 
         localPlans.forEach { local ->
@@ -78,7 +79,14 @@ class ScheduleRepository(private val db: AppDatabase) {
         }
 
         plans.filter { it.date !in cancelledPlanDates }
-            .forEach { datePlanDao.upsert(it) }
+            .forEach { remotePlan ->
+                val localPlan = localPlanMap[remotePlan.date]
+                val isMyLocalPlan = localPlan != null &&
+                    (localPlan.createdBy == myName || localPlan.createdBy == "나")
+                if (!isMyLocalPlan) {
+                    datePlanDao.upsert(remotePlan)
+                }
+            }
 
         cancelledPlanDates.removeAll { it !in remoteDates }
     }

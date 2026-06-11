@@ -662,7 +662,7 @@ fun PartnerDayDetailSheet(
     shiftTypeManager: ShiftTypeManager,
     onDismiss: () -> Unit
 ) {
-    val shiftConfig = friendShift?.type?.takeIf { it.isNotBlank() }?.let { shiftTypeManager.getById(it) }
+    val shiftConfig = friendShift?.type?.takeIf { it.isNotBlank() }?.let { shiftTypeManager.getByIdForPartner(it) }
     val partnerName = friendShift?.friendName?.ifBlank { "상대" } ?: "상대"
     val formatter = DateTimeFormatter.ofPattern("M월 d일 (E)")
 
@@ -742,7 +742,7 @@ fun PartnerDayDetailSheet(
             if (partnerExtras.isNotEmpty()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     partnerExtras.forEach { extraId ->
-                        val ec = shiftTypeManager.getById(extraId)
+                        val ec = shiftTypeManager.getByIdForPartner(extraId)
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = (ec?.color ?: Color(0xFFFBBF24)).copy(alpha = 0.15f),
