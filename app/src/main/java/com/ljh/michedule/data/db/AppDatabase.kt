@@ -11,7 +11,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
     entities = [ShiftEntity::class, EventEntity::class, FriendShiftEntity::class,
         TodoEntity::class, MoodEntity::class, ShiftHistoryEntity::class, DatePlanEntity::class,
         ShiftTypeConfig::class],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -118,11 +118,22 @@ abstract class AppDatabase : RoomDatabase() {
                 """.trimIndent())
                 ShiftTypeConfig.DEFAULTS.forEach { c ->
                     db.execSQL(
-                        "INSERT OR IGNORE INTO shift_type_configs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        "INSERT OR IGNORE INTO shift_type_configs (id, label, shortLabel, emoji, colorHex, bgColorHex, defaultTimeRange, sortOrder, inCycle, isBuiltIn) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         arrayOf(c.id, c.label, c.shortLabel, c.emoji, c.colorHex, c.bgColorHex,
                             c.defaultTimeRange, c.sortOrder, if (c.inCycle) 1 else 0, if (c.isBuiltIn) 1 else 0)
                     )
                 }
+            }
+        }
+
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `shift_type_configs` ADD COLUMN `category` TEXT NOT NULL DEFAULT 'primary'")
+                db.execSQL("UPDATE `shift_type_configs` SET `category` = 'extra' WHERE `id` = 'alba'")
+                db.execSQL("ALTER TABLE `shifts` ADD COLUMN `extraShifts` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("UPDATE `shifts` SET `extraShifts` = 'alba' WHERE `hasAlba` = 1")
+                db.execSQL("ALTER TABLE `friend_shifts` ADD COLUMN `extraShifts` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("UPDATE `friend_shifts` SET `extraShifts` = 'alba' WHERE `hasAlba` = 1")
             }
         }
 
@@ -133,15 +144,15 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "michedule.db"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)
                         ShiftTypeConfig.DEFAULTS.forEach { c ->
                             db.execSQL(
-                                "INSERT OR IGNORE INTO shift_type_configs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                                "INSERT OR IGNORE INTO shift_type_configs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                                 arrayOf(c.id, c.label, c.shortLabel, c.emoji, c.colorHex, c.bgColorHex,
-                                    c.defaultTimeRange, c.sortOrder, if (c.inCycle) 1 else 0, if (c.isBuiltIn) 1 else 0)
+                                    c.defaultTimeRange, c.sortOrder, if (c.inCycle) 1 else 0, if (c.isBuiltIn) 1 else 0, c.category)
                             )
                         }
                     }

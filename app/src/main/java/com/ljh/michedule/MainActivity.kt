@@ -67,16 +67,18 @@ class MainActivity : ComponentActivity() {
                 }
 
                 LaunchedEffect(Unit) {
-                    val currentVersion = try {
-                        context.packageManager
-                            .getPackageInfo(context.packageName, 0)
-                            .versionName ?: "1.0.0"
-                    } catch (_: Exception) { "1.0.0" }
+                    if (!BuildConfig.DEBUG) {
+                        val currentVersion = try {
+                            context.packageManager
+                                .getPackageInfo(context.packageName, 0)
+                                .versionName ?: "1.0.0"
+                        } catch (_: Exception) { "1.0.0" }
 
-                    val info = UpdateChecker.checkForUpdate(currentVersion)
-                    if (info.hasUpdate) {
-                        updateInfo = info
-                        showUpdateDialog = true
+                        val info = UpdateChecker.checkForUpdate(currentVersion)
+                        if (info.hasUpdate) {
+                            updateInfo = info
+                            showUpdateDialog = true
+                        }
                     }
                 }
 

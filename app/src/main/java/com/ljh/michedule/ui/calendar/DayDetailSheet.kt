@@ -49,6 +49,7 @@ fun DayDetailSheet(
     onShiftSelectById: (String) -> Unit = {},
     onShiftClear: () -> Unit,
     onAlbaToggle: (Boolean) -> Unit,
+    onExtraShiftToggle: (String) -> Unit = {},
     onShiftTimeEdit: (ShiftType, String) -> Unit,
     onMemoChange: (String?) -> Unit,
     onAddEvent: () -> Unit,
@@ -57,6 +58,7 @@ fun DayDetailSheet(
     onToggleTodo: (Long, Boolean) -> Unit,
     onDeleteTodo: (Long) -> Unit,
     onMoodSelect: (String, String) -> Unit,
+    myName: String = "",
     onDatePlanSet: (String) -> Unit = {},
     onDatePlanDelete: () -> Unit = {}
 ) {
@@ -113,56 +115,63 @@ fun DayDetailSheet(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ── 1. 알바 토글 (최상단) ──
-            val albaConfig = shiftTypeManager.getById("alba")
-            val albaColor = albaConfig?.color ?: ShiftAlba
-            val albaActive = shift?.hasAlba ?: false
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .clickable { onAlbaToggle(!albaActive) },
-                shape = RoundedCornerShape(10.dp),
-                color = if (albaActive) albaColor.copy(alpha = 0.15f) else DarkSurface,
-                border = BorderStroke(1.dp, if (albaActive) albaColor else DarkBorder)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(albaConfig?.emoji ?: "💼", fontSize = 20.sp)
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("${albaConfig?.label ?: "알바"} (투잡)", fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                            color = if (albaActive) albaColor else TextPrimary)
-                        Text(
-                            text = albaConfig?.defaultTimeRange ?: "시간 미정",
-                            fontSize = 11.sp,
-                            color = if (albaActive) albaColor.copy(alpha = 0.7f) else TextMuted
-                        )
-                    }
-                    TextButton(
-                        onClick = { editingShiftType = ShiftType.ALBA },
-                        modifier = Modifier.padding(end = 4.dp)
-                    ) {
-                        Text("⏰", fontSize = 14.sp)
-                    }
-                    Switch(
-                        checked = albaActive,
-                        onCheckedChange = { onAlbaToggle(it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = albaColor,
-                            uncheckedThumbColor = TextMuted,
-                            uncheckedTrackColor = DarkBorder
-                        )
-                    )
-                }
-            }
+            // ── 1. 추가 근무 토글 (복수 선택) ──
+            val extraTypes by shiftTypeManager.extraTypes.collectAsState()
+            val activeExtras = shift?.getExtraShiftList() ?: emptyList()
 
-            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
+            if (extraTypes.isNotEmpty()) {
+                Text(
+                    "추가 근무",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = TextMuted,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+                extraTypes.forEach { extra ->
+                    val isActive = extra.id in activeExtras
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 3.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { onExtraShiftToggle(extra.id) },
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isActive) extra.color.copy(alpha = 0.15f) else DarkSurface,
+                        border = BorderStroke(1.dp, if (isActive) extra.color else DarkBorder)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(extra.emoji, fontSize = 20.sp)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(extra.label, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                                    color = if (isActive) extra.color else TextPrimary)
+                                Text(
+                                    text = extra.defaultTimeRange,
+                                    fontSize = 11.sp,
+                                    color = if (isActive) extra.color.copy(alpha = 0.7f) else TextMuted
+                                )
+                            }
+                            Switch(
+                                checked = isActive,
+                                onCheckedChange = { onExtraShiftToggle(extra.id) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = extra.color,
+                                    uncheckedThumbColor = TextMuted,
+                                    uncheckedTrackColor = DarkBorder
+                                )
+                            )
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
+            }
 
             // ── 2. 메모 ──
             Text("📝 메모", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
@@ -202,7 +211,7 @@ fun DayDetailSheet(
             HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
 
             // ── 3. 우리 만나요 ──
-            DatePlanSection(datePlan = datePlan, onDatePlanSet = onDatePlanSet, onDatePlanDelete = onDatePlanDelete)
+            DatePlanSection(datePlan = datePlan, myName = myName, onDatePlanSet = onDatePlanSet, onDatePlanDelete = onDatePlanDelete)
 
             HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
 
@@ -721,18 +730,24 @@ fun PartnerDayDetailSheet(
                                 )
                             }
                         }
-                        if (friendShift?.hasAlba == true) {
+                        val partnerExtras = friendShift?.getExtraShiftList() ?: emptyList()
+                        if (partnerExtras.isNotEmpty()) {
                             Spacer(modifier = Modifier.weight(1f))
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = Color(0xFFFBBF24).copy(alpha = 0.2f)
-                            ) {
-                                Text(
-                                    "🍺 알바",
-                                    fontSize = 11.sp,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    color = Color(0xFFFBBF24)
-                                )
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                partnerExtras.take(3).forEach { extraId ->
+                                    val ec = shiftTypeManager.getById(extraId)
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = (ec?.color ?: Color(0xFFFBBF24)).copy(alpha = 0.2f)
+                                    ) {
+                                        Text(
+                                            "${ec?.emoji ?: "💼"} ${ec?.shortLabel ?: extraId}",
+                                            fontSize = 11.sp,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            color = ec?.color ?: Color(0xFFFBBF24)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -822,6 +837,7 @@ fun PartnerDayDetailSheet(
 @Composable
 private fun DatePlanSection(
     datePlan: DatePlanEntity?,
+    myName: String,
     onDatePlanSet: (String) -> Unit,
     onDatePlanDelete: () -> Unit
 ) {
@@ -846,12 +862,15 @@ private fun DatePlanSection(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("💕 데이트 예정!", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = heartColor)
                     Spacer(modifier = Modifier.weight(1f))
-                    Text(
-                        "취소",
-                        fontSize = 12.sp,
-                        color = TextMuted,
-                        modifier = Modifier.clickable { onDatePlanDelete() }
-                    )
+                    val canCancel = datePlan.createdBy == myName || datePlan.createdBy == "나"
+                    if (canCancel) {
+                        Text(
+                            "취소",
+                            fontSize = 12.sp,
+                            color = TextMuted,
+                            modifier = Modifier.clickable { onDatePlanDelete() }
+                        )
+                    }
                 }
                 if (datePlan.memo.isNotBlank()) {
                     Spacer(modifier = Modifier.height(4.dp))
