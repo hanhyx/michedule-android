@@ -30,6 +30,7 @@ data class CalendarUiState(
     val viewMode: ViewMode = ViewMode.MONTHLY,
     val showDayDetail: Boolean = false,
     val myName: String = "",
+    val myCode: String = "",
     val partnerName: String = "",
     val isLocked: Boolean = false,
     val viewingPartner: Boolean = false,
@@ -115,6 +116,12 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         }
 
         viewModelScope.launch {
+            app.prefsManager.myCode.collect { code ->
+                _uiState.update { it.copy(myCode = code) }
+            }
+        }
+
+        viewModelScope.launch {
             app.prefsManager.calendarLocked.collect { locked ->
                 _uiState.update { it.copy(isLocked = locked) }
             }
@@ -194,8 +201,8 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     fun setDatePlan(date: LocalDate, memo: String) {
         viewModelScope.launch {
-            val myName = _uiState.value.myName.ifBlank { "나" }
-            repo.setDatePlan(date, memo, myName)
+            val myCode = _uiState.value.myCode.ifBlank { app.prefsManager.ensureMyCode() }
+            repo.setDatePlan(date, memo, myCode)
             app.triggerUpload()
             app.sendDatePlanPush(date.toString(), memo)
         }

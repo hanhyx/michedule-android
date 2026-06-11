@@ -163,7 +163,8 @@ class SupabaseSync(
             Log.d(TAG, "Mutual connection confirmed with $partnerCode")
 
             if (friendRow.shift_types.isNotEmpty()) {
-                val partnerTypes = mutableMapOf<String, ShiftTypeConfig>()
+                val partnerTypesList = mutableListOf<ShiftTypeConfig>()
+                var sortIdx = 0
                 friendRow.shift_types.forEach { (id, value) ->
                     val obj = value as? JsonObject ?: return@forEach
                     val label = (obj["label"] as? JsonPrimitive)?.content ?: return@forEach
@@ -171,13 +172,14 @@ class SupabaseSync(
                     val emoji = (obj["emoji"] as? JsonPrimitive)?.content ?: "📋"
                     val color = (obj["color"] as? JsonPrimitive)?.content ?: "#FF808080"
                     val bg = (obj["bg"] as? JsonPrimitive)?.content ?: "#33808080"
-                    partnerTypes[id] = ShiftTypeConfig(
+                    partnerTypesList.add(ShiftTypeConfig(
                         id = id, label = label, shortLabel = short, emoji = emoji,
                         colorHex = color, bgColorHex = bg, defaultTimeRange = "",
-                        sortOrder = 0, inCycle = false, isBuiltIn = false
-                    )
+                        sortOrder = sortIdx++, inCycle = false, isBuiltIn = false,
+                        owner = "partner"
+                    ))
                 }
-                shiftTypeManager?.setPartnerTypes(partnerTypes)
+                shiftTypeManager?.replacePartnerTypes(partnerTypesList)
             }
 
             val newShiftsMap = mutableMapOf<String, String>()
@@ -230,11 +232,10 @@ class SupabaseSync(
             val remotePlans = friendRow.date_plans.mapNotNull { (date, value) ->
                 val obj = value as? kotlinx.serialization.json.JsonObject ?: return@mapNotNull null
                 val memo = (obj["memo"] as? JsonPrimitive)?.content ?: ""
-                val by = (obj["by"] as? JsonPrimitive)?.content ?: friendRow.user_name
+                val by = (obj["by"] as? JsonPrimitive)?.content ?: partnerCode
                 DatePlanEntity(date = date, memo = memo, createdBy = by)
             }
-            val myName = prefsManager.myName.first()
-            repo.syncDatePlans(remotePlans, myName)
+            repo.syncDatePlans(remotePlans, myCode)
 
             if (!isFirstSync && appContext != null) {
                 val changes = detectChanges(lastKnownFriendShifts, newShiftsMap)

@@ -4,9 +4,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "shift_type_configs")
+@Entity(tableName = "shift_type_configs", primaryKeys = ["id", "owner"])
 data class ShiftTypeConfig(
-    @PrimaryKey val id: String,
+    val id: String,
     val label: String,
     val shortLabel: String,
     val emoji: String,
@@ -16,7 +16,8 @@ data class ShiftTypeConfig(
     val sortOrder: Int,
     val inCycle: Boolean,
     val isBuiltIn: Boolean,
-    val category: String = "primary"
+    val category: String = "primary",
+    val owner: String = "mine"
 ) {
     val isPrimary: Boolean get() = category == "primary"
     val isExtra: Boolean get() = category == "extra"

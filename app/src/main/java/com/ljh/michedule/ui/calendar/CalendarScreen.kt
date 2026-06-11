@@ -223,6 +223,8 @@ fun CalendarScreen(
                 onDeleteTodo = { viewModel.deleteTodo(it) },
                 onMoodSelect = { emoji, note -> viewModel.setMood(emoji, note) },
                 myName = uiState.myName.ifBlank { "나" },
+                myCode = uiState.myCode,
+                partnerName = uiState.partnerName,
                 datePlan = uiState.currentDatePlan,
                 onDatePlanSet = { memo -> viewModel.setDatePlan(uiState.selectedDate, memo) },
                 onDatePlanDelete = { viewModel.deleteDatePlan(uiState.selectedDate) }

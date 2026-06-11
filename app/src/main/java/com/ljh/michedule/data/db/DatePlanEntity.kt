@@ -34,9 +34,6 @@ interface DatePlanDao {
     @Query("DELETE FROM date_plans")
     suspend fun deleteAll()
 
-    @Query("UPDATE date_plans SET createdBy = :newName WHERE createdBy = :oldName")
-    suspend fun updateCreatedBy(oldName: String, newName: String)
-
-    @Query("UPDATE date_plans SET createdBy = :newName WHERE createdBy != :partnerName AND createdBy != :newName")
-    suspend fun updateAllMyCreatedBy(newName: String, partnerName: String)
+    @Query("UPDATE date_plans SET createdBy = :myCode WHERE createdBy != :partnerCode AND createdBy != :myCode AND createdBy != ''")
+    suspend fun migrateCreatedByToCode(myCode: String, partnerCode: String)
 }

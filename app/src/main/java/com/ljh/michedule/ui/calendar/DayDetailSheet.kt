@@ -59,6 +59,8 @@ fun DayDetailSheet(
     onDeleteTodo: (Long) -> Unit,
     onMoodSelect: (String, String) -> Unit,
     myName: String = "",
+    myCode: String = "",
+    partnerName: String = "",
     onDatePlanSet: (String) -> Unit = {},
     onDatePlanDelete: () -> Unit = {}
 ) {
@@ -212,7 +214,7 @@ fun DayDetailSheet(
             HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
 
             // ── 3. 우리 만나요 ──
-            DatePlanSection(datePlan = datePlan, myName = myName, onDatePlanSet = onDatePlanSet, onDatePlanDelete = onDatePlanDelete)
+            DatePlanSection(datePlan = datePlan, myName = myName, myCode = myCode, partnerName = partnerName, onDatePlanSet = onDatePlanSet, onDatePlanDelete = onDatePlanDelete)
 
             HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
 
@@ -841,6 +843,8 @@ fun PartnerDayDetailSheet(
 private fun DatePlanSection(
     datePlan: DatePlanEntity?,
     myName: String,
+    myCode: String = "",
+    partnerName: String = "",
     onDatePlanSet: (String) -> Unit,
     onDatePlanDelete: () -> Unit
 ) {
@@ -855,6 +859,13 @@ private fun DatePlanSection(
     Spacer(modifier = Modifier.height(8.dp))
 
     if (datePlan != null) {
+        val canCancel = datePlan.createdBy == myCode || datePlan.createdBy == myName || datePlan.createdBy == "나"
+        val displayName = when (datePlan.createdBy) {
+            myCode -> myName.ifBlank { "나" }
+            "나" -> myName.ifBlank { "나" }
+            else -> partnerName.ifBlank { datePlan.createdBy }
+        }
+
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(10.dp),
@@ -865,7 +876,6 @@ private fun DatePlanSection(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("💕 데이트 예정!", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = heartColor)
                     Spacer(modifier = Modifier.weight(1f))
-                    val canCancel = datePlan.createdBy == myName || datePlan.createdBy == "나"
                     if (canCancel) {
                         Text(
                             "취소",
@@ -879,9 +889,9 @@ private fun DatePlanSection(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(datePlan.memo, fontSize = 13.sp, color = TextPrimary)
                 }
-                if (datePlan.createdBy.isNotBlank()) {
+                if (displayName.isNotBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text("by ${datePlan.createdBy}", fontSize = 10.sp, color = TextMuted)
+                    Text("by $displayName", fontSize = 10.sp, color = TextMuted)
                 }
             }
         }

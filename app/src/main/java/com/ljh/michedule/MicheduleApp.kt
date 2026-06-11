@@ -41,6 +41,7 @@ class MicheduleApp : Application() {
         startSync()
         loadCustomTimeRanges()
         initFcmToken()
+        migrateCreatedByToCode()
 
         val prefs = getSharedPreferences("michedule_init", MODE_PRIVATE)
         if (!prefs.getBoolean("cleared_june_seed_v1", false)) {
@@ -90,15 +91,9 @@ class MicheduleApp : Application() {
         }
     }
 
-    fun updateMyName(oldName: String, newName: String) {
+    fun updateMyName(newName: String) {
         appScope.launch {
             prefsManager.setMyName(newName)
-            if (oldName.isBlank()) {
-                val partnerName = prefsManager.partnerName.first()
-                repository.updateAllMyDatePlanCreatedBy(newName, partnerName)
-            } else {
-                repository.updateDatePlanCreatedBy(oldName, newName)
-            }
             triggerUpload()
         }
     }
@@ -134,6 +129,24 @@ class MicheduleApp : Application() {
                     ShiftType.fromString(code)?.let { result[it] = range }
                 }
                 ShiftType.customTimeRanges = result
+            }
+        }
+    }
+
+    private fun migrateCreatedByToCode() {
+        val prefs = getSharedPreferences("michedule_init", MODE_PRIVATE)
+        if (prefs.getBoolean("migrated_createdby_v1", false)) return
+        appScope.launch {
+            try {
+                val myCode = prefsManager.ensureMyCode()
+                val partnerCode = prefsManager.partnerCode.first()
+                if (myCode.isNotBlank()) {
+                    repository.migrateCreatedByToCode(myCode, partnerCode)
+                    prefs.edit().putBoolean("migrated_createdby_v1", true).apply()
+                    Log.d("MicheduleApp", "Migrated date_plans createdBy to user_code")
+                }
+            } catch (e: Exception) {
+                Log.e("MicheduleApp", "createdBy migration failed", e)
             }
         }
     }

@@ -48,12 +48,8 @@ class ScheduleRepository(private val db: AppDatabase) {
         datePlanDao.upsert(DatePlanEntity(date = date.toString(), memo = memo, createdBy = createdBy))
     }
 
-    suspend fun updateDatePlanCreatedBy(oldName: String, newName: String) {
-        datePlanDao.updateCreatedBy(oldName, newName)
-    }
-
-    suspend fun updateAllMyDatePlanCreatedBy(newName: String, partnerName: String) {
-        datePlanDao.updateAllMyCreatedBy(newName, partnerName)
+    suspend fun migrateCreatedByToCode(myCode: String, partnerCode: String) {
+        datePlanDao.migrateCreatedByToCode(myCode, partnerCode)
     }
 
     private val cancelledPlanDates = mutableSetOf<String>()
@@ -64,14 +60,14 @@ class ScheduleRepository(private val db: AppDatabase) {
         datePlanDao.deleteForDate(dateStr)
     }
 
-    suspend fun syncDatePlans(plans: List<DatePlanEntity>, myName: String) {
+    suspend fun syncDatePlans(plans: List<DatePlanEntity>, myCode: String) {
         val localPlans = datePlanDao.getAllPlans()
         val localPlanMap = localPlans.associateBy { it.date }
         val remoteDates = plans.map { it.date }.toSet()
 
         localPlans.forEach { local ->
             if (local.date !in remoteDates) {
-                val isMyPlan = local.createdBy == myName || local.createdBy == "나"
+                val isMyPlan = local.createdBy == myCode
                 if (!isMyPlan) {
                     datePlanDao.deleteForDate(local.date)
                 }
@@ -81,8 +77,7 @@ class ScheduleRepository(private val db: AppDatabase) {
         plans.filter { it.date !in cancelledPlanDates }
             .forEach { remotePlan ->
                 val localPlan = localPlanMap[remotePlan.date]
-                val isMyLocalPlan = localPlan != null &&
-                    (localPlan.createdBy == myName || localPlan.createdBy == "나")
+                val isMyLocalPlan = localPlan != null && localPlan.createdBy == myCode
                 if (!isMyLocalPlan) {
                     datePlanDao.upsert(remotePlan)
                 }

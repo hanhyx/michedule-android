@@ -94,10 +94,9 @@ fun SettingsScreen(
             Button(
                 onClick = {
                     scope.launch {
-                        val oldName = myName
                         val newName = editName.trim()
-                        if (oldName != newName) {
-                            (context.applicationContext as MicheduleApp).updateMyName(oldName, newName)
+                        if (myName != newName) {
+                            (context.applicationContext as MicheduleApp).updateMyName(newName)
                         }
                         Toast.makeText(context, "저장됨", Toast.LENGTH_SHORT).show()
                     }

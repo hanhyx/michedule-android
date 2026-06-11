@@ -27,7 +27,8 @@ class ShiftTypeManager(
 
     private val typeMap = MutableStateFlow<Map<String, ShiftTypeConfig>>(emptyMap())
 
-    private var partnerTypes: Map<String, ShiftTypeConfig> = emptyMap()
+    private val _partnerTypes = MutableStateFlow<Map<String, ShiftTypeConfig>>(emptyMap())
+    val partnerTypesFlow: StateFlow<Map<String, ShiftTypeConfig>> = _partnerTypes.asStateFlow()
 
     init {
         scope.launch {
@@ -37,17 +38,22 @@ class ShiftTypeManager(
             }
         }
         scope.launch {
+            dao.getPartnerFlow().collect { list ->
+                _partnerTypes.value = list.associateBy { it.id }
+            }
+        }
+        scope.launch {
             if (dao.count() == 0) {
-                dao.upsertAll(ShiftTypeConfig.DEFAULTS)
+                dao.upsertAll(ShiftTypeConfig.DEFAULTS.map { it.copy(owner = "mine") })
             }
         }
     }
 
     fun getById(id: String): ShiftTypeConfig? =
-        typeMap.value[id] ?: partnerTypes[id] ?: ShiftTypeConfig.DEFAULTS.find { it.id == id }
+        typeMap.value[id] ?: _partnerTypes.value[id] ?: ShiftTypeConfig.DEFAULTS.find { it.id == id }
 
     fun getByIdForPartner(id: String): ShiftTypeConfig? =
-        partnerTypes[id] ?: ShiftTypeConfig.DEFAULTS.find { it.id == id } ?: typeMap.value[id]
+        _partnerTypes.value[id] ?: ShiftTypeConfig.DEFAULTS.find { it.id == id } ?: typeMap.value[id]
 
     fun cycleNext(currentId: String?): String? {
         val cycle = cycleTypes.value
@@ -59,7 +65,7 @@ class ShiftTypeManager(
     }
 
     suspend fun save(config: ShiftTypeConfig) {
-        dao.upsert(config)
+        dao.upsert(config.copy(owner = "mine"))
     }
 
     suspend fun deleteType(id: String) {
@@ -75,11 +81,12 @@ class ShiftTypeManager(
 
     suspend fun reorder(configs: List<ShiftTypeConfig>) {
         configs.forEachIndexed { index, config ->
-            dao.upsert(config.copy(sortOrder = index))
+            dao.upsert(config.copy(sortOrder = index, owner = "mine"))
         }
     }
 
-    fun setPartnerTypes(types: Map<String, ShiftTypeConfig>) {
-        partnerTypes = types
+    suspend fun replacePartnerTypes(types: List<ShiftTypeConfig>) {
+        dao.deleteAllPartner()
+        dao.upsertAll(types.map { it.copy(owner = "partner") })
     }
 }
