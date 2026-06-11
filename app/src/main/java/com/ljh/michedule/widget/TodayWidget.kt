@@ -305,6 +305,24 @@ private fun TodayWidgetContent(
                         }
                     }
 
+                    val pExtras = partnerDetail.shift.getExtraShiftList()
+                    val pDisplayExtras = pExtras.ifEmpty { if (partnerDetail.shift.hasAlba) listOf("alba") else emptyList() }
+                    pDisplayExtras.take(2).forEach { extraId ->
+                        Spacer(modifier = GlanceModifier.height(3.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("💼", style = TextStyle(fontSize = 9.sp))
+                            Spacer(modifier = GlanceModifier.width(3.dp))
+                            Text(
+                                extraId,
+                                style = TextStyle(
+                                    color = ColorProvider(albaColor, albaColor),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                        }
+                    }
+
                     // 상대 메모
                     if (!partnerDetail.memo.isNullOrBlank()) {
                         Spacer(modifier = GlanceModifier.height(3.dp))

@@ -243,24 +243,35 @@ private fun WeekWidgetContent(
                         val pColor = (partnerInfo?.config?.color ?: partnerInfo?.type?.color)
                             ?.copy(alpha = 0.7f) ?: Color.Transparent
 
+                        val pExtras = partnerInfo?.getExtraShiftList() ?: emptyList()
+                        val pHasExtra = pExtras.isNotEmpty() || (partnerInfo?.hasAlba == true)
+
                         Box(
                             modifier = GlanceModifier.defaultWeight(),
                             contentAlignment = Alignment.Center
                         ) {
-                            if (pLabel.isNotBlank()) {
-                                Box(
-                                    modifier = GlanceModifier
-                                        .cornerRadius(4.dp)
-                                        .background(ColorProvider(pColor.copy(alpha = 0.15f), pColor.copy(alpha = 0.15f)))
-                                        .padding(horizontal = 4.dp, vertical = 1.dp)
-                                ) {
-                                    Text(
-                                        pLabel,
-                                        style = TextStyle(
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = ColorProvider(pColor, pColor)
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                if (pLabel.isNotBlank()) {
+                                    Box(
+                                        modifier = GlanceModifier
+                                            .cornerRadius(4.dp)
+                                            .background(ColorProvider(pColor.copy(alpha = 0.15f), pColor.copy(alpha = 0.15f)))
+                                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                                    ) {
+                                        Text(
+                                            pLabel,
+                                            style = TextStyle(
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = ColorProvider(pColor, pColor)
+                                            )
                                         )
+                                    }
+                                }
+                                if (pHasExtra) {
+                                    Text(
+                                        "💼",
+                                        style = TextStyle(fontSize = 8.sp)
                                     )
                                 }
                             }
