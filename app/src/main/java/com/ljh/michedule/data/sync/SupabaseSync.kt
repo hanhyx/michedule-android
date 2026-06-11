@@ -379,12 +379,13 @@ class SupabaseSync(
 
             val allDatePlans = repo.getAllDatePlans()
             val datePlansJson = buildJsonObject {
-                allDatePlans.forEach { plan ->
-                    put(plan.date, buildJsonObject {
-                        put("memo", plan.memo)
-                        put("by", plan.createdBy)
-                    })
-                }
+                allDatePlans.filter { it.createdBy == myName || it.createdBy == "나" }
+                    .forEach { plan ->
+                        put(plan.date, buildJsonObject {
+                            put("memo", plan.memo)
+                            put("by", plan.createdBy)
+                        })
+                    }
             }
 
             val shiftTypesJson = buildJsonObject {
