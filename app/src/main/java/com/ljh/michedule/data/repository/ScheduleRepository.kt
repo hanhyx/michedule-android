@@ -52,11 +52,11 @@ class ScheduleRepository(private val db: AppDatabase) {
         datePlanDao.deleteForDate(date.toString())
     }
 
-    suspend fun syncDatePlans(plans: List<DatePlanEntity>) {
+    suspend fun syncDatePlans(plans: List<DatePlanEntity>, partnerName: String) {
         val remoteDates = plans.map { it.date }.toSet()
         val localPlans = datePlanDao.getAllPlans()
         localPlans.forEach { local ->
-            if (local.date !in remoteDates) {
+            if (local.date !in remoteDates && local.createdBy == partnerName) {
                 datePlanDao.deleteForDate(local.date)
             }
         }

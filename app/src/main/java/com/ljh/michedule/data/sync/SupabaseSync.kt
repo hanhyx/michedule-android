@@ -216,7 +216,7 @@ class SupabaseSync(
                 val by = (obj["by"] as? JsonPrimitive)?.content ?: friendRow.user_name
                 DatePlanEntity(date = date, memo = memo, createdBy = by)
             }
-            repo.syncDatePlans(remotePlans)
+            repo.syncDatePlans(remotePlans, friendRow.user_name)
 
             if (!isFirstSync && appContext != null) {
                 val changes = detectChanges(lastKnownFriendShifts, newShiftsMap)
