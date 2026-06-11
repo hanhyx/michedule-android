@@ -19,6 +19,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import com.ljh.michedule.MainActivity
 import com.ljh.michedule.data.db.AppDatabase
+import com.ljh.michedule.data.db.ShiftTypeConfig
 import com.ljh.michedule.model.ShiftType
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -38,9 +39,14 @@ class WeekWidget : GlanceAppWidget() {
         val db = AppDatabase.getInstance(context)
 
         val (myShifts, partnerShifts) = withContext(Dispatchers.IO) {
-            val typeConfigs = try {
+            val myTypeConfigs = try {
                 db.shiftTypeConfigDao().getAll().associateBy { it.id }
             } catch (_: Exception) { emptyMap() }
+            val partnerTypeConfigs = try {
+                db.shiftTypeConfigDao().getPartner().associateBy { it.id }
+            } catch (_: Exception) { emptyMap() }
+            val typeConfigs = myTypeConfigs + ShiftTypeConfig.DEFAULTS.associateBy { it.id }
+            val pTypeMap = partnerTypeConfigs + ShiftTypeConfig.DEFAULTS.associateBy { it.id }
 
             val mine = db.shiftDao().getAllShifts()
                 .filter { it.date in weekStartStr..weekEndStr }
@@ -60,7 +66,7 @@ class WeekWidget : GlanceAppWidget() {
                 friends.associate {
                     it.date to WidgetShiftInfo(
                         ShiftType.fromString(it.type),
-                        typeConfigs[it.type],
+                        pTypeMap[it.type],
                         it.hasAlba,
                         it.extraShifts
                     )

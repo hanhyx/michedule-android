@@ -135,15 +135,16 @@ class MicheduleApp : Application() {
 
     private fun migrateCreatedByToCode() {
         val prefs = getSharedPreferences("michedule_init", MODE_PRIVATE)
-        if (prefs.getBoolean("migrated_createdby_v1", false)) return
+        if (prefs.getBoolean("migrated_createdby_v2", false)) return
         appScope.launch {
             try {
                 val myCode = prefsManager.ensureMyCode()
                 val partnerCode = prefsManager.partnerCode.first()
+                val partnerName = prefsManager.partnerName.first()
                 if (myCode.isNotBlank()) {
-                    repository.migrateCreatedByToCode(myCode, partnerCode)
-                    prefs.edit().putBoolean("migrated_createdby_v1", true).apply()
-                    Log.d("MicheduleApp", "Migrated date_plans createdBy to user_code")
+                    repository.migrateCreatedByToCode(myCode, partnerCode, partnerName)
+                    prefs.edit().putBoolean("migrated_createdby_v2", true).apply()
+                    Log.d("MicheduleApp", "Migrated date_plans createdBy to user_code (v2)")
                 }
             } catch (e: Exception) {
                 Log.e("MicheduleApp", "createdBy migration failed", e)

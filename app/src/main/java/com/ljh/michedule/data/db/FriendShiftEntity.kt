@@ -12,8 +12,17 @@ data class FriendShiftEntity(
     val memo: String? = null,
     val mood: String? = null,
     val todoCount: Int = 0,
-    val extraShifts: String = ""
+    val extraShifts: String = "",
+    val todoTexts: String = ""
 ) {
     fun getExtraShiftList(): List<String> =
         extraShifts.split(",").filter { it.isNotBlank() }
+
+    fun getTodoList(): List<Pair<String, Boolean>> {
+        if (todoTexts.isBlank()) return emptyList()
+        return todoTexts.split("||").mapNotNull { entry ->
+            val parts = entry.split("|", limit = 2)
+            if (parts.size == 2) parts[1] to (parts[0] == "1") else null
+        }
+    }
 }

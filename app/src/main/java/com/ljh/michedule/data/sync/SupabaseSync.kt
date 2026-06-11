@@ -43,6 +43,7 @@ data class ScheduleRow(
     val extra_shifts: JsonObject = JsonObject(emptyMap()),
     val moods: JsonObject = JsonObject(emptyMap()),
     val todo_counts: JsonObject = JsonObject(emptyMap()),
+    val todos: JsonObject = JsonObject(emptyMap()),
     val date_plans: JsonObject = JsonObject(emptyMap()),
     val shift_types: JsonObject = JsonObject(emptyMap()),
     val fcm_token: String? = null,
@@ -204,6 +205,16 @@ class SupabaseSync(
                 val c = (value as? JsonPrimitive)?.intOrNull
                 if (c != null && c > 0) date to c else null
             }.toMap()
+            val todoTextsMap = friendRow.todos.mapNotNull { (date, value) ->
+                val arr = value as? JsonArray ?: return@mapNotNull null
+                val encoded = arr.mapNotNull { item ->
+                    val obj = item as? JsonObject ?: return@mapNotNull null
+                    val title = (obj["title"] as? JsonPrimitive)?.content ?: return@mapNotNull null
+                    val done = (obj["done"] as? JsonPrimitive)?.booleanOrNull ?: false
+                    "${if (done) "1" else "0"}|$title"
+                }.joinToString("||")
+                if (encoded.isNotBlank()) date to encoded else null
+            }.toMap()
 
             friendRow.shifts.forEach { (date, value) ->
                 val type = (value as? JsonPrimitive)?.content ?: return@forEach
@@ -211,7 +222,7 @@ class SupabaseSync(
             }
 
             val allDates = (newShiftsMap.keys + memoMap.keys + moodMap.keys +
-                    todoCountMap.keys + extraShiftsMap.keys + albaSet)
+                    todoCountMap.keys + extraShiftsMap.keys + albaSet + todoTextsMap.keys)
             allDates.forEach { date ->
                 val type = newShiftsMap[date] ?: ""
                 val extras = extraShiftsMap[date] ?: if (date in albaSet) "alba" else ""
@@ -224,16 +235,24 @@ class SupabaseSync(
                         memo = memoMap[date],
                         mood = moodMap[date],
                         todoCount = todoCountMap[date] ?: 0,
-                        extraShifts = extras
+                        extraShifts = extras,
+                        todoTexts = todoTextsMap[date] ?: ""
                     )
                 )
             }
 
+            val friendName = friendRow.user_name
             val remotePlans = friendRow.date_plans.mapNotNull { (date, value) ->
                 val obj = value as? kotlinx.serialization.json.JsonObject ?: return@mapNotNull null
                 val memo = (obj["memo"] as? JsonPrimitive)?.content ?: ""
-                val by = (obj["by"] as? JsonPrimitive)?.content ?: partnerCode
-                DatePlanEntity(date = date, memo = memo, createdBy = by)
+                val rawBy = (obj["by"] as? JsonPrimitive)?.content ?: partnerCode
+                val resolvedBy = when {
+                    rawBy == myCode -> myCode
+                    rawBy == partnerCode -> partnerCode
+                    rawBy == friendName -> partnerCode
+                    else -> myCode
+                }
+                DatePlanEntity(date = date, memo = memo, createdBy = resolvedBy)
             }
             repo.syncDatePlans(remotePlans, myCode)
 
@@ -439,10 +458,22 @@ class SupabaseSync(
             }
 
             val allTodos = repo.getAllTodos()
-            val todoCounts = allTodos.groupBy { it.date }.mapValues { it.value.size }
+            val todosByDate = allTodos.groupBy { it.date }
+            val todoCounts = todosByDate.mapValues { it.value.size }
             val todoCountsJson = buildJsonObject {
                 todoCounts.forEach { (date, count) ->
                     put(date, count)
+                }
+            }
+            val todosJson = buildJsonObject {
+                todosByDate.forEach { (date, todos) ->
+                    put(date, JsonArray(todos.map { todo ->
+                        buildJsonObject {
+                            put("title", todo.title)
+                            put("done", todo.isDone)
+                            put("time", todo.time ?: "")
+                        }
+                    }))
                 }
             }
 
@@ -480,6 +511,7 @@ class SupabaseSync(
                 extra_shifts = extraShiftsJson,
                 moods = moodsJson,
                 todo_counts = todoCountsJson,
+                todos = todosJson,
                 date_plans = datePlansJson,
                 shift_types = shiftTypesJson,
                 fcm_token = fcmToken

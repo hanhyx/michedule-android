@@ -794,8 +794,54 @@ fun PartnerDayDetailSheet(
                 Text(friendShift?.mood ?: "", fontSize = 28.sp)
             }
 
-            // 할 일 개수
-            if ((friendShift?.todoCount ?: 0) > 0) {
+            // 할 일
+            val todoList = friendShift?.getTodoList() ?: emptyList()
+            if (todoList.isNotEmpty()) {
+                HorizontalDivider(color = DarkBorder)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("✅", fontSize = 16.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("할 일", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Purple40.copy(alpha = 0.3f)
+                    ) {
+                        Text(
+                            "${todoList.size}개",
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            color = Purple80
+                        )
+                    }
+                }
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    color = DarkSurface
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        todoList.forEach { (title, isDone) ->
+                            Row(
+                                modifier = Modifier.padding(vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    if (isDone) "✅" else "☐",
+                                    fontSize = 14.sp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    title,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (isDone) TextMuted else TextPrimary,
+                                    textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None
+                                )
+                            }
+                        }
+                    }
+                }
+            } else if ((friendShift?.todoCount ?: 0) > 0) {
                 HorizontalDivider(color = DarkBorder)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("✅", fontSize = 16.sp)

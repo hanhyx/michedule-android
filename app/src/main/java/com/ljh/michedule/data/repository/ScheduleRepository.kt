@@ -48,8 +48,11 @@ class ScheduleRepository(private val db: AppDatabase) {
         datePlanDao.upsert(DatePlanEntity(date = date.toString(), memo = memo, createdBy = createdBy))
     }
 
-    suspend fun migrateCreatedByToCode(myCode: String, partnerCode: String) {
-        datePlanDao.migrateCreatedByToCode(myCode, partnerCode)
+    suspend fun migrateCreatedByToCode(myCode: String, partnerCode: String, partnerName: String) {
+        if (partnerCode.isNotBlank() && partnerName.isNotBlank()) {
+            datePlanDao.migratePartnerNamesToCode(partnerCode, partnerName)
+        }
+        datePlanDao.migrateMyNamesToCode(myCode, partnerCode)
     }
 
     private val cancelledPlanDates = mutableSetOf<String>()
@@ -62,7 +65,6 @@ class ScheduleRepository(private val db: AppDatabase) {
 
     suspend fun syncDatePlans(plans: List<DatePlanEntity>, myCode: String) {
         val localPlans = datePlanDao.getAllPlans()
-        val localPlanMap = localPlans.associateBy { it.date }
         val remoteDates = plans.map { it.date }.toSet()
 
         localPlans.forEach { local ->
@@ -76,11 +78,7 @@ class ScheduleRepository(private val db: AppDatabase) {
 
         plans.filter { it.date !in cancelledPlanDates }
             .forEach { remotePlan ->
-                val localPlan = localPlanMap[remotePlan.date]
-                val isMyLocalPlan = localPlan != null && localPlan.createdBy == myCode
-                if (!isMyLocalPlan) {
-                    datePlanDao.upsert(remotePlan)
-                }
+                datePlanDao.upsert(remotePlan)
             }
 
         cancelledPlanDates.removeAll { it !in remoteDates }

@@ -53,9 +53,13 @@ class TodayWidget : GlanceAppWidget() {
         val db = AppDatabase.getInstance(context)
 
         val (myDetail, partnerDetail) = withContext(Dispatchers.IO) {
-            val typeConfigs = try {
+            val myTypeConfigs = try {
                 db.shiftTypeConfigDao().getAll().associateBy { it.id }
             } catch (_: Exception) { emptyMap() }
+            val partnerTypeConfigs = try {
+                db.shiftTypeConfigDao().getPartner().associateBy { it.id }
+            } catch (_: Exception) { emptyMap() }
+            val typeConfigs = myTypeConfigs + ShiftTypeConfig.DEFAULTS.associateBy { it.id }
 
             val myEntity = db.shiftDao().getShift(todayStr)
             val myMood = try {
@@ -77,13 +81,14 @@ class TodayWidget : GlanceAppWidget() {
                 todoTexts = myTodos.take(3).map { (if (it.isDone) "✅ " else "☐ ") + it.title }
             )
 
+            val pTypeMap = partnerTypeConfigs + ShiftTypeConfig.DEFAULTS.associateBy { it.id }
             val partner = try {
                 val friends = db.friendShiftDao().getShiftsInRange(todayStr, todayStr).firstOrNull()
                 val fe = friends?.firstOrNull()
                 WidgetDayDetail(
                     shift = WidgetShiftInfo(
                         type = fe?.let { ShiftType.fromString(it.type) },
-                        config = fe?.type?.let { typeConfigs[it] },
+                        config = fe?.type?.let { pTypeMap[it] },
                         hasAlba = fe?.hasAlba ?: false,
                         extraShifts = fe?.extraShifts ?: ""
                     ),
