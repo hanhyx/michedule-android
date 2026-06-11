@@ -20,6 +20,7 @@ data class ShiftEntity(
     fun withExtraShiftToggled(id: String): ShiftEntity {
         val current = getExtraShiftList().toMutableList()
         if (id in current) current.remove(id) else current.add(id)
-        return copy(extraShifts = current.joinToString(","))
+        val newHasAlba = "alba" in current
+        return copy(extraShifts = current.joinToString(","), hasAlba = newHasAlba)
     }
 }

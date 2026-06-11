@@ -93,7 +93,12 @@ class MicheduleApp : Application() {
     fun updateMyName(oldName: String, newName: String) {
         appScope.launch {
             prefsManager.setMyName(newName)
-            repository.updateDatePlanCreatedBy(oldName, newName)
+            if (oldName.isBlank()) {
+                val partnerName = prefsManager.partnerName.first()
+                repository.updateAllMyDatePlanCreatedBy(newName, partnerName)
+            } else {
+                repository.updateDatePlanCreatedBy(oldName, newName)
+            }
             triggerUpload()
         }
     }

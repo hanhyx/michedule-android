@@ -117,7 +117,8 @@ fun DayDetailSheet(
 
             // ── 1. 추가 근무 토글 (복수 선택) ──
             val extraTypes by shiftTypeManager.extraTypes.collectAsState()
-            val activeExtras = shift?.getExtraShiftList() ?: emptyList()
+            val rawExtras = shift?.getExtraShiftList() ?: emptyList()
+            val activeExtras = if (rawExtras.isEmpty() && shift?.hasAlba == true) listOf("alba") else rawExtras
 
             if (extraTypes.isNotEmpty()) {
                 Text(

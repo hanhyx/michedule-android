@@ -52,6 +52,10 @@ class ScheduleRepository(private val db: AppDatabase) {
         datePlanDao.updateCreatedBy(oldName, newName)
     }
 
+    suspend fun updateAllMyDatePlanCreatedBy(newName: String, partnerName: String) {
+        datePlanDao.updateAllMyCreatedBy(newName, partnerName)
+    }
+
     private val cancelledPlanDates = mutableSetOf<String>()
 
     suspend fun deleteDatePlan(date: LocalDate) {
@@ -116,9 +120,12 @@ class ScheduleRepository(private val db: AppDatabase) {
     suspend fun toggleExtraShift(date: LocalDate, extraId: String) {
         val existing = shiftDao.getShift(date.toString())
         if (existing != null) {
-            shiftDao.upsert(existing.withExtraShiftToggled(extraId))
+            val migrated = if (existing.hasAlba && existing.extraShifts.isBlank()) {
+                existing.copy(extraShifts = "alba")
+            } else existing
+            shiftDao.upsert(migrated.withExtraShiftToggled(extraId))
         } else {
-            shiftDao.upsert(ShiftEntity(date = date.toString(), type = "", extraShifts = extraId))
+            shiftDao.upsert(ShiftEntity(date = date.toString(), type = "", extraShifts = extraId, hasAlba = extraId == "alba"))
         }
     }
 

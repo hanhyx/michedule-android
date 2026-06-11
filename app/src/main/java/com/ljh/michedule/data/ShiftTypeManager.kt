@@ -44,7 +44,7 @@ class ShiftTypeManager(
     }
 
     fun getById(id: String): ShiftTypeConfig? =
-        typeMap.value[id] ?: partnerTypes[id]
+        typeMap.value[id] ?: partnerTypes[id] ?: ShiftTypeConfig.DEFAULTS.find { it.id == id }
 
     fun cycleNext(currentId: String?): String? {
         val cycle = cycleTypes.value

@@ -36,4 +36,7 @@ interface DatePlanDao {
 
     @Query("UPDATE date_plans SET createdBy = :newName WHERE createdBy = :oldName")
     suspend fun updateCreatedBy(oldName: String, newName: String)
+
+    @Query("UPDATE date_plans SET createdBy = :newName WHERE createdBy != :partnerName AND createdBy != :newName")
+    suspend fun updateAllMyCreatedBy(newName: String, partnerName: String)
 }
