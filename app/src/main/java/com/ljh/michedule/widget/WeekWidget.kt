@@ -42,7 +42,10 @@ class WeekWidget : GlanceAppWidget() {
             val myShifts: Map<String, WidgetShiftInfo>,
             val partnerShifts: Map<String, WidgetShiftInfo>,
             val myTypeMap: Map<String, ShiftTypeConfig>,
-            val partnerTypeMap: Map<String, ShiftTypeConfig>
+            val partnerTypeMap: Map<String, ShiftTypeConfig>,
+            val weekMemos: Map<String, String>,
+            val weekTodos: Map<String, List<String>>,
+            val weekMoods: Map<String, String>
         )
 
         val data = withContext(Dispatchers.IO) {
@@ -55,16 +58,36 @@ class WeekWidget : GlanceAppWidget() {
             val typeConfigs = ShiftTypeConfig.DEFAULTS.associateBy { it.id } + myTypeConfigs
             val pTypeMap = ShiftTypeConfig.DEFAULTS.associateBy { it.id } + partnerTypeConfigs
 
-            val mine = db.shiftDao().getAllShifts()
+            val allShifts = db.shiftDao().getAllShifts()
                 .filter { it.date in weekStartStr..weekEndStr }
-                .associate {
-                    it.date to WidgetShiftInfo(
-                        ShiftType.fromString(it.type),
-                        typeConfigs[it.type],
-                        it.hasAlba,
-                        it.extraShifts
-                    )
-                }
+
+            val mine = allShifts.associate {
+                it.date to WidgetShiftInfo(
+                    ShiftType.fromString(it.type),
+                    typeConfigs[it.type],
+                    it.hasAlba,
+                    it.extraShifts
+                )
+            }
+
+            val memos = allShifts.filter { !it.memo.isNullOrBlank() }
+                .associate { it.date to (it.memo ?: "") }
+
+            val todos = mutableMapOf<String, List<String>>()
+            val moods = mutableMapOf<String, String>()
+            for (i in 0..6) {
+                val dateStr = weekStart.plusDays(i.toLong()).toString()
+                try {
+                    val dayTodos = db.todoDao().getTodosForDate(dateStr).firstOrNull() ?: emptyList()
+                    if (dayTodos.isNotEmpty()) {
+                        todos[dateStr] = dayTodos.take(3).map { (if (it.isDone) "✅" else "⬜") + it.title }
+                    }
+                } catch (_: Exception) {}
+                try {
+                    val mood = db.moodDao().getMoodForDate(dateStr).firstOrNull()
+                    if (mood != null) moods[dateStr] = mood.emoji
+                } catch (_: Exception) {}
+            }
 
             val partner = try {
                 val friends = db.friendShiftDao()
@@ -82,11 +105,12 @@ class WeekWidget : GlanceAppWidget() {
                 emptyMap<String, WidgetShiftInfo>()
             }
 
-            WeekData(mine, partner, typeConfigs, pTypeMap)
+            WeekData(mine, partner, typeConfigs, pTypeMap, memos, todos, moods)
         }
 
         provideContent {
-            WeekWidgetContent(today, weekStart, data.myShifts, data.partnerShifts, data.myTypeMap, data.partnerTypeMap)
+            WeekWidgetContent(today, weekStart, data.myShifts, data.partnerShifts,
+                data.myTypeMap, data.partnerTypeMap, data.weekMemos, data.weekTodos, data.weekMoods)
         }
     }
 }
@@ -98,7 +122,10 @@ private fun WeekWidgetContent(
     myShifts: Map<String, WidgetShiftInfo>,
     partnerShifts: Map<String, WidgetShiftInfo>,
     myTypeMap: Map<String, ShiftTypeConfig> = emptyMap(),
-    partnerTypeMap: Map<String, ShiftTypeConfig> = emptyMap()
+    partnerTypeMap: Map<String, ShiftTypeConfig> = emptyMap(),
+    weekMemos: Map<String, String> = emptyMap(),
+    weekTodos: Map<String, List<String>> = emptyMap(),
+    weekMoods: Map<String, String> = emptyMap()
 ) {
     val darkBg = Color(0xFF13131E)
     val cardBg = Color(0xFF1C1C2E)
@@ -108,8 +135,10 @@ private fun WeekWidgetContent(
     val sundayRed = Color(0xFFF87171)
     val saturdayBlue = Color(0xFF60A5FA)
     val todayBg = Color(0xFF2D2640)
-    val albaColor = Color(0xFFFB923C)
     val divider = Color(0xFF2E2E42)
+    val memoColor = Color(0xFF7DD3FC)
+    val todoColor = Color(0xFF6EE7B7)
+    val moodColor = Color(0xFFFBBF24)
     val dayNames = listOf("일", "월", "화", "수", "목", "금", "토")
 
     val hasPartner = partnerShifts.isNotEmpty()
@@ -123,36 +152,17 @@ private fun WeekWidgetContent(
             .padding(horizontal = 6.dp, vertical = 8.dp)
     ) {
         Column(modifier = GlanceModifier.fillMaxSize()) {
-            // 요일 헤더
-            Row(modifier = GlanceModifier.fillMaxWidth()) {
-                for (i in 0..6) {
-                    val dayColor = when (i) {
-                        0 -> sundayRed
-                        6 -> saturdayBlue
-                        else -> muted
-                    }
-                    Box(
-                        modifier = GlanceModifier.defaultWeight(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            dayNames[i],
-                            style = TextStyle(
-                                fontSize = 9.sp,
-                                color = ColorProvider(dayColor, dayColor)
-                            )
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = GlanceModifier.height(2.dp))
-
-            // 날짜 행
+            // 요일 + 날짜 헤더 (한 줄로 합침)
             Row(modifier = GlanceModifier.fillMaxWidth()) {
                 for (i in 0..6) {
                     val date = weekStart.plusDays(i.toLong())
                     val isToday = date == today
+                    val dayColor = when {
+                        isToday -> accent
+                        i == 0 -> sundayRed
+                        i == 6 -> saturdayBlue
+                        else -> muted
+                    }
                     val dateColor = when {
                         isToday -> accent
                         i == 0 -> sundayRed.copy(alpha = 0.8f)
@@ -163,19 +173,25 @@ private fun WeekWidgetContent(
                         modifier = GlanceModifier.defaultWeight(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            "${date.dayOfMonth}",
-                            style = TextStyle(
-                                fontSize = 11.sp,
-                                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                                color = ColorProvider(dateColor, dateColor)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                dayNames[i],
+                                style = TextStyle(fontSize = 9.sp, color = ColorProvider(dayColor, dayColor))
                             )
-                        )
+                            Text(
+                                "${date.dayOfMonth}",
+                                style = TextStyle(
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                                    color = ColorProvider(dateColor, dateColor)
+                                )
+                            )
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = GlanceModifier.height(4.dp))
+            Spacer(modifier = GlanceModifier.height(3.dp))
 
             // 내 일정 카드 행
             Row(modifier = GlanceModifier.fillMaxWidth()) {
@@ -186,8 +202,9 @@ private fun WeekWidgetContent(
                     val isToday = date == today
 
                     val myLabel = myInfo?.config?.shortLabel ?: myInfo?.type?.shortLabel ?: ""
-                    val myColor = myInfo?.config?.color ?: myInfo?.type?.color ?: muted
+                    val myColor = myInfo?.config?.fontColor ?: myInfo?.config?.color ?: myInfo?.type?.color ?: muted
                     val myEmoji = myInfo?.config?.emoji ?: myInfo?.type?.emoji ?: ""
+                    val mood = weekMoods[dateStr]
 
                     val cellBg = when {
                         isToday -> todayBg
@@ -200,7 +217,7 @@ private fun WeekWidgetContent(
                             .defaultWeight()
                             .cornerRadius(8.dp)
                             .background(ColorProvider(cellBg, cellBg))
-                            .padding(vertical = 4.dp),
+                            .padding(vertical = 3.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -222,10 +239,10 @@ private fun WeekWidgetContent(
                             val wDisplay = wExtras.ifEmpty { if (myInfo?.hasAlba == true) listOf("alba") else emptyList() }
                             if (wDisplay.isNotEmpty()) {
                                 val firstEc = myTypeMap[wDisplay.first()]
-                                Text(
-                                    firstEc?.emoji ?: "💼",
-                                    style = TextStyle(fontSize = 8.sp)
-                                )
+                                Text(firstEc?.emoji ?: "💼", style = TextStyle(fontSize = 8.sp))
+                            }
+                            if (mood != null) {
+                                Text(mood, style = TextStyle(fontSize = 8.sp))
                             }
                         }
                     }
@@ -234,14 +251,14 @@ private fun WeekWidgetContent(
 
             // 상대 영역
             if (hasPartner) {
-                Spacer(modifier = GlanceModifier.height(4.dp))
+                Spacer(modifier = GlanceModifier.height(2.dp))
                 Box(
                     modifier = GlanceModifier
                         .fillMaxWidth()
                         .height(1.dp)
                         .background(ColorProvider(divider, divider))
                 ) {}
-                Spacer(modifier = GlanceModifier.height(3.dp))
+                Spacer(modifier = GlanceModifier.height(2.dp))
 
                 Row(modifier = GlanceModifier.fillMaxWidth()) {
                     for (i in 0..6) {
@@ -281,9 +298,65 @@ private fun WeekWidgetContent(
                                 if (pHasExtra) {
                                     val pFirstExtra = pExtras.firstOrNull() ?: "alba"
                                     val pEc = partnerTypeMap[pFirstExtra]
+                                    Text(pEc?.emoji ?: "💼", style = TextStyle(fontSize = 8.sp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 메모/할일 상세 영역
+            val hasAnyMemo = weekMemos.isNotEmpty() || weekTodos.isNotEmpty()
+            if (hasAnyMemo) {
+                Spacer(modifier = GlanceModifier.height(3.dp))
+                Box(
+                    modifier = GlanceModifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(ColorProvider(divider, divider))
+                ) {}
+                Spacer(modifier = GlanceModifier.height(3.dp))
+
+                Column(modifier = GlanceModifier.fillMaxWidth()) {
+                    for (i in 0..6) {
+                        val date = weekStart.plusDays(i.toLong())
+                        val dateStr = date.toString()
+                        val memos = weekMemos[dateStr]?.split("|||")?.filter { it.isNotBlank() } ?: emptyList()
+                        val todos = weekTodos[dateStr] ?: emptyList()
+                        if (memos.isEmpty() && todos.isEmpty()) continue
+
+                        val dayLabel = "${date.dayOfMonth}일"
+                        val isToday = date == today
+
+                        Row(
+                            modifier = GlanceModifier.fillMaxWidth().padding(vertical = 1.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                dayLabel,
+                                style = TextStyle(
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ColorProvider(if (isToday) accent else textPrimary, if (isToday) accent else textPrimary)
+                                )
+                            )
+                            Spacer(modifier = GlanceModifier.width(6.dp))
+                            Column(modifier = GlanceModifier.defaultWeight()) {
+                                memos.take(2).forEach { m ->
                                     Text(
-                                        pEc?.emoji ?: "💼",
-                                        style = TextStyle(fontSize = 8.sp)
+                                        "📝 ${m.trim().take(25)}",
+                                        style = TextStyle(color = ColorProvider(memoColor, memoColor), fontSize = 9.sp),
+                                        maxLines = 1
+                                    )
+                                }
+                                todos.take(2).forEach { t ->
+                                    val isDone = t.startsWith("✅")
+                                    val c = if (isDone) muted else todoColor
+                                    Text(
+                                        t.take(25),
+                                        style = TextStyle(color = ColorProvider(c, c), fontSize = 9.sp),
+                                        maxLines = 1
                                     )
                                 }
                             }

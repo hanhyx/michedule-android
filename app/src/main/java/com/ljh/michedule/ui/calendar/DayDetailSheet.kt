@@ -146,9 +146,9 @@ fun DayDetailSheet(
                                 Spacer(Modifier.width(8.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text(extra.label, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
-                                        color = if (isActive) extra.color else colors.textPrimary)
+                                        color = if (isActive) extra.fontColor else colors.textPrimary)
                                     Text(extra.defaultTimeRange, fontSize = 10.sp,
-                                        color = if (isActive) extra.color.copy(alpha = 0.7f) else colors.textMuted)
+                                        color = if (isActive) extra.fontColor.copy(alpha = 0.7f) else colors.textMuted)
                                 }
                                 Switch(
                                     checked = isActive,
@@ -580,9 +580,9 @@ private fun ShiftConfigButton(
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(config.label, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                color = if (isActive) config.color else colors.textPrimary)
+                color = if (isActive) config.fontColor else colors.textPrimary)
             Text(config.defaultTimeRange, fontSize = 11.sp,
-                color = if (isActive) config.color.copy(alpha = 0.7f) else colors.textMuted)
+                color = if (isActive) config.fontColor.copy(alpha = 0.7f) else colors.textMuted)
         }
         if (isActive) {
             Icon(Icons.Default.CheckCircle, null, tint = config.color, modifier = Modifier.size(20.dp))
@@ -767,13 +767,13 @@ fun PartnerDayDetailSheet(
                             Text(
                                 shiftConfig.label,
                                 fontWeight = FontWeight.Bold,
-                                color = shiftConfig.color
+                                color = shiftConfig.fontColor
                             )
                             if (shiftConfig.defaultTimeRange.isNotBlank()) {
                                 Text(
                                     shiftConfig.defaultTimeRange,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = shiftConfig.color.copy(alpha = 0.7f)
+                                    color = shiftConfig.fontColor.copy(alpha = 0.7f)
                                 )
                             }
                         }

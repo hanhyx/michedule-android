@@ -845,7 +845,7 @@ private fun OtherTab(app: MicheduleApp, prefsManager: PrefsManager, onClearMonth
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                listOf("dark" to "다크", "light" to "라이트").forEach { (mode, label) ->
+                listOf("light" to "라이트", "dark" to "다크").forEach { (mode, label) ->
                     val isSelected = themeMode == mode
                     Surface(
                         modifier = Modifier.weight(1f),
@@ -967,11 +967,14 @@ private fun settingsFieldColors(): TextFieldColors {
 // ── Color palette for picker ──
 
 private val COLOR_PALETTE = listOf(
-    "#FFFBBF24", "#FFEF4444", "#FFF97316", "#FFF472B6", "#FFEC4899",
-    "#FF818CF8", "#FF8B5CF6", "#FF6366F1", "#FF60A5FA", "#FF3B82F6",
-    "#FF34D399", "#FF10B981", "#FF14B8A6", "#FF06B6D4", "#FF0EA5E9",
-    "#FFA78BFA", "#FFD946EF", "#FFFACC15", "#FF84CC16", "#FF22C55E",
-    "#FFE11D48", "#FF9CA3AF", "#FF64748B", "#FFF59E0B"
+    "#FFFBBF24", "#FFF59E0B", "#FFFACC15", "#FFF97316", "#FFEF4444",
+    "#FFE11D48", "#FFDC2626", "#FFF472B6", "#FFEC4899", "#FFD946EF",
+    "#FFA78BFA", "#FF818CF8", "#FF8B5CF6", "#FF6366F1", "#FF60A5FA",
+    "#FF3B82F6", "#FF0EA5E9", "#FF06B6D4", "#FF14B8A6", "#FF34D399",
+    "#FF10B981", "#FF22C55E", "#FF84CC16", "#FF65A30D", "#FF16A34A",
+    "#FF9CA3AF", "#FF64748B", "#FF475569", "#FF1E293B", "#FFFFFFFF",
+    "#FFB45309", "#FF92400E", "#FF78350F", "#FF7C3AED", "#FF4338CA",
+    "#FF0369A1", "#FF0E7490", "#FF047857", "#FF166534", "#FF000000"
 )
 
 @Composable
@@ -1076,8 +1079,8 @@ private fun ShiftTypeManagementCard(shiftTypeManager: ShiftTypeManager) {
                     Text(config.emoji, fontSize = 18.sp)
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(config.label, fontWeight = FontWeight.SemiBold, color = config.color, fontSize = 14.sp)
-                        Text(config.defaultTimeRange, fontSize = 10.sp, color = config.color.copy(alpha = 0.7f))
+                        Text(config.label, fontWeight = FontWeight.SemiBold, color = config.fontColor, fontSize = 14.sp)
+                        Text(config.defaultTimeRange, fontSize = 10.sp, color = config.fontColor.copy(alpha = 0.7f))
                     }
                     Icon(Icons.Default.Edit, contentDescription = null, tint = colors.textMuted, modifier = Modifier.size(16.dp))
                 }
@@ -1137,8 +1140,8 @@ private fun ShiftTypeManagementCard(shiftTypeManager: ShiftTypeManager) {
                 Text(config.emoji, fontSize = 18.sp)
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(config.label, fontWeight = FontWeight.SemiBold, color = config.color, fontSize = 14.sp)
-                    Text(config.defaultTimeRange, fontSize = 10.sp, color = config.color.copy(alpha = 0.7f))
+                    Text(config.label, fontWeight = FontWeight.SemiBold, color = config.fontColor, fontSize = 14.sp)
+                    Text(config.defaultTimeRange, fontSize = 10.sp, color = config.fontColor.copy(alpha = 0.7f))
                 }
                 Icon(Icons.Default.Edit, contentDescription = null, tint = colors.textMuted, modifier = Modifier.size(16.dp))
             }
@@ -1232,9 +1235,23 @@ private fun ShiftTypeEditDialog(
     var shortLabel by remember { mutableStateOf(config?.shortLabel ?: "") }
     var emoji by remember { mutableStateOf(config?.emoji ?: "") }
     var colorHex by remember { mutableStateOf(config?.colorHex ?: COLOR_PALETTE[0]) }
-    var timeRange by remember { mutableStateOf(config?.defaultTimeRange ?: "09:00 - 18:00") }
+    var fontColorHex by remember { mutableStateOf(config?.fontColorHex ?: "") }
+    val initialTime = (config?.defaultTimeRange ?: "09:00 - 18:00")
+    val timeParts = initialTime.split("-").map { it.trim() }
+    var startHour by remember { mutableIntStateOf(timeParts.getOrNull(0)?.split(":")?.getOrNull(0)?.toIntOrNull() ?: 9) }
+    var startMin by remember { mutableIntStateOf(timeParts.getOrNull(0)?.split(":")?.getOrNull(1)?.toIntOrNull() ?: 0) }
+    var endHour by remember { mutableIntStateOf(timeParts.getOrNull(1)?.split(":")?.getOrNull(0)?.toIntOrNull() ?: 18) }
+    var endMin by remember { mutableIntStateOf(timeParts.getOrNull(1)?.split(":")?.getOrNull(1)?.toIntOrNull() ?: 0) }
+    var isAllDay by remember { mutableStateOf(initialTime.contains("종일") || initialTime.contains("미정")) }
+    val timeRange = if (isAllDay) {
+        if (category == "extra") "시간 미정" else "종일 휴무"
+    } else {
+        "%02d:%02d - %02d:%02d".format(startHour, startMin, endHour, endMin)
+    }
     var inCycle by remember { mutableStateOf(config?.inCycle ?: (category == "primary")) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showStartTimePicker by remember { mutableStateOf(false) }
+    var showEndTimePicker by remember { mutableStateOf(false) }
     val colors = LocalAppColors.current
 
     val bgColorHex = remember(colorHex) {
@@ -1288,22 +1305,102 @@ private fun ShiftTypeEditDialog(
                     shape = RoundedCornerShape(10.dp),
                     singleLine = true
                 )
-                OutlinedTextField(
-                    value = timeRange,
-                    onValueChange = { timeRange = it },
-                    label = { Text("시간 범위", color = colors.textMuted, fontSize = 12.sp) },
-                    placeholder = { Text("HH:MM - HH:MM", color = colors.textMuted) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = settingsFieldColors(),
-                    shape = RoundedCornerShape(10.dp),
-                    singleLine = true
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text("시간", fontSize = 12.sp, color = colors.textMuted)
+                    Spacer(Modifier.weight(1f))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("종일", fontSize = 12.sp, color = colors.textMuted)
+                        Spacer(Modifier.width(4.dp))
+                        Switch(
+                            checked = isAllDay,
+                            onCheckedChange = { isAllDay = it },
+                            modifier = Modifier.height(24.dp),
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = colors.accent,
+                                checkedTrackColor = colors.accentDark,
+                                uncheckedThumbColor = colors.textMuted,
+                                uncheckedTrackColor = colors.surface
+                            )
+                        )
+                    }
+                }
+                if (!isAllDay) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Surface(
+                            onClick = { showStartTimePicker = true },
+                            color = colors.surface,
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, colors.border),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("시작", fontSize = 10.sp, color = colors.textMuted)
+                                Text("%02d:%02d".format(startHour, startMin), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                            }
+                        }
+                        Text("→", fontSize = 16.sp, color = colors.textMuted)
+                        Surface(
+                            onClick = { showEndTimePicker = true },
+                            color = colors.surface,
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, colors.border),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("종료", fontSize = 10.sp, color = colors.textMuted)
+                                Text("%02d:%02d".format(endHour, endMin), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                            }
+                        }
+                    }
+                }
 
-                Text("색상 선택", style = MaterialTheme.typography.labelMedium, color = colors.textSecondary)
+                Text("배경 색상", style = MaterialTheme.typography.labelMedium, color = colors.textSecondary)
                 ColorPicker(
                     selectedHex = colorHex,
                     onSelect = { colorHex = it }
                 )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text("글자 색상", style = MaterialTheme.typography.labelMedium, color = colors.textSecondary)
+                    Spacer(Modifier.weight(1f))
+                    Text("기본(배경색 동일)", fontSize = 10.sp, color = colors.textMuted)
+                    Spacer(Modifier.width(4.dp))
+                    Switch(
+                        checked = fontColorHex.isBlank(),
+                        onCheckedChange = { useDefault ->
+                            fontColorHex = if (useDefault) "" else colorHex
+                        },
+                        modifier = Modifier.height(24.dp),
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = colors.accent,
+                            checkedTrackColor = colors.accentDark,
+                            uncheckedThumbColor = colors.textMuted,
+                            uncheckedTrackColor = colors.surface
+                        )
+                    )
+                }
+                if (fontColorHex.isNotBlank()) {
+                    ColorPicker(
+                        selectedHex = fontColorHex,
+                        onSelect = { fontColorHex = it }
+                    )
+                }
 
                 if (category == "primary") {
                     Row(
@@ -1352,7 +1449,8 @@ private fun ShiftTypeEditDialog(
                             sortOrder = config?.sortOrder ?: 0,
                             inCycle = if (category == "extra") false else inCycle,
                             isBuiltIn = config?.isBuiltIn ?: false,
-                            category = category
+                            category = category,
+                            fontColorHex = fontColorHex
                         )
                         onSave(result)
                     },
@@ -1382,32 +1480,100 @@ private fun ShiftTypeEditDialog(
             }
         )
     }
+
+    if (showStartTimePicker) {
+        TimePickerDialog(
+            initialHour = startHour,
+            initialMinute = startMin,
+            onConfirm = { h, m -> startHour = h; startMin = m; showStartTimePicker = false },
+            onDismiss = { showStartTimePicker = false }
+        )
+    }
+    if (showEndTimePicker) {
+        TimePickerDialog(
+            initialHour = endHour,
+            initialMinute = endMin,
+            onConfirm = { h, m -> endHour = h; endMin = m; showEndTimePicker = false },
+            onDismiss = { showEndTimePicker = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimePickerDialog(
+    initialHour: Int,
+    initialMinute: Int,
+    onConfirm: (Int, Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colors = LocalAppColors.current
+    val state = rememberTimePickerState(initialHour = initialHour, initialMinute = initialMinute, is24Hour = true)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = colors.card,
+        title = { Text("시간 선택", color = colors.textPrimary, fontSize = 16.sp) },
+        text = {
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                TimePicker(
+                    state = state,
+                    colors = TimePickerDefaults.colors(
+                        clockDialColor = colors.surface,
+                        clockDialSelectedContentColor = Color.White,
+                        clockDialUnselectedContentColor = colors.textPrimary,
+                        selectorColor = colors.accent,
+                        containerColor = colors.card,
+                        periodSelectorSelectedContainerColor = colors.accentDark,
+                        periodSelectorUnselectedContainerColor = colors.surface,
+                        periodSelectorSelectedContentColor = Color.White,
+                        periodSelectorUnselectedContentColor = colors.textMuted,
+                        timeSelectorSelectedContainerColor = colors.accentDark,
+                        timeSelectorUnselectedContainerColor = colors.surface,
+                        timeSelectorSelectedContentColor = Color.White,
+                        timeSelectorUnselectedContentColor = colors.textPrimary
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(state.hour, state.minute) },
+                colors = ButtonDefaults.buttonColors(containerColor = colors.accentDark),
+                shape = RoundedCornerShape(10.dp)
+            ) { Text("확인") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("취소", color = colors.textMuted) }
+        }
+    )
 }
 
 @Composable
 private fun ColorPicker(selectedHex: String, onSelect: (String) -> Unit) {
     val colors = LocalAppColors.current
-    val columns = 6
+    val columns = 8
     val rows = (COLOR_PALETTE.size + columns - 1) / columns
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         for (row in 0 until rows) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 for (col in 0 until columns) {
                     val idx = row * columns + col
                     if (idx < COLOR_PALETTE.size) {
                         val hex = COLOR_PALETTE[idx]
-                        val color = ShiftTypeConfig.parseColor(hex)
+                        val c = ShiftTypeConfig.parseColor(hex)
                         val isSelected = hex == selectedHex
+                        val checkColor = if (hex == "#FFFFFFFF" || hex == "#FFFACC15") Color.Black else Color.White
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(30.dp)
                                 .clip(CircleShape)
-                                .background(color)
+                                .background(c)
                                 .then(
-                                    if (isSelected) Modifier.border(3.dp, Color.White, CircleShape)
+                                    if (isSelected) Modifier.border(3.dp, checkColor, CircleShape)
                                     else Modifier.border(1.dp, colors.border, CircleShape)
                                 )
                                 .clickable { onSelect(hex) },
@@ -1417,13 +1583,13 @@ private fun ColorPicker(selectedHex: String, onSelect: (String) -> Unit) {
                                 Icon(
                                     Icons.Default.Check,
                                     contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
+                                    tint = checkColor,
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
                     } else {
-                        Spacer(modifier = Modifier.size(36.dp))
+                        Spacer(modifier = Modifier.size(30.dp))
                     }
                 }
             }

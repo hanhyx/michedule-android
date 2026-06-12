@@ -187,11 +187,13 @@ class SupabaseSync(
                     val emoji = (obj["emoji"] as? JsonPrimitive)?.content ?: "📋"
                     val color = (obj["color"] as? JsonPrimitive)?.content ?: "#FF808080"
                     val bg = (obj["bg"] as? JsonPrimitive)?.content ?: "#33808080"
+                    val timeRange = (obj["timeRange"] as? JsonPrimitive)?.content ?: ""
+                    val fontColor = (obj["fontColor"] as? JsonPrimitive)?.content ?: ""
                     partnerTypesList.add(ShiftTypeConfig(
                         id = id, label = label, shortLabel = short, emoji = emoji,
-                        colorHex = color, bgColorHex = bg, defaultTimeRange = "",
+                        colorHex = color, bgColorHex = bg, defaultTimeRange = timeRange,
                         sortOrder = sortIdx++, inCycle = false, isBuiltIn = false,
-                        owner = "partner"
+                        owner = "partner", fontColorHex = fontColor
                     ))
                 }
                 shiftTypeManager?.replacePartnerTypes(partnerTypesList)
@@ -611,6 +613,10 @@ class SupabaseSync(
                         put("emoji", config.emoji)
                         put("color", config.colorHex)
                         put("bg", config.bgColorHex)
+                        put("timeRange", config.defaultTimeRange)
+                        if (config.fontColorHex.isNotBlank()) {
+                            put("fontColor", config.fontColorHex)
+                        }
                     })
                 }
             }

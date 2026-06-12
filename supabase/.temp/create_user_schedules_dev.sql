@@ -1,0 +1,3 @@
+CREATE TABLE IF NOT EXISTS public.user_schedules_dev (LIKE public.user_schedules INCLUDING ALL);
+ALTER TABLE public.user_schedules_dev ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_schedules_dev' AND policyname = 'Allow all for anon') THEN CREATE POLICY "Allow all for anon" ON public.user_schedules_dev FOR ALL USING (true) WITH CHECK (true); END IF; END $$;

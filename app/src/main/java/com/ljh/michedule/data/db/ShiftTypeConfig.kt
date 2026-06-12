@@ -17,12 +17,14 @@ data class ShiftTypeConfig(
     val inCycle: Boolean,
     val isBuiltIn: Boolean,
     val category: String = "primary",
-    val owner: String = "mine"
+    val owner: String = "mine",
+    val fontColorHex: String = ""
 ) {
     val isPrimary: Boolean get() = category == "primary"
     val isExtra: Boolean get() = category == "extra"
     val color: Color get() = parseColor(colorHex)
     val bgColor: Color get() = parseColor(bgColorHex)
+    val fontColor: Color get() = if (fontColorHex.isNotBlank()) parseColor(fontColorHex) else color
 
     companion object {
         fun parseColor(hex: String): Color {

@@ -67,7 +67,7 @@ class PrefsManager(private val context: Context) {
     val pushDatePlanEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PUSH_DATE_PLAN_ENABLED] ?: true }
     val pushDatePlanResponseEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PUSH_DATE_PLAN_RESPONSE_ENABLED] ?: true }
     val pushScheduleChangeEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PUSH_SCHEDULE_CHANGE_ENABLED] ?: false }
-    val themeMode: Flow<String> = context.dataStore.data.map { it[KEY_THEME_MODE] ?: "dark" }
+    val themeMode: Flow<String> = context.dataStore.data.map { it[KEY_THEME_MODE] ?: "light" }
 
     suspend fun ensureMyCode(): String {
         var code = ""

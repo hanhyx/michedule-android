@@ -12,7 +12,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         TodoEntity::class, MoodEntity::class, ShiftHistoryEntity::class, DatePlanEntity::class,
         ShiftTypeConfig::class, ChatMessageEntity::class,
         TimelineEntity::class, TimelinePlaceEntity::class, TimelinePhotoEntity::class, TimelineStickerEntity::class],
-    version = 15,
+    version = 16,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -233,6 +233,12 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE shift_type_configs ADD COLUMN fontColorHex TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         private val MIGRATION_12_13 = object : Migration(12, 13) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""
@@ -257,15 +263,15 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "michedule.db"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)
                         ShiftTypeConfig.DEFAULTS.forEach { c ->
                             db.execSQL(
-                                "INSERT OR IGNORE INTO shift_type_configs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                                "INSERT OR IGNORE INTO shift_type_configs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                                 arrayOf(c.id, c.label, c.shortLabel, c.emoji, c.colorHex, c.bgColorHex,
-                                    c.defaultTimeRange, c.sortOrder, if (c.inCycle) 1 else 0, if (c.isBuiltIn) 1 else 0, c.category, c.owner)
+                                    c.defaultTimeRange, c.sortOrder, if (c.inCycle) 1 else 0, if (c.isBuiltIn) 1 else 0, c.category, c.owner, c.fontColorHex)
                             )
                         }
                     }

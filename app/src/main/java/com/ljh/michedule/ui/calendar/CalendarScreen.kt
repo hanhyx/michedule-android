@@ -920,7 +920,7 @@ private fun SoloCell(
                     .background(shiftConfig.bgColor.copy(alpha = 0.5f))
                     .padding(horizontal = 3.dp, vertical = 2.dp)
             ) {
-                Text(shiftConfig.label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = shiftConfig.color, maxLines = 1, lineHeight = 14.sp)
+                Text(shiftConfig.label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = shiftConfig.fontColor, maxLines = 1, lineHeight = 14.sp)
             }
         }
 
@@ -930,6 +930,7 @@ private fun SoloCell(
         displayExtras.take(2).forEach { extraId ->
             val ec = (if (usePartnerTypes) shiftTypeManager?.getByIdForPartner(extraId) else shiftTypeManager?.getById(extraId)) ?: albaConfig
             val extraColor = ec?.color ?: ShiftAlba
+            val extraFontColor = ec?.fontColor ?: extraColor
             Spacer(modifier = Modifier.height(2.dp))
             Column(
                 modifier = Modifier
@@ -938,7 +939,7 @@ private fun SoloCell(
                     .background(extraColor.copy(alpha = 0.15f))
                     .padding(horizontal = 3.dp, vertical = 2.dp)
             ) {
-                Text(ec?.label ?: extraId, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = extraColor, maxLines = 1, lineHeight = 12.sp)
+                Text(ec?.label ?: extraId, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = extraFontColor, maxLines = 1, lineHeight = 12.sp)
             }
         }
         if (displayExtras.size > 2) {
@@ -1223,8 +1224,8 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
                     Text("나", style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
                     if (myShiftConfig != null) {
                         Text(myShiftConfig.emoji, fontSize = 24.sp)
-                        Text(myShiftConfig.label, fontWeight = FontWeight.Bold, color = myShiftConfig.color, fontSize = 13.sp)
-                        Text(myShiftConfig.defaultTimeRange, fontSize = 10.sp, color = myShiftConfig.color.copy(alpha = 0.7f))
+                        Text(myShiftConfig.label, fontWeight = FontWeight.Bold, color = myShiftConfig.fontColor, fontSize = 13.sp)
+                        Text(myShiftConfig.defaultTimeRange, fontSize = 10.sp, color = myShiftConfig.fontColor.copy(alpha = 0.7f))
                     } else {
                         Text("미설정", color = colors.textMuted, fontSize = 13.sp)
                     }
@@ -1243,8 +1244,8 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
                     Text("상대", style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
                     if (partnerShiftConfig != null) {
                         Text(partnerShiftConfig.emoji, fontSize = 24.sp)
-                        Text(partnerShiftConfig.label, fontWeight = FontWeight.Bold, color = partnerShiftConfig.color, fontSize = 13.sp)
-                        Text(partnerShiftConfig.defaultTimeRange, fontSize = 10.sp, color = partnerShiftConfig.color.copy(alpha = 0.7f))
+                        Text(partnerShiftConfig.label, fontWeight = FontWeight.Bold, color = partnerShiftConfig.fontColor, fontSize = 13.sp)
+                        Text(partnerShiftConfig.defaultTimeRange, fontSize = 10.sp, color = partnerShiftConfig.fontColor.copy(alpha = 0.7f))
                     } else {
                         Text("미설정", color = colors.textMuted, fontSize = 13.sp)
                     }

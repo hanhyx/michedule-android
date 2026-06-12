@@ -1,0 +1,70 @@
+﻿=== Image messages ===
+{
+    "id":  "4a26dc0e-d4c3-4b93-8a84-6bba0c2b44b1",
+    "sender_code":  "QBOSAP",
+    "message_type":  "image",
+    "image_url":  "https://ylnhoawekholqlumgytl.supabase.co/storage/v1/object/public/chat-images/QBOSAP_WVOHRM/a8c3c9e6-1529-4a46-a834-db6ddfe15c69.jpg",
+    "created_at":  "2026-06-12T05:00:02.142812+00:00"
+}
+Count: 1
+
+=== Sender 0BBT88 ===
+[
+    {
+        "id":  "9092ba89-db07-4bca-a2ed-1412822b1506",
+        "sender_code":  "0BBT88",
+        "message_type":  "text",
+        "content":  "ㅎㅎ",
+        "image_url":  null,
+        "created_at":  "2026-06-11T21:32:38.714106+00:00"
+    },
+    {
+        "id":  "30060a0a-3cc7-4bd4-bdb7-1a676622d68c",
+        "sender_code":  "0BBT88",
+        "message_type":  "text",
+        "content":  "ㅎ",
+        "image_url":  null,
+        "created_at":  "2026-06-11T21:32:25.831496+00:00"
+    },
+    {
+        "id":  "988d8a55-17a7-4db1-9f95-016b289ccf31",
+        "sender_code":  "0BBT88",
+        "message_type":  "text",
+        "content":  "ㅎㅎㅎ",
+        "image_url":  null,
+        "created_at":  "2026-06-11T21:32:11.932278+00:00"
+    },
+    {
+        "id":  "8c63a1da-0682-48c3-9834-1e7e00af5681",
+        "sender_code":  "0BBT88",
+        "message_type":  "text",
+        "content":  "ㅎㅎ",
+        "image_url":  null,
+        "created_at":  "2026-06-11T21:03:11.921191+00:00"
+    },
+    {
+        "id":  "439a9e1e-c4c0-4a18-8bca-f382b3d29877",
+        "sender_code":  "0BBT88",
+        "message_type":  "text",
+        "content":  "ㅎ",
+        "image_url":  null,
+        "created_at":  "2026-06-11T21:02:23.742848+00:00"
+    },
+    {
+        "id":  "273aaf8a-a0dd-4e85-9ed5-32c641832ba9",
+        "sender_code":  "0BBT88",
+        "message_type":  "text",
+        "content":  "테스트",
+        "image_url":  null,
+        "created_at":  "2026-06-11T20:54:59.503638+00:00"
+    },
+    {
+        "id":  "0c3c771c-5445-44aa-bb91-a3c2289d6faa",
+        "sender_code":  "0BBT88",
+        "message_type":  "text",
+        "content":  "ㅎㅎ",
+        "image_url":  null,
+        "created_at":  "2026-06-11T20:14:54.269587+00:00"
+    }
+]
+Count: 7
