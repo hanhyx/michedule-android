@@ -269,13 +269,16 @@ class SupabaseSync(
             repo.syncDatePlans(remotePlans, myCode)
 
             if (!isFirstSync && appContext != null) {
-                val changes = detectChanges(lastKnownFriendShifts, newShiftsMap)
-                if (changes.isNotEmpty()) {
-                    sendPartnerChangeNotification(
-                        appContext,
-                        friendRow.user_name.ifBlank { "상대" },
-                        changes
-                    )
+                val pushEnabled = prefsManager.pushScheduleChangeEnabled.first()
+                if (pushEnabled) {
+                    val changes = detectChanges(lastKnownFriendShifts, newShiftsMap)
+                    if (changes.isNotEmpty()) {
+                        sendPartnerChangeNotification(
+                            appContext,
+                            friendRow.user_name.ifBlank { "상대" },
+                            changes
+                        )
+                    }
                 }
             }
             isFirstSync = false

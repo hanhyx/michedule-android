@@ -283,6 +283,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 repo.recordShiftChange(date, old.type, null)
             }
             repo.clearShift(date)
+            app.triggerUpload()
         }
     }
 
@@ -368,11 +369,15 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 idx++
             }
             repo.bulkSetShifts(shifts)
+            app.triggerUpload()
         }
     }
 
     fun clearMonth() {
-        viewModelScope.launch { repo.clearMonth(_uiState.value.currentMonth) }
+        viewModelScope.launch {
+            repo.clearMonth(_uiState.value.currentMonth)
+            app.triggerUpload()
+        }
     }
 
     fun applyOcrResult(result: OcrScheduleResult): Int {

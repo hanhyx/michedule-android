@@ -37,6 +37,7 @@ class PrefsManager(private val context: Context) {
         private val KEY_PUSH_CHAT_ENABLED = booleanPreferencesKey("push_chat_enabled")
         private val KEY_PUSH_DATE_PLAN_ENABLED = booleanPreferencesKey("push_date_plan_enabled")
         private val KEY_PUSH_DATE_PLAN_RESPONSE_ENABLED = booleanPreferencesKey("push_date_plan_response_enabled")
+        private val KEY_PUSH_SCHEDULE_CHANGE_ENABLED = booleanPreferencesKey("push_schedule_change_enabled")
 
         private fun generateCode(): String {
             val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -64,6 +65,7 @@ class PrefsManager(private val context: Context) {
     val pushChatEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PUSH_CHAT_ENABLED] ?: true }
     val pushDatePlanEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PUSH_DATE_PLAN_ENABLED] ?: true }
     val pushDatePlanResponseEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PUSH_DATE_PLAN_RESPONSE_ENABLED] ?: true }
+    val pushScheduleChangeEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PUSH_SCHEDULE_CHANGE_ENABLED] ?: false }
 
     suspend fun ensureMyCode(): String {
         var code = ""
@@ -154,6 +156,10 @@ class PrefsManager(private val context: Context) {
 
     suspend fun setPushDatePlanResponseEnabled(enabled: Boolean) {
         context.dataStore.edit { it[KEY_PUSH_DATE_PLAN_RESPONSE_ENABLED] = enabled }
+    }
+
+    suspend fun setPushScheduleChangeEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_PUSH_SCHEDULE_CHANGE_ENABLED] = enabled }
     }
 
     suspend fun clearPartner() {

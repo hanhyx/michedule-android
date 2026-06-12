@@ -683,6 +683,11 @@ private fun WorkTab(
             PushToggleRow("💌 만나요 응답", "상대가 만나요에 응답했을 때", pushDatePlanResponse) {
                 scope.launch { prefsManager.setPushDatePlanResponseEnabled(it) }
             }
+            Spacer(modifier = Modifier.height(8.dp))
+            val pushScheduleChange by prefsManager.pushScheduleChangeEnabled.collectAsState(initial = false)
+            PushToggleRow("📅 일정 변경", "상대의 근무 일정이 변경되었을 때", pushScheduleChange) {
+                scope.launch { prefsManager.setPushScheduleChangeEnabled(it) }
+            }
         }
 
         ShiftTypeManagementCard(shiftTypeManager = app.shiftTypeManager)
