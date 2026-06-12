@@ -148,18 +148,25 @@ class MicheduleApp : Application() {
 
                 val bytes = file.readBytes()
                 val httpClient = HttpClient(OkHttp)
-                httpClient.request(uploadUrl) {
-                    method = HttpMethod.Post
+                val response = httpClient.request(uploadUrl) {
+                    method = HttpMethod.Put
                     header("Authorization", "Bearer $key")
                     header("apikey", key)
+                    header("x-upsert", "true")
                     contentType(ContentType.Image.JPEG)
                     setBody(bytes)
                 }
                 httpClient.close()
 
-                val publicUrl = "$url/storage/v1/object/public/chat-images/$storagePath"
-                prefsManager.setMyPhotoUri(publicUrl)
-                triggerUpload()
+                if (response.status.isSuccess()) {
+                    val ts = System.currentTimeMillis()
+                    val publicUrl = "$url/storage/v1/object/public/chat-images/$storagePath?t=$ts"
+                    prefsManager.setMyPhotoUri(publicUrl)
+                    triggerUpload()
+                    Log.d("MicheduleApp", "Profile photo updated: $publicUrl")
+                } else {
+                    Log.e("MicheduleApp", "Profile upload failed: ${response.status}")
+                }
             } catch (e: Exception) {
                 Log.e("MicheduleApp", "Failed to save profile photo", e)
             }
