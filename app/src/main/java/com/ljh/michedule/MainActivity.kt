@@ -7,6 +7,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -23,7 +24,6 @@ import com.ljh.michedule.ui.onboarding.OnboardingScreen
 import com.ljh.michedule.ui.theme.*
 import com.ljh.michedule.update.UpdateChecker
 import com.ljh.michedule.update.UpdateInfo
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 data class InviteData(val url: String, val key: String, val partnerCode: String)
@@ -37,7 +37,25 @@ class MainActivity : ComponentActivity() {
         val invite = parseInviteIntent()
 
         setContent {
-            MicheduleTheme {
+            val themeMode by app.prefsManager.themeMode.collectAsState(initial = "dark")
+            val isDarkTheme = themeMode != "light"
+
+            LaunchedEffect(isDarkTheme) {
+                if (isDarkTheme) {
+                    enableEdgeToEdge(
+                        statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+                        navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                    )
+                } else {
+                    enableEdgeToEdge(
+                        statusBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+                        navigationBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+                    )
+                }
+            }
+
+            MicheduleTheme(darkTheme = isDarkTheme) {
+                val colors = LocalAppColors.current
                 val context = LocalContext.current
                 val scope = rememberCoroutineScope()
                 var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
@@ -103,25 +121,25 @@ class MainActivity : ComponentActivity() {
                             Text(
                                 "업데이트 알림",
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                color = colors.textPrimary
                             )
                         },
                         text = {
                             Column {
                                 Text(
                                     "새 버전이 있습니다: v${info.latestVersion}",
-                                    color = TextPrimary
+                                    color = colors.textPrimary
                                 )
                                 Text(
                                     "현재 버전: v${info.currentVersion}",
-                                    color = TextSecondary,
+                                    color = colors.textSecondary,
                                     style = MaterialTheme.typography.bodySmall
                                 )
                                 if (info.releaseNotes.isNotBlank()) {
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
                                         info.releaseNotes,
-                                        color = TextSecondary,
+                                        color = colors.textSecondary,
                                         style = MaterialTheme.typography.bodyMedium
                                     )
                                 }
@@ -138,15 +156,15 @@ class MainActivity : ComponentActivity() {
                                 }
                                 showUpdateDialog = false
                             }) {
-                                Text("업데이트", color = Purple80, fontWeight = FontWeight.Bold)
+                                Text("업데이트", color = colors.accent, fontWeight = FontWeight.Bold)
                             }
                         },
                         dismissButton = {
                             TextButton(onClick = { showUpdateDialog = false }) {
-                                Text("나중에", color = TextMuted)
+                                Text("나중에", color = colors.textMuted)
                             }
                         },
-                        containerColor = DarkCard,
+                        containerColor = colors.card,
                         shape = RoundedCornerShape(20.dp)
                     )
                 }

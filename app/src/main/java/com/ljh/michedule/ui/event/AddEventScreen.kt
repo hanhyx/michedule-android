@@ -39,18 +39,20 @@ fun AddEventScreen(
     var selectedCategory by remember { mutableStateOf(EventCategory.PERSONAL) }
     var selectedColor by remember { mutableStateOf(EventPersonal) }
 
+    val colors = LocalAppColors.current
+
     val presetColors = listOf(
         EventPersonal,
         EventAppointment,
         EventHospital,
         ShiftOff,
-        Purple80,
+        colors.accent,
         ShiftNightEarly
     )
 
     Scaffold(
         modifier = modifier,
-        containerColor = DarkBg,
+        containerColor = colors.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -61,13 +63,13 @@ fun AddEventScreen(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "뒤로",
-                            tint = TextPrimary
+                            tint = colors.textPrimary
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DarkBg,
-                    titleContentColor = TextPrimary
+                    containerColor = colors.background,
+                    titleContentColor = colors.textPrimary
                 ),
                 actions = {
                     TextButton(
@@ -89,7 +91,7 @@ fun AddEventScreen(
                     ) {
                         Text(
                             "저장",
-                            color = if (title.isNotBlank()) Purple80 else TextMuted,
+                            color = if (title.isNotBlank()) colors.accent else colors.textMuted,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -108,15 +110,15 @@ fun AddEventScreen(
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("제목", color = TextMuted) },
+                label = { Text("제목", color = colors.textMuted) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Purple80,
-                    unfocusedBorderColor = DarkBorder,
-                    cursorColor = Purple80,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary,
-                    focusedLabelColor = Purple80
+                    focusedBorderColor = colors.accent,
+                    unfocusedBorderColor = colors.border,
+                    cursorColor = colors.accent,
+                    focusedTextColor = colors.textPrimary,
+                    unfocusedTextColor = colors.textPrimary,
+                    focusedLabelColor = colors.accent
                 ),
                 shape = RoundedCornerShape(12.dp),
                 singleLine = true
@@ -129,14 +131,14 @@ fun AddEventScreen(
                         .format(DateTimeFormatter.ofPattern("yyyy-MM-dd (E)"))
                 } catch (_: Exception) { date },
                 onValueChange = {},
-                label = { Text("날짜", color = TextMuted) },
+                label = { Text("날짜", color = colors.textMuted) },
                 modifier = Modifier.fillMaxWidth(),
                 readOnly = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Purple80,
-                    unfocusedBorderColor = DarkBorder,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary
+                    focusedBorderColor = colors.accent,
+                    unfocusedBorderColor = colors.border,
+                    focusedTextColor = colors.textPrimary,
+                    unfocusedTextColor = colors.textPrimary
                 ),
                 shape = RoundedCornerShape(12.dp)
             )
@@ -149,15 +151,15 @@ fun AddEventScreen(
                 OutlinedTextField(
                     value = startTime,
                     onValueChange = { startTime = it },
-                    label = { Text("시작", color = TextMuted) },
-                    placeholder = { Text("14:00", color = TextMuted) },
+                    label = { Text("시작", color = colors.textMuted) },
+                    placeholder = { Text("14:00", color = colors.textMuted) },
                     modifier = Modifier.weight(1f),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Purple80,
-                        unfocusedBorderColor = DarkBorder,
-                        cursorColor = Purple80,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
+                        focusedBorderColor = colors.accent,
+                        unfocusedBorderColor = colors.border,
+                        cursorColor = colors.accent,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary
                     ),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true
@@ -165,15 +167,15 @@ fun AddEventScreen(
                 OutlinedTextField(
                     value = endTime,
                     onValueChange = { endTime = it },
-                    label = { Text("종료", color = TextMuted) },
-                    placeholder = { Text("16:00", color = TextMuted) },
+                    label = { Text("종료", color = colors.textMuted) },
+                    placeholder = { Text("16:00", color = colors.textMuted) },
                     modifier = Modifier.weight(1f),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Purple80,
-                        unfocusedBorderColor = DarkBorder,
-                        cursorColor = Purple80,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
+                        focusedBorderColor = colors.accent,
+                        unfocusedBorderColor = colors.border,
+                        cursorColor = colors.accent,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary
                     ),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true
@@ -184,7 +186,7 @@ fun AddEventScreen(
             Text(
                 text = "카테고리",
                 style = MaterialTheme.typography.labelLarge,
-                color = TextSecondary
+                color = colors.textSecondary
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -200,7 +202,7 @@ fun AddEventScreen(
                                 selectedColor = cat.defaultColor
                             },
                         shape = RoundedCornerShape(12.dp),
-                        color = if (isActive) cat.defaultColor.copy(alpha = 0.2f) else DarkSurface,
+                        color = if (isActive) cat.defaultColor.copy(alpha = 0.2f) else colors.surface,
                         border = if (isActive) {
                             BorderStroke(1.dp, cat.defaultColor)
                         } else null
@@ -213,7 +215,7 @@ fun AddEventScreen(
                             Text(
                                 cat.label,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = if (isActive) cat.defaultColor else TextMuted
+                                color = if (isActive) cat.defaultColor else colors.textMuted
                             )
                         }
                     }
@@ -224,7 +226,7 @@ fun AddEventScreen(
             Text(
                 text = "색상",
                 style = MaterialTheme.typography.labelLarge,
-                color = TextSecondary
+                color = colors.textSecondary
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),

@@ -10,8 +10,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 @Database(
     entities = [ShiftEntity::class, EventEntity::class, FriendShiftEntity::class,
         TodoEntity::class, MoodEntity::class, ShiftHistoryEntity::class, DatePlanEntity::class,
-        ShiftTypeConfig::class, ChatMessageEntity::class],
-    version = 14,
+        ShiftTypeConfig::class, ChatMessageEntity::class,
+        TimelineEntity::class, TimelinePlaceEntity::class, TimelinePhotoEntity::class, TimelineStickerEntity::class],
+    version = 15,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -24,6 +25,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun datePlanDao(): DatePlanDao
     abstract fun shiftTypeConfigDao(): ShiftTypeConfigDao
     abstract fun chatMessageDao(): ChatMessageDao
+    abstract fun timelineDao(): TimelineDao
 
     companion object {
         @Volatile
@@ -182,6 +184,55 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `timelines` (
+                        `id` TEXT NOT NULL PRIMARY KEY,
+                        `roomCode` TEXT NOT NULL,
+                        `date` TEXT NOT NULL,
+                        `title` TEXT NOT NULL DEFAULT '',
+                        `createdBy` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `timeline_places` (
+                        `id` TEXT NOT NULL PRIMARY KEY,
+                        `timelineId` TEXT NOT NULL,
+                        `placeName` TEXT NOT NULL,
+                        `time` TEXT NOT NULL DEFAULT '',
+                        `memo` TEXT NOT NULL DEFAULT '',
+                        `sortOrder` INTEGER NOT NULL DEFAULT 0
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `timeline_photos` (
+                        `id` TEXT NOT NULL PRIMARY KEY,
+                        `placeId` TEXT NOT NULL,
+                        `timelineId` TEXT NOT NULL,
+                        `imageUrl` TEXT NOT NULL,
+                        `sortOrder` INTEGER NOT NULL DEFAULT 0
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `timeline_stickers` (
+                        `id` TEXT NOT NULL PRIMARY KEY,
+                        `timelineId` TEXT NOT NULL,
+                        `placeId` TEXT,
+                        `photoId` TEXT,
+                        `stickerType` TEXT NOT NULL DEFAULT 'emoji',
+                        `stickerValue` TEXT NOT NULL,
+                        `posX` REAL NOT NULL,
+                        `posY` REAL NOT NULL,
+                        `scale` REAL NOT NULL DEFAULT 1.0,
+                        `rotation` REAL NOT NULL DEFAULT 0.0,
+                        `placedBy` TEXT NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
         private val MIGRATION_12_13 = object : Migration(12, 13) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""
@@ -206,7 +257,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "michedule.db"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15)
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)

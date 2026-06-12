@@ -66,6 +66,7 @@ fun DayDetailSheet(
     onDatePlanDelete: () -> Unit = {},
     onDatePlanRespond: (String) -> Unit = {}
 ) {
+    val colors = LocalAppColors.current
     val allTypes by shiftTypeManager.allTypes.collectAsState()
     val memoList = remember(date, shift) { (shift?.getMemoList() ?: emptyList()).toMutableStateList() }
     var newMemoText by remember(date) { mutableStateOf("") }
@@ -88,7 +89,7 @@ fun DayDetailSheet(
 
     ModalBottomSheet(
         onDismissRequest = { onDismiss() },
-        containerColor = DarkCard,
+        containerColor = colors.card,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         dragHandle = {
             Box(
@@ -97,7 +98,7 @@ fun DayDetailSheet(
                     .width(40.dp)
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(DarkBorder)
+                    .background(colors.border)
             )
         }
     ) {
@@ -132,8 +133,8 @@ fun DayDetailSheet(
                                 .clip(RoundedCornerShape(10.dp))
                                 .clickable { onExtraShiftToggle(extra.id) },
                             shape = RoundedCornerShape(10.dp),
-                            color = if (isActive) extra.color.copy(alpha = 0.15f) else DarkBg,
-                            border = BorderStroke(1.dp, if (isActive) extra.color else DarkBorder)
+                            color = if (isActive) extra.color.copy(alpha = 0.15f) else colors.background,
+                            border = BorderStroke(1.dp, if (isActive) extra.color else colors.border)
                         ) {
                             Row(
                                 modifier = Modifier
@@ -145,9 +146,9 @@ fun DayDetailSheet(
                                 Spacer(Modifier.width(8.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text(extra.label, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
-                                        color = if (isActive) extra.color else TextPrimary)
+                                        color = if (isActive) extra.color else colors.textPrimary)
                                     Text(extra.defaultTimeRange, fontSize = 10.sp,
-                                        color = if (isActive) extra.color.copy(alpha = 0.7f) else TextMuted)
+                                        color = if (isActive) extra.color.copy(alpha = 0.7f) else colors.textMuted)
                                 }
                                 Switch(
                                     checked = isActive,
@@ -156,8 +157,8 @@ fun DayDetailSheet(
                                     colors = SwitchDefaults.colors(
                                         checkedThumbColor = Color.White,
                                         checkedTrackColor = extra.color,
-                                        uncheckedThumbColor = TextMuted,
-                                        uncheckedTrackColor = DarkBorder
+                                        uncheckedThumbColor = colors.textMuted,
+                                        uncheckedTrackColor = colors.border
                                     )
                                 )
                             }
@@ -175,13 +176,13 @@ fun DayDetailSheet(
                             .fillMaxWidth()
                             .padding(vertical = 2.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(DarkBg)
+                            .background(colors.background)
                             .padding(horizontal = 10.dp, vertical = 7.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(memo, color = TextPrimary, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontSize = 13.sp)
+                        Text(memo, color = colors.textPrimary, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontSize = 13.sp)
                         Icon(
-                            Icons.Default.Close, contentDescription = "삭제", tint = TextMuted,
+                            Icons.Default.Close, contentDescription = "삭제", tint = colors.textMuted,
                             modifier = Modifier.size(16.dp).clickable {
                                 memoList.removeAt(index)
                                 val combined = memoList.joinToString("|||").ifBlank { null }
@@ -196,10 +197,10 @@ fun DayDetailSheet(
                         value = newMemoText,
                         onValueChange = { newMemoText = it },
                         modifier = Modifier.weight(1f).heightIn(min = 40.dp),
-                        placeholder = { Text("메모 추가", color = TextMuted, fontSize = 13.sp) },
+                        placeholder = { Text("메모 추가", color = colors.textMuted, fontSize = 13.sp) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Purple80, unfocusedBorderColor = DarkBorder,
-                            cursorColor = Purple80, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
+                            focusedBorderColor = colors.accent, unfocusedBorderColor = colors.border,
+                            cursorColor = colors.accent, focusedTextColor = colors.textPrimary, unfocusedTextColor = colors.textPrimary
                         ),
                         shape = RoundedCornerShape(10.dp),
                         singleLine = true,
@@ -217,7 +218,7 @@ fun DayDetailSheet(
                     Spacer(modifier = Modifier.width(6.dp))
                     Icon(
                         Icons.Default.AddCircle, contentDescription = "추가",
-                        tint = if (newMemoText.isNotBlank()) Purple80 else TextMuted,
+                        tint = if (newMemoText.isNotBlank()) colors.accent else colors.textMuted,
                         modifier = Modifier.size(28.dp).clickable {
                             if (newMemoText.isNotBlank()) {
                                 memoList.add(newMemoText.trim())
@@ -236,7 +237,7 @@ fun DayDetailSheet(
                 val doneCount = todos.count { it.isDone }
                 if (todos.isNotEmpty()) {
                     Text("$doneCount/${todos.size}", style = MaterialTheme.typography.bodySmall,
-                        color = if (doneCount == todos.size) ShiftOff else TextMuted)
+                        color = if (doneCount == todos.size) ShiftOff else colors.textMuted)
                 }
             }) {
                 TodoSectionContent(todos, onAddTodo, onToggleTodo, onDeleteTodo)
@@ -258,12 +259,12 @@ fun DayDetailSheet(
             // ── 6. 일정 ──
             SectionCard(icon = "📅", title = "일정", trailing = {
                 Icon(
-                    Icons.Default.AddCircle, contentDescription = "추가", tint = Purple80,
+                    Icons.Default.AddCircle, contentDescription = "추가", tint = colors.accent,
                     modifier = Modifier.size(24.dp).clickable { onAddEvent() }
                 )
             }) {
                 if (events.isEmpty()) {
-                    Text("등록된 일정이 없습니다", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+                    Text("등록된 일정이 없습니다", style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
                 } else {
                     events.forEach { event ->
                         Row(
@@ -276,10 +277,10 @@ fun DayDetailSheet(
                                 Text(event.title, style = MaterialTheme.typography.bodyMedium, fontSize = 13.sp)
                                 if (event.startTime != null) {
                                     Text("${event.startTime}${event.endTime?.let { " - $it" } ?: ""}",
-                                        style = MaterialTheme.typography.bodySmall, color = TextMuted, fontSize = 11.sp)
+                                        style = MaterialTheme.typography.bodySmall, color = colors.textMuted, fontSize = 11.sp)
                                 }
                             }
-                            Icon(Icons.Default.Close, "삭제", Modifier.size(16.dp).clickable { onDeleteEvent(event.id) }, tint = TextMuted)
+                            Icon(Icons.Default.Close, "삭제", Modifier.size(16.dp).clickable { onDeleteEvent(event.id) }, tint = colors.textMuted)
                         }
                     }
                 }
@@ -288,7 +289,7 @@ fun DayDetailSheet(
 
             // ── 7. 근무 유형 ──
             SectionCard(icon = "⏰", title = "근무 유형", trailing = {
-                Text("꾹 눌러 시간 수정", fontSize = 9.sp, color = TextMuted)
+                Text("꾹 눌러 시간 수정", fontSize = 9.sp, color = colors.textMuted)
             }) {
                 Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     allTypes.filter { it.id != "alba" }.forEach { config ->
@@ -308,9 +309,9 @@ fun DayDetailSheet(
                 }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onShiftClear, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                        Icon(Icons.Default.Clear, null, Modifier.size(12.dp), tint = TextMuted)
+                        Icon(Icons.Default.Clear, null, Modifier.size(12.dp), tint = colors.textMuted)
                         Spacer(Modifier.width(4.dp))
-                        Text("초기화", color = TextMuted, fontSize = 11.sp)
+                        Text("초기화", color = colors.textMuted, fontSize = 11.sp)
                     }
                 }
                 if (shiftHistory.isNotEmpty()) {
@@ -332,11 +333,12 @@ private fun SectionCard(
     trailing: @Composable (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val colors = LocalAppColors.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
-        color = DarkSurface,
-        border = BorderStroke(1.dp, DarkBorder)
+        color = colors.surface,
+        border = BorderStroke(1.dp, colors.border)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(
@@ -345,7 +347,7 @@ private fun SectionCard(
             ) {
                 Text(icon, fontSize = 16.sp)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextSecondary)
+                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.textSecondary)
                 Spacer(modifier = Modifier.weight(1f))
                 trailing?.invoke()
             }
@@ -359,6 +361,7 @@ private fun SectionCard(
 
 @Composable
 private fun MoodSectionContent(mood: MoodEntity?, onMoodSelect: (String, String) -> Unit) {
+    val colors = LocalAppColors.current
     val quickEmojis = listOf("😊", "🥰", "😐", "😢", "😤", "😴", "🤩", "😰", "🥲", "😎")
     var selectedEmoji by remember(mood) { mutableStateOf(mood?.emoji ?: "") }
     var moodNote by remember(mood) { mutableStateOf(mood?.note ?: "") }
@@ -379,8 +382,8 @@ private fun MoodSectionContent(mood: MoodEntity?, onMoodSelect: (String, String)
                         onMoodSelect(emoji, moodNote)
                     },
                 shape = CircleShape,
-                color = if (isSelected) Purple40 else Color.Transparent,
-                border = if (isSelected) BorderStroke(2.dp, Purple80) else null
+                color = if (isSelected) colors.accentDark else Color.Transparent,
+                border = if (isSelected) BorderStroke(2.dp, colors.accent) else null
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(emoji, fontSize = 18.sp)
@@ -407,10 +410,10 @@ private fun MoodSectionContent(mood: MoodEntity?, onMoodSelect: (String, String)
                 }
             },
             modifier = Modifier.width(80.dp),
-            placeholder = { Text("이모지", color = TextMuted, fontSize = 12.sp) },
+            placeholder = { Text("이모지", color = colors.textMuted, fontSize = 12.sp) },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Purple80, unfocusedBorderColor = DarkBorder,
-                cursorColor = Purple80, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
+                focusedBorderColor = colors.accent, unfocusedBorderColor = colors.border,
+                cursorColor = colors.accent, focusedTextColor = colors.textPrimary, unfocusedTextColor = colors.textPrimary
             ),
             shape = RoundedCornerShape(12.dp),
             singleLine = true
@@ -422,10 +425,10 @@ private fun MoodSectionContent(mood: MoodEntity?, onMoodSelect: (String, String)
                 if (selectedEmoji.isNotBlank()) onMoodSelect(selectedEmoji, it)
             },
             modifier = Modifier.weight(1f),
-            placeholder = { Text("한줄 감정 메모...", color = TextMuted) },
+            placeholder = { Text("한줄 감정 메모...", color = colors.textMuted) },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Purple80, unfocusedBorderColor = DarkBorder,
-                cursorColor = Purple80, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
+                focusedBorderColor = colors.accent, unfocusedBorderColor = colors.border,
+                cursorColor = colors.accent, focusedTextColor = colors.textPrimary, unfocusedTextColor = colors.textPrimary
             ),
             shape = RoundedCornerShape(12.dp),
             singleLine = true
@@ -437,7 +440,7 @@ private fun MoodSectionContent(mood: MoodEntity?, onMoodSelect: (String, String)
         Text(
             text = "선택됨: $selectedEmoji",
             fontSize = 12.sp,
-            color = Purple80
+            color = colors.accent
         )
     }
 }
@@ -446,6 +449,7 @@ private fun MoodSectionContent(mood: MoodEntity?, onMoodSelect: (String, String)
 
 @Composable
 private fun ShiftHistorySection(history: List<ShiftHistoryEntity>) {
+    val colors = LocalAppColors.current
     var expanded by remember { mutableStateOf(false) }
 
     Row(
@@ -455,13 +459,13 @@ private fun ShiftHistorySection(history: List<ShiftHistoryEntity>) {
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(Icons.Default.History, null, Modifier.size(14.dp), tint = TextMuted)
+        Icon(Icons.Default.History, null, Modifier.size(14.dp), tint = colors.textMuted)
         Spacer(Modifier.width(4.dp))
-        Text("변경 이력 (${history.size})", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+        Text("변경 이력 (${history.size})", style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
         Spacer(Modifier.weight(1f))
         Icon(
             if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-            null, Modifier.size(16.dp), tint = TextMuted
+            null, Modifier.size(16.dp), tint = colors.textMuted
         )
     }
     if (expanded) {
@@ -475,7 +479,7 @@ private fun ShiftHistorySection(history: List<ShiftHistoryEntity>) {
             Text(
                 text = "$time : $oldLabel → $newLabel",
                 style = MaterialTheme.typography.bodySmall,
-                color = TextMuted,
+                color = colors.textMuted,
                 modifier = Modifier.padding(start = 18.dp, top = 2.dp)
             )
         }
@@ -491,6 +495,7 @@ private fun TodoSectionContent(
     onToggle: (Long, Boolean) -> Unit,
     onDelete: (Long) -> Unit
 ) {
+    val colors = LocalAppColors.current
     var newTodoText by remember { mutableStateOf("") }
 
     todos.forEach { todo ->
@@ -499,25 +504,25 @@ private fun TodoSectionContent(
                 .fillMaxWidth()
                 .padding(vertical = 2.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(if (todo.isDone) DarkBg.copy(alpha = 0.5f) else DarkBg)
+                .background(if (todo.isDone) colors.background.copy(alpha = 0.5f) else colors.background)
                 .clickable { onToggle(todo.id, !todo.isDone) }
                 .padding(horizontal = 12.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 if (todo.isDone) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                null, tint = if (todo.isDone) ShiftOff else TextMuted, modifier = Modifier.size(16.dp)
+                null, tint = if (todo.isDone) ShiftOff else colors.textMuted, modifier = Modifier.size(16.dp)
             )
             Spacer(Modifier.width(8.dp))
             Text(
                 text = (if (todo.isHabit) "🔄 " else "") + todo.title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontSize = 13.sp,
-                color = if (todo.isDone) TextMuted else TextPrimary,
+                color = if (todo.isDone) colors.textMuted else colors.textPrimary,
                 textDecoration = if (todo.isDone) TextDecoration.LineThrough else TextDecoration.None,
                 modifier = Modifier.weight(1f)
             )
-            Icon(Icons.Default.Close, "삭제", Modifier.size(14.dp).clickable { onDelete(todo.id) }, tint = TextMuted)
+            Icon(Icons.Default.Close, "삭제", Modifier.size(14.dp).clickable { onDelete(todo.id) }, tint = colors.textMuted)
         }
     }
 
@@ -527,10 +532,10 @@ private fun TodoSectionContent(
             value = newTodoText,
             onValueChange = { newTodoText = it },
             modifier = Modifier.weight(1f).heightIn(min = 40.dp),
-            placeholder = { Text("할 일 추가", color = TextMuted, fontSize = 13.sp) },
+            placeholder = { Text("할 일 추가", color = colors.textMuted, fontSize = 13.sp) },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Purple80, unfocusedBorderColor = DarkBorder,
-                cursorColor = Purple80, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
+                focusedBorderColor = colors.accent, unfocusedBorderColor = colors.border,
+                cursorColor = colors.accent, focusedTextColor = colors.textPrimary, unfocusedTextColor = colors.textPrimary
             ),
             shape = RoundedCornerShape(10.dp),
             singleLine = true,
@@ -539,7 +544,7 @@ private fun TodoSectionContent(
         Spacer(modifier = Modifier.width(6.dp))
         Icon(
             Icons.Default.AddCircle, contentDescription = "추가",
-            tint = if (newTodoText.isNotBlank()) Purple80 else TextMuted,
+            tint = if (newTodoText.isNotBlank()) colors.accent else colors.textMuted,
             modifier = Modifier.size(28.dp).clickable {
                 if (newTodoText.isNotBlank()) {
                     onAdd(newTodoText.trim(), null, false)
@@ -560,12 +565,13 @@ private fun ShiftConfigButton(
     onClick: () -> Unit,
     onLongClick: () -> Unit = {}
 ) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(if (isActive) config.bgColor else DarkSurface)
-            .border(1.dp, if (isActive) config.color else DarkBorder, RoundedCornerShape(10.dp))
+            .background(if (isActive) config.bgColor else colors.surface)
+            .border(1.dp, if (isActive) config.color else colors.border, RoundedCornerShape(10.dp))
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -574,9 +580,9 @@ private fun ShiftConfigButton(
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(config.label, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                color = if (isActive) config.color else TextPrimary)
+                color = if (isActive) config.color else colors.textPrimary)
             Text(config.defaultTimeRange, fontSize = 11.sp,
-                color = if (isActive) config.color.copy(alpha = 0.7f) else TextMuted)
+                color = if (isActive) config.color.copy(alpha = 0.7f) else colors.textMuted)
         }
         if (isActive) {
             Icon(Icons.Default.CheckCircle, null, tint = config.color, modifier = Modifier.size(20.dp))
@@ -592,6 +598,7 @@ private fun TimeRangeEditDialog(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val colors = LocalAppColors.current
     val currentRange = shiftType.timeRange
     val parts = currentRange.replace("~", "-").split("-").map { it.trim() }
     var startTime by remember { mutableStateOf(if (parts.size >= 2 && parts[0].contains(":")) parts[0] else "") }
@@ -599,17 +606,17 @@ private fun TimeRangeEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = DarkCard,
+        containerColor = colors.card,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(shiftType.emoji, fontSize = 20.sp)
                 Spacer(Modifier.width(8.dp))
-                Text("${shiftType.label} 시간 설정", color = TextPrimary)
+                Text("${shiftType.label} 시간 설정", color = colors.textPrimary)
             }
         },
         text = {
             Column {
-                Text("현재: $currentRange", fontSize = 12.sp, color = TextMuted)
+                Text("현재: $currentRange", fontSize = 12.sp, color = colors.textMuted)
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
@@ -621,32 +628,32 @@ private fun TimeRangeEditDialog(
                         value = startTime,
                         onValueChange = { if (it.length <= 5) startTime = it },
                         modifier = Modifier.weight(1f),
-                        label = { Text("시작", color = TextMuted, fontSize = 12.sp) },
-                        placeholder = { Text("HH:MM", color = TextMuted) },
+                        label = { Text("시작", color = colors.textMuted, fontSize = 12.sp) },
+                        placeholder = { Text("HH:MM", color = colors.textMuted) },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = shiftType.color,
-                            unfocusedBorderColor = DarkBorder,
+                            unfocusedBorderColor = colors.border,
                             cursorColor = shiftType.color,
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary
+                            focusedTextColor = colors.textPrimary,
+                            unfocusedTextColor = colors.textPrimary
                         ),
                         shape = RoundedCornerShape(10.dp),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
-                    Text("~", color = TextMuted, fontSize = 16.sp)
+                    Text("~", color = colors.textMuted, fontSize = 16.sp)
                     OutlinedTextField(
                         value = endTime,
                         onValueChange = { if (it.length <= 5) endTime = it },
                         modifier = Modifier.weight(1f),
-                        label = { Text("종료", color = TextMuted, fontSize = 12.sp) },
-                        placeholder = { Text("HH:MM", color = TextMuted) },
+                        label = { Text("종료", color = colors.textMuted, fontSize = 12.sp) },
+                        placeholder = { Text("HH:MM", color = colors.textMuted) },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = shiftType.color,
-                            unfocusedBorderColor = DarkBorder,
+                            unfocusedBorderColor = colors.border,
                             cursorColor = shiftType.color,
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary
+                            focusedTextColor = colors.textPrimary,
+                            unfocusedTextColor = colors.textPrimary
                         ),
                         shape = RoundedCornerShape(10.dp),
                         singleLine = true,
@@ -657,7 +664,7 @@ private fun TimeRangeEditDialog(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "기본값: ${shiftType.defaultTimeRange}",
-                    fontSize = 11.sp, color = TextMuted
+                    fontSize = 11.sp, color = colors.textMuted
                 )
             }
         },
@@ -666,7 +673,7 @@ private fun TimeRangeEditDialog(
                 TextButton(onClick = {
                     onConfirm(shiftType.defaultTimeRange)
                 }) {
-                    Text("기본값", color = TextMuted)
+                    Text("기본값", color = colors.textMuted)
                 }
                 Spacer(Modifier.width(8.dp))
                 Button(
@@ -683,7 +690,7 @@ private fun TimeRangeEditDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("취소", color = TextMuted)
+                Text("취소", color = colors.textMuted)
             }
         }
     )
@@ -700,14 +707,15 @@ fun PartnerDayDetailSheet(
     shiftTypeManager: ShiftTypeManager,
     onDismiss: () -> Unit
 ) {
+    val colors = LocalAppColors.current
     val shiftConfig = friendShift?.type?.takeIf { it.isNotBlank() }?.let { shiftTypeManager.getByIdForPartner(it) }
     val partnerName = friendShift?.friendName?.ifBlank { "상대" } ?: "상대"
     val formatter = DateTimeFormatter.ofPattern("M월 d일 (E)")
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = DarkCard,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = TextMuted) }
+        containerColor = colors.card,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = colors.textMuted) }
     ) {
         Column(
             modifier = Modifier
@@ -725,23 +733,23 @@ fun PartnerDayDetailSheet(
                         "${partnerName}의 일정",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        color = colors.textPrimary
                     )
                     Text(
                         date.format(formatter),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextMuted
+                        color = colors.textMuted
                     )
                 }
             }
 
-            HorizontalDivider(color = DarkBorder)
+            HorizontalDivider(color = colors.border)
 
             // 근무 유형
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("📋", fontSize = 16.sp)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("근무", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                Text("근무", style = MaterialTheme.typography.labelLarge, color = colors.textSecondary)
             }
             if (shiftConfig != null) {
                 Surface(
@@ -772,7 +780,7 @@ fun PartnerDayDetailSheet(
                     }
                 }
             } else {
-                Text("등록된 근무가 없습니다", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
+                Text("등록된 근무가 없습니다", color = colors.textMuted, style = MaterialTheme.typography.bodyMedium)
             }
 
             // 추가 근무
@@ -799,21 +807,21 @@ fun PartnerDayDetailSheet(
 
             // 메모
             if (!friendShift?.memo.isNullOrBlank()) {
-                HorizontalDivider(color = DarkBorder)
+                HorizontalDivider(color = colors.border)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("📝", fontSize = 16.sp)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("메모", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                    Text("메모", style = MaterialTheme.typography.labelLarge, color = colors.textSecondary)
                 }
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
-                    color = DarkSurface
+                    color = colors.surface
                 ) {
                     Text(
                         friendShift?.memo ?: "",
                         modifier = Modifier.padding(12.dp),
-                        color = TextPrimary,
+                        color = colors.textPrimary,
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -821,11 +829,11 @@ fun PartnerDayDetailSheet(
 
             // 기분
             if (!friendShift?.mood.isNullOrBlank()) {
-                HorizontalDivider(color = DarkBorder)
+                HorizontalDivider(color = colors.border)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("😊", fontSize = 16.sp)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("기분", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                    Text("기분", style = MaterialTheme.typography.labelLarge, color = colors.textSecondary)
                 }
                 Text(friendShift?.mood ?: "", fontSize = 28.sp)
                 if (!friendShift?.moodNote.isNullOrBlank()) {
@@ -840,28 +848,28 @@ fun PartnerDayDetailSheet(
             // 할 일
             val todoList = friendShift?.getTodoList() ?: emptyList()
             if (todoList.isNotEmpty()) {
-                HorizontalDivider(color = DarkBorder)
+                HorizontalDivider(color = colors.border)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("✅", fontSize = 16.sp)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("할 일", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                    Text("할 일", style = MaterialTheme.typography.labelLarge, color = colors.textSecondary)
                     Spacer(modifier = Modifier.width(8.dp))
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Purple40.copy(alpha = 0.3f)
+                        color = colors.accentDark.copy(alpha = 0.3f)
                     ) {
                         Text(
                             "${todoList.size}개",
                             fontSize = 12.sp,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            color = Purple80
+                            color = colors.accent
                         )
                     }
                 }
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
-                    color = DarkSurface
+                    color = colors.surface
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         todoList.forEach { (title, isDone) ->
@@ -877,7 +885,7 @@ fun PartnerDayDetailSheet(
                                 Text(
                                     title,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = if (isDone) TextMuted else TextPrimary,
+                                    color = if (isDone) colors.textMuted else colors.textPrimary,
                                     textDecoration = if (isDone) TextDecoration.LineThrough else TextDecoration.None
                                 )
                             }
@@ -885,21 +893,21 @@ fun PartnerDayDetailSheet(
                     }
                 }
             } else if ((friendShift?.todoCount ?: 0) > 0) {
-                HorizontalDivider(color = DarkBorder)
+                HorizontalDivider(color = colors.border)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("✅", fontSize = 16.sp)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("할 일", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                    Text("할 일", style = MaterialTheme.typography.labelLarge, color = colors.textSecondary)
                     Spacer(modifier = Modifier.width(8.dp))
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = Purple40.copy(alpha = 0.3f)
+                        color = colors.accentDark.copy(alpha = 0.3f)
                     ) {
                         Text(
                             "${friendShift?.todoCount}개",
                             fontSize = 12.sp,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            color = Purple80
+                            color = colors.accent
                         )
                     }
                 }
@@ -907,7 +915,7 @@ fun PartnerDayDetailSheet(
 
             // 만나요
             if (datePlan != null) {
-                HorizontalDivider(color = DarkBorder)
+                HorizontalDivider(color = colors.border)
                 val heartColor = Color(0xFFEC4899)
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -919,7 +927,7 @@ fun PartnerDayDetailSheet(
                         Text("💕 데이트 예정!", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = heartColor)
                         if (datePlan.memo.isNotBlank()) {
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(datePlan.memo, fontSize = 13.sp, color = TextPrimary)
+                            Text(datePlan.memo, fontSize = 13.sp, color = colors.textPrimary)
                         }
                     }
                 }
@@ -938,6 +946,7 @@ private fun DatePlanSectionContent(
     onDatePlanDelete: () -> Unit,
     onDatePlanRespond: (String) -> Unit = {}
 ) {
+    val colors = LocalAppColors.current
     var planMemo by remember(datePlan) { mutableStateOf(datePlan?.memo ?: "") }
     val heartColor = Color(0xFFEC4899)
 
@@ -974,18 +983,18 @@ private fun DatePlanSectionContent(
                         Text(
                             "취소",
                             fontSize = 12.sp,
-                            color = TextMuted,
+                            color = colors.textMuted,
                             modifier = Modifier.clickable { onDatePlanDelete() }
                         )
                     }
                 }
                 if (datePlan.memo.isNotBlank()) {
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(datePlan.memo, fontSize = 13.sp, color = TextPrimary)
+                    Text(datePlan.memo, fontSize = 13.sp, color = colors.textPrimary)
                 }
                 if (displayName.isNotBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text("by $displayName", fontSize = 10.sp, color = TextMuted)
+                    Text("by $displayName", fontSize = 10.sp, color = colors.textMuted)
                 }
 
                 if (!isMine && datePlan.response.isBlank()) {
@@ -1037,7 +1046,7 @@ private fun DatePlanSectionContent(
             singleLine = true,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = heartColor,
-                unfocusedBorderColor = DarkBorder,
+                unfocusedBorderColor = colors.border,
                 cursorColor = heartColor
             ),
             textStyle = LocalTextStyle.current.copy(fontSize = 13.sp)

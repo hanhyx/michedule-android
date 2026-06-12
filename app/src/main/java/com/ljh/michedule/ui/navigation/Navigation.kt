@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,12 +29,14 @@ import com.ljh.michedule.ui.chat.ChatScreen
 import com.ljh.michedule.ui.event.AddEventScreen
 import com.ljh.michedule.ui.settings.SettingsScreen
 import com.ljh.michedule.ui.theme.*
+import com.ljh.michedule.ui.timeline.TimelineScreen
 import java.time.LocalDate
 import java.time.YearMonth
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     data object Calendar : Screen("calendar", "캘린더", Icons.Default.CalendarMonth)
     data object Chat : Screen("chat", "채팅", Icons.AutoMirrored.Filled.Chat)
+    data object Timeline : Screen("timeline", "타임라인", Icons.Default.Place)
     data object Settings : Screen("settings", "설정", Icons.Default.Settings)
 }
 
@@ -65,14 +68,16 @@ fun MicheduleNavHost(prefsManager: PrefsManager) {
         }
     }.collectAsStateWithLifecycle(initialValue = 0)
 
-    val bottomBarScreens = listOf(Screen.Calendar, Screen.Chat, Screen.Settings)
+    val bottomBarScreens = listOf(Screen.Calendar, Screen.Chat, Screen.Timeline, Screen.Settings)
     val showBottomBar = currentRoute in bottomBarScreens.map { it.route }
 
+    val colors = LocalAppColors.current
+
     Scaffold(
-        containerColor = DarkBg,
+        containerColor = colors.background,
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar(containerColor = DarkSurface) {
+                NavigationBar(containerColor = colors.surface) {
                     bottomBarScreens.forEach { screen ->
                         NavigationBarItem(
                             icon = {
@@ -105,11 +110,11 @@ fun MicheduleNavHost(prefsManager: PrefsManager) {
                                 }
                             },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = Purple80,
-                                selectedTextColor = Purple80,
-                                unselectedIconColor = TextMuted,
-                                unselectedTextColor = TextMuted,
-                                indicatorColor = Purple40.copy(alpha = 0.2f)
+                                selectedIconColor = colors.accent,
+                                selectedTextColor = colors.accent,
+                                unselectedIconColor = colors.textMuted,
+                                unselectedTextColor = colors.textMuted,
+                                indicatorColor = colors.accentDark.copy(alpha = 0.2f)
                             )
                         )
                     }
@@ -145,6 +150,10 @@ fun MicheduleNavHost(prefsManager: PrefsManager) {
                         .consumeWindowInsets(innerPadding)
                         .imePadding()
                 )
+            }
+
+            composable(Screen.Timeline.route) {
+                TimelineScreen(modifier = Modifier.padding(innerPadding))
             }
 
             composable(Screen.Settings.route) {

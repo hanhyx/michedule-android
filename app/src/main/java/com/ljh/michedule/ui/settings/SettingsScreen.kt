@@ -54,6 +54,7 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val app = context.applicationContext as MicheduleApp
+    val colors = LocalAppColors.current
 
     val tabs = listOf("프로필", "근무", "기타")
     val pagerState = rememberPagerState(pageCount = { tabs.size })
@@ -65,7 +66,7 @@ fun SettingsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBg)
+            .background(colors.background)
     ) {
         Text(
             text = "설정",
@@ -76,9 +77,9 @@ fun SettingsScreen(
 
         TabRow(
             selectedTabIndex = pagerState.currentPage,
-            containerColor = DarkBg,
-            contentColor = Purple80,
-            divider = { HorizontalDivider(color = DarkBorder) }
+            containerColor = colors.background,
+            contentColor = colors.accent,
+            divider = { HorizontalDivider(color = colors.border) }
         ) {
             tabs.forEachIndexed { index, title ->
                 Tab(
@@ -88,7 +89,7 @@ fun SettingsScreen(
                         Text(
                             title,
                             fontWeight = if (pagerState.currentPage == index) FontWeight.Bold else FontWeight.Normal,
-                            color = if (pagerState.currentPage == index) Purple80 else TextMuted
+                            color = if (pagerState.currentPage == index) colors.accent else colors.textMuted
                         )
                     }
                 )
@@ -102,7 +103,7 @@ fun SettingsScreen(
             when (page) {
                 0 -> ProfileTab(prefsManager, app)
                 1 -> WorkTab(prefsManager, app, onAutofill)
-                2 -> OtherTab(app, onClearMonth)
+                2 -> OtherTab(app, prefsManager, onClearMonth)
             }
         }
     }
@@ -125,6 +126,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
     val partnerPhotoUri by prefsManager.partnerPhotoUri.collectAsState(initial = "")
     val syncPaused by prefsManager.syncPaused.collectAsState(initial = false)
     val connectionMutual by prefsManager.connectionMutual.collectAsState(initial = false)
+    val colors = LocalAppColors.current
 
     var editName by remember(myName) { mutableStateOf(myName) }
 
@@ -163,7 +165,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                             modifier = Modifier
                                 .size(64.dp)
                                 .clip(CircleShape)
-                                .border(2.dp, Purple80, CircleShape),
+                                .border(2.dp, colors.accent, CircleShape),
                             contentScale = ContentScale.Crop
                         )
                     } else {
@@ -171,8 +173,8 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                             modifier = Modifier
                                 .size(64.dp)
                                 .clip(CircleShape)
-                                .background(DarkSurface)
-                                .border(2.dp, DarkBorder, CircleShape),
+                                .background(colors.surface)
+                                .border(2.dp, colors.border, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Text("👤", fontSize = 28.sp)
@@ -182,8 +184,8 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                         modifier = Modifier
                             .size(22.dp)
                             .clip(CircleShape)
-                            .background(Purple40)
-                            .border(1.5.dp, DarkCard, CircleShape),
+                            .background(colors.accentDark)
+                            .border(1.5.dp, colors.card, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -199,7 +201,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                     OutlinedTextField(
                         value = editName,
                         onValueChange = { editName = it },
-                        placeholder = { Text("이름 입력", color = TextMuted) },
+                        placeholder = { Text("이름 입력", color = colors.textMuted) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = settingsFieldColors(),
                         shape = RoundedCornerShape(12.dp),
@@ -218,7 +220,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                         Toast.makeText(context, "저장됨", Toast.LENGTH_SHORT).show()
                     }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Purple40),
+                colors = ButtonDefaults.buttonColors(containerColor = colors.accentDark),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.align(Alignment.End)
             ) {
@@ -230,8 +232,8 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
-                color = DarkSurface,
-                border = BorderStroke(1.dp, DarkBorder)
+                color = colors.surface,
+                border = BorderStroke(1.dp, colors.border)
             ) {
                 Row(
                     modifier = Modifier.padding(12.dp),
@@ -240,12 +242,12 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                     Text("🔑", fontSize = 16.sp)
                     Spacer(modifier = Modifier.width(8.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("내 코드", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+                        Text("내 코드", style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
                         Text(
                             myCode.ifBlank { "..." },
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
-                            color = Purple80,
+                            color = colors.accent,
                             letterSpacing = 2.sp,
                             modifier = Modifier.clickable {
                                 if (myCode.isNotBlank()) {
@@ -256,7 +258,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                             }
                         )
                     }
-                    Text("탭하면 복사", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+                    Text("탭하면 복사", style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -269,7 +271,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                     }
                     context.startActivity(Intent.createChooser(sendIntent, "내 코드 보내기"))
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Purple40),
+                colors = ButtonDefaults.buttonColors(containerColor = colors.accentDark),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth(),
                 enabled = myCode.isNotBlank()
@@ -280,7 +282,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = DarkBorder)
+            HorizontalDivider(color = colors.border)
             Spacer(modifier = Modifier.height(12.dp))
 
             if (partnerCode.isNotBlank()) {
@@ -327,7 +329,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                             )
                             Text(
                                 statusSubText,
-                                style = MaterialTheme.typography.bodySmall, color = TextMuted
+                                style = MaterialTheme.typography.bodySmall, color = colors.textMuted
                             )
                         }
                     }
@@ -378,8 +380,8 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(CircleShape)
-                                    .background(DarkSurface)
-                                    .border(2.dp, DarkBorder, CircleShape),
+                                    .background(colors.surface)
+                                    .border(2.dp, colors.border, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text("👤", fontSize = 18.sp)
@@ -390,12 +392,12 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                             Text(
                                 partnerName.ifBlank { partnerCode },
                                 fontWeight = FontWeight.SemiBold,
-                                color = TextPrimary
+                                color = colors.textPrimary
                             )
                             Text(
                                 "상대방이 설정한 프로필 사진",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = TextMuted
+                                color = colors.textMuted
                             )
                         }
                     }
@@ -407,7 +409,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                 var showChangeInput by remember { mutableStateOf(false) }
 
                 if (showChangeInput) {
-                    Text("다른 상대 코드 입력", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                    Text("다른 상대 코드 입력", style = MaterialTheme.typography.labelLarge, color = colors.textSecondary)
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -417,7 +419,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                             value = changeCode,
                             onValueChange = { changeCode = it.uppercase().take(6) },
                             modifier = Modifier.weight(1f),
-                            placeholder = { Text("6자리 코드", color = TextMuted) },
+                            placeholder = { Text("6자리 코드", color = colors.textMuted) },
                             colors = settingsFieldColors(),
                             shape = RoundedCornerShape(12.dp),
                             singleLine = true
@@ -436,7 +438,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                                     Toast.makeText(context, "내 코드는 입력할 수 없습니다", Toast.LENGTH_SHORT).show()
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Purple40),
+                            colors = ButtonDefaults.buttonColors(containerColor = colors.accentDark),
                             shape = RoundedCornerShape(12.dp),
                             enabled = changeCode.length == 6
                         ) { Text("연결") }
@@ -446,12 +448,12 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                         OutlinedButton(
                             onClick = { showChangeInput = true },
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, DarkBorder),
+                            border = BorderStroke(1.dp, colors.border),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp), tint = TextSecondary)
+                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.textSecondary)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("다른 상대 연결", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                            Text("다른 상대 연결", color = colors.textSecondary, style = MaterialTheme.typography.bodySmall)
                         }
                         OutlinedButton(
                             onClick = {
@@ -471,13 +473,13 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                 var joinCode by remember { mutableStateOf("") }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.PersonAdd, contentDescription = null, tint = TextMuted, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.PersonAdd, contentDescription = null, tint = colors.textMuted, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("서로의 코드를 입력해야 연결됩니다", color = TextMuted)
+                    Text("서로의 코드를 입력해야 연결됩니다", color = colors.textMuted)
                 }
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text("상대방 코드 입력", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                Text("상대방 코드 입력", style = MaterialTheme.typography.labelLarge, color = colors.textSecondary)
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -487,7 +489,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                         value = joinCode,
                         onValueChange = { joinCode = it.uppercase().take(6) },
                         modifier = Modifier.weight(1f),
-                        placeholder = { Text("6자리 코드", color = TextMuted) },
+                        placeholder = { Text("6자리 코드", color = colors.textMuted) },
                         colors = settingsFieldColors(),
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true
@@ -504,7 +506,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                                 Toast.makeText(context, "내 코드는 입력할 수 없습니다", Toast.LENGTH_SHORT).show()
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Purple40),
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.accentDark),
                         shape = RoundedCornerShape(12.dp),
                         enabled = joinCode.length == 6
                     ) {
@@ -515,7 +517,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                 Text(
                     text = "서로의 코드를 입력하면 일정이 공유됩니다",
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted
+                    color = colors.textMuted
                 )
             }
         }
@@ -540,6 +542,7 @@ private fun WorkTab(
     val alarmEnabled by prefsManager.alarmEnabled.collectAsState(initial = false)
     val alarmHoursBefore by prefsManager.alarmHoursBefore.collectAsState(initial = 2)
     val alarmDisabledTypes by prefsManager.alarmDisabledTypes.collectAsState(initial = emptySet())
+    val colors = LocalAppColors.current
 
     Column(
         modifier = Modifier
@@ -555,11 +558,11 @@ private fun WorkTab(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("출근 전 알람", fontWeight = FontWeight.Medium, color = TextPrimary)
+                    Text("출근 전 알람", fontWeight = FontWeight.Medium, color = colors.textPrimary)
                     Text(
                         text = if (alarmEnabled) "출근 ${alarmHoursBefore}시간 전 알림" else "꺼짐",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextMuted
+                        color = colors.textMuted
                     )
                 }
                 Switch(
@@ -573,16 +576,16 @@ private fun WorkTab(
                         }
                     },
                     colors = SwitchDefaults.colors(
-                        checkedThumbColor = Purple80,
-                        checkedTrackColor = Purple40,
-                        uncheckedThumbColor = TextMuted,
-                        uncheckedTrackColor = DarkSurface
+                        checkedThumbColor = colors.accent,
+                        checkedTrackColor = colors.accentDark,
+                        uncheckedThumbColor = colors.textMuted,
+                        uncheckedTrackColor = colors.surface
                     )
                 )
             }
             if (alarmEnabled) {
                 Spacer(modifier = Modifier.height(12.dp))
-                Text("출근 몇 시간 전?", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                Text("출근 몇 시간 전?", style = MaterialTheme.typography.labelMedium, color = colors.textSecondary)
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -593,7 +596,7 @@ private fun WorkTab(
                         Surface(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(10.dp),
-                            color = if (isSelected) Purple40 else DarkSurface,
+                            color = if (isSelected) colors.accentDark else colors.surface,
                             onClick = {
                                 scope.launch { prefsManager.setAlarmHoursBefore(hours) }
                             }
@@ -603,7 +606,7 @@ private fun WorkTab(
                                 modifier = Modifier.padding(vertical = 8.dp),
                                 textAlign = TextAlign.Center,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) Purple80 else TextMuted,
+                                color = if (isSelected) colors.accent else colors.textMuted,
                                 style = MaterialTheme.typography.bodySmall
                             )
                         }
@@ -616,7 +619,7 @@ private fun WorkTab(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("직접 입력:", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Text("직접 입력:", style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
                     Spacer(modifier = Modifier.width(8.dp))
                     OutlinedTextField(
                         value = customHoursText,
@@ -628,26 +631,26 @@ private fun WorkTab(
                         },
                         modifier = Modifier.width(56.dp).height(40.dp),
                         singleLine = true,
-                        textStyle = LocalTextStyle.current.copy(fontSize = 13.sp, textAlign = TextAlign.Center, color = TextPrimary),
+                        textStyle = LocalTextStyle.current.copy(fontSize = 13.sp, textAlign = TextAlign.Center, color = colors.textPrimary),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Purple80, unfocusedBorderColor = DarkBorder,
-                            cursorColor = Purple80
+                            focusedBorderColor = colors.accent, unfocusedBorderColor = colors.border,
+                            cursorColor = colors.accent
                         ),
                         shape = RoundedCornerShape(8.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("시간 전", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+                    Text("시간 전", style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "예: 야간(18:00) → ${alarmHoursBefore}시간 전 = ${18 - alarmHoursBefore}:00 알림",
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted
+                    color = colors.textMuted
                 )
 
-                HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 12.dp))
-                Text("근무 유형별 알림", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                HorizontalDivider(color = colors.border, modifier = Modifier.padding(vertical = 12.dp))
+                Text("근무 유형별 알림", style = MaterialTheme.typography.labelMedium, color = colors.textSecondary)
                 Spacer(modifier = Modifier.height(8.dp))
 
                 val stm = app.shiftTypeManager
@@ -664,7 +667,7 @@ private fun WorkTab(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(label, style = MaterialTheme.typography.bodyMedium,
-                            color = if (isEnabled) TextPrimary else TextMuted)
+                            color = if (isEnabled) colors.textPrimary else colors.textMuted)
                         Switch(
                             checked = isEnabled,
                             onCheckedChange = { enabled ->
@@ -672,10 +675,10 @@ private fun WorkTab(
                             },
                             modifier = Modifier.height(24.dp),
                             colors = SwitchDefaults.colors(
-                                checkedThumbColor = Purple80,
-                                checkedTrackColor = Purple40,
-                                uncheckedThumbColor = TextMuted,
-                                uncheckedTrackColor = DarkSurface
+                                checkedThumbColor = colors.accent,
+                                checkedTrackColor = colors.accentDark,
+                                uncheckedThumbColor = colors.textMuted,
+                                uncheckedTrackColor = colors.surface
                             )
                         )
                     }
@@ -719,9 +722,12 @@ private fun WorkTab(
 // ══════════════════════════════════════════════
 
 @Composable
-private fun OtherTab(app: MicheduleApp, onClearMonth: () -> Unit) {
+private fun OtherTab(app: MicheduleApp, prefsManager: PrefsManager, onClearMonth: () -> Unit) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var showClearConfirm by remember { mutableStateOf(false) }
+    val colors = LocalAppColors.current
+    val themeMode by prefsManager.themeMode.collectAsState(initial = "dark")
 
     Column(
         modifier = Modifier
@@ -730,6 +736,34 @@ private fun OtherTab(app: MicheduleApp, onClearMonth: () -> Unit) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        SettingsCard(title = "테마") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                listOf("dark" to "다크", "light" to "라이트").forEach { (mode, label) ->
+                    val isSelected = themeMode == mode
+                    Surface(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isSelected) colors.accentDark else colors.surface,
+                        onClick = {
+                            scope.launch { prefsManager.setThemeMode(mode) }
+                        }
+                    ) {
+                        Text(
+                            text = label,
+                            modifier = Modifier.padding(vertical = 10.dp),
+                            textAlign = TextAlign.Center,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) Color.White else colors.textMuted,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+        }
+
         SettingsCard(title = "데이터 관리") {
             OutlinedButton(
                 onClick = { showClearConfirm = true },
@@ -750,12 +784,12 @@ private fun OtherTab(app: MicheduleApp, onClearMonth: () -> Unit) {
             Text(
                 text = "Michedule v$versionName",
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
+                color = colors.textSecondary
             )
             Text(
                 text = "교대근무 스케줄 관리",
                 style = MaterialTheme.typography.bodySmall,
-                color = TextMuted
+                color = colors.textMuted
             )
         }
 
@@ -769,8 +803,8 @@ private fun OtherTab(app: MicheduleApp, onClearMonth: () -> Unit) {
     if (showClearConfirm) {
         AlertDialog(
             onDismissRequest = { showClearConfirm = false },
-            title = { Text("이번 달 초기화", color = TextPrimary) },
-            text = { Text("이번 달의 모든 근무 데이터가 삭제됩니다. 계속하시겠습니까?", color = TextSecondary) },
+            title = { Text("이번 달 초기화", color = colors.textPrimary) },
+            text = { Text("이번 달의 모든 근무 데이터가 삭제됩니다. 계속하시겠습니까?", color = colors.textSecondary) },
             confirmButton = {
                 TextButton(onClick = {
                     onClearMonth()
@@ -782,10 +816,10 @@ private fun OtherTab(app: MicheduleApp, onClearMonth: () -> Unit) {
             },
             dismissButton = {
                 TextButton(onClick = { showClearConfirm = false }) {
-                    Text("취소", color = TextPrimary)
+                    Text("취소", color = colors.textPrimary)
                 }
             },
-            containerColor = DarkCard
+            containerColor = colors.card
         )
     }
 }
@@ -795,10 +829,11 @@ private fun SettingsCard(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val colors = LocalAppColors.current
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkCard)
+        colors = CardDefaults.cardColors(containerColor = colors.card)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -813,14 +848,17 @@ private fun SettingsCard(
 }
 
 @Composable
-private fun settingsFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = Purple80,
-    unfocusedBorderColor = DarkBorder,
-    cursorColor = Purple80,
-    focusedTextColor = TextPrimary,
-    unfocusedTextColor = TextPrimary,
-    focusedLabelColor = Purple80
-)
+private fun settingsFieldColors(): TextFieldColors {
+    val colors = LocalAppColors.current
+    return OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = colors.accent,
+        unfocusedBorderColor = colors.border,
+        cursorColor = colors.accent,
+        focusedTextColor = colors.textPrimary,
+        unfocusedTextColor = colors.textPrimary,
+        focusedLabelColor = colors.accent
+    )
+}
 
 // ── Color palette for picker ──
 
@@ -848,6 +886,7 @@ private fun ShiftTypeManagementCard(shiftTypeManager: ShiftTypeManager) {
     var dragIndex by remember { mutableIntStateOf(-1) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     val itemHeight = 52f
+    val colors = LocalAppColors.current
 
     SettingsCard(title = "근무유형 관리") {
 
@@ -856,12 +895,12 @@ private fun ShiftTypeManagementCard(shiftTypeManager: ShiftTypeManager) {
             "기본 근무 (탭 순환)",
             fontWeight = FontWeight.Bold,
             fontSize = 14.sp,
-            color = Purple80
+            color = colors.accent
         )
         Text(
             "드래그하여 순서를 변경하세요. 탭 순서에 반영됩니다.",
             style = MaterialTheme.typography.bodySmall,
-            color = TextMuted
+            color = colors.textMuted
         )
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -896,7 +935,7 @@ private fun ShiftTypeManagementCard(shiftTypeManager: ShiftTypeManager) {
                     Icon(
                         Icons.Default.Menu,
                         contentDescription = "드래그",
-                        tint = TextMuted,
+                        tint = colors.textMuted,
                         modifier = Modifier
                             .size(20.dp)
                             .pointerInput(Unit) {
@@ -936,7 +975,7 @@ private fun ShiftTypeManagementCard(shiftTypeManager: ShiftTypeManager) {
                         Text(config.label, fontWeight = FontWeight.SemiBold, color = config.color, fontSize = 14.sp)
                         Text(config.defaultTimeRange, fontSize = 10.sp, color = config.color.copy(alpha = 0.7f))
                     }
-                    Icon(Icons.Default.Edit, contentDescription = null, tint = TextMuted, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Edit, contentDescription = null, tint = colors.textMuted, modifier = Modifier.size(16.dp))
                 }
                 Spacer(modifier = Modifier.height(6.dp))
             }
@@ -947,7 +986,7 @@ private fun ShiftTypeManagementCard(shiftTypeManager: ShiftTypeManager) {
             Text(
                 "탭 순서: ${draggedPrimary.joinToString(" → ") { it.shortLabel }} → 삭제",
                 style = MaterialTheme.typography.bodySmall,
-                color = Purple80
+                color = colors.accent
             )
         }
 
@@ -955,16 +994,16 @@ private fun ShiftTypeManagementCard(shiftTypeManager: ShiftTypeManager) {
         OutlinedButton(
             onClick = { showAddPrimaryDialog = true },
             shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, Purple80.copy(alpha = 0.5f)),
+            border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.5f)),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = Purple80)
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.accent)
             Spacer(modifier = Modifier.width(4.dp))
-            Text("기본 근무 추가", color = Purple80)
+            Text("기본 근무 추가", color = colors.accent)
         }
 
         Spacer(modifier = Modifier.height(20.dp))
-        HorizontalDivider(color = DarkBorder)
+        HorizontalDivider(color = colors.border)
         Spacer(modifier = Modifier.height(12.dp))
 
         // ── 추가 근무 섹션 ──
@@ -977,7 +1016,7 @@ private fun ShiftTypeManagementCard(shiftTypeManager: ShiftTypeManager) {
         Text(
             "하루에 여러 개를 동시에 켤 수 있습니다.",
             style = MaterialTheme.typography.bodySmall,
-            color = TextMuted
+            color = colors.textMuted
         )
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -997,7 +1036,7 @@ private fun ShiftTypeManagementCard(shiftTypeManager: ShiftTypeManager) {
                     Text(config.label, fontWeight = FontWeight.SemiBold, color = config.color, fontSize = 14.sp)
                     Text(config.defaultTimeRange, fontSize = 10.sp, color = config.color.copy(alpha = 0.7f))
                 }
-                Icon(Icons.Default.Edit, contentDescription = null, tint = TextMuted, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.Edit, contentDescription = null, tint = colors.textMuted, modifier = Modifier.size(16.dp))
             }
             Spacer(modifier = Modifier.height(6.dp))
         }
@@ -1092,6 +1131,7 @@ private fun ShiftTypeEditDialog(
     var timeRange by remember { mutableStateOf(config?.defaultTimeRange ?: "09:00 - 18:00") }
     var inCycle by remember { mutableStateOf(config?.inCycle ?: (category == "primary")) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    val colors = LocalAppColors.current
 
     val bgColorHex = remember(colorHex) {
         val cleaned = colorHex.removePrefix("#")
@@ -1103,11 +1143,11 @@ private fun ShiftTypeEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = DarkCard,
+        containerColor = colors.card,
         title = {
             Text(
                 if (isNew) "새 근무유형" else "${config!!.emoji} ${config.label} 편집",
-                color = TextPrimary
+                color = colors.textPrimary
             )
         },
         text = {
@@ -1119,7 +1159,7 @@ private fun ShiftTypeEditDialog(
                     OutlinedTextField(
                         value = emoji,
                         onValueChange = { emoji = it.take(4) },
-                        label = { Text("이모지", color = TextMuted, fontSize = 12.sp) },
+                        label = { Text("이모지", color = colors.textMuted, fontSize = 12.sp) },
                         modifier = Modifier.width(80.dp),
                         colors = settingsFieldColors(),
                         shape = RoundedCornerShape(10.dp),
@@ -1128,7 +1168,7 @@ private fun ShiftTypeEditDialog(
                     OutlinedTextField(
                         value = shortLabel,
                         onValueChange = { shortLabel = it.take(2) },
-                        label = { Text("약자", color = TextMuted, fontSize = 12.sp) },
+                        label = { Text("약자", color = colors.textMuted, fontSize = 12.sp) },
                         modifier = Modifier.width(70.dp),
                         colors = settingsFieldColors(),
                         shape = RoundedCornerShape(10.dp),
@@ -1138,7 +1178,7 @@ private fun ShiftTypeEditDialog(
                 OutlinedTextField(
                     value = label,
                     onValueChange = { label = it.take(10) },
-                    label = { Text("이름", color = TextMuted, fontSize = 12.sp) },
+                    label = { Text("이름", color = colors.textMuted, fontSize = 12.sp) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = settingsFieldColors(),
                     shape = RoundedCornerShape(10.dp),
@@ -1147,15 +1187,15 @@ private fun ShiftTypeEditDialog(
                 OutlinedTextField(
                     value = timeRange,
                     onValueChange = { timeRange = it },
-                    label = { Text("시간 범위", color = TextMuted, fontSize = 12.sp) },
-                    placeholder = { Text("HH:MM - HH:MM", color = TextMuted) },
+                    label = { Text("시간 범위", color = colors.textMuted, fontSize = 12.sp) },
+                    placeholder = { Text("HH:MM - HH:MM", color = colors.textMuted) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = settingsFieldColors(),
                     shape = RoundedCornerShape(10.dp),
                     singleLine = true
                 )
 
-                Text("색상 선택", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                Text("색상 선택", style = MaterialTheme.typography.labelMedium, color = colors.textSecondary)
                 ColorPicker(
                     selectedHex = colorHex,
                     onSelect = { colorHex = it }
@@ -1167,15 +1207,15 @@ private fun ShiftTypeEditDialog(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("탭 순환에 포함", color = TextPrimary, fontSize = 14.sp)
+                        Text("탭 순환에 포함", color = colors.textPrimary, fontSize = 14.sp)
                         Switch(
                             checked = inCycle,
                             onCheckedChange = { inCycle = it },
                             colors = SwitchDefaults.colors(
-                                checkedThumbColor = Purple80,
-                                checkedTrackColor = Purple40,
-                                uncheckedThumbColor = TextMuted,
-                                uncheckedTrackColor = DarkSurface
+                                checkedThumbColor = colors.accent,
+                                checkedTrackColor = colors.accentDark,
+                                uncheckedThumbColor = colors.textMuted,
+                                uncheckedTrackColor = colors.surface
                             )
                         )
                     }
@@ -1191,7 +1231,7 @@ private fun ShiftTypeEditDialog(
                     Spacer(modifier = Modifier.weight(1f))
                 }
                 TextButton(onClick = onDismiss) {
-                    Text("취소", color = TextMuted)
+                    Text("취소", color = colors.textMuted)
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(
@@ -1212,7 +1252,7 @@ private fun ShiftTypeEditDialog(
                         )
                         onSave(result)
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Purple40),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.accentDark),
                     enabled = label.isNotBlank() && shortLabel.isNotBlank()
                 ) {
                     Text("저장")
@@ -1224,9 +1264,9 @@ private fun ShiftTypeEditDialog(
     if (showDeleteConfirm && onDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            containerColor = DarkCard,
-            title = { Text("삭제 확인", color = TextPrimary) },
-            text = { Text("'${config?.label}'을 삭제하시겠습니까?", color = TextSecondary) },
+            containerColor = colors.card,
+            title = { Text("삭제 확인", color = colors.textPrimary) },
+            text = { Text("'${config?.label}'을 삭제하시겠습니까?", color = colors.textSecondary) },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteConfirm = false
@@ -1234,7 +1274,7 @@ private fun ShiftTypeEditDialog(
                 }) { Text("삭제", color = Color(0xFFF87171)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text("취소", color = TextMuted) }
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("취소", color = colors.textMuted) }
             }
         )
     }
@@ -1242,6 +1282,7 @@ private fun ShiftTypeEditDialog(
 
 @Composable
 private fun ColorPicker(selectedHex: String, onSelect: (String) -> Unit) {
+    val colors = LocalAppColors.current
     val columns = 6
     val rows = (COLOR_PALETTE.size + columns - 1) / columns
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1263,7 +1304,7 @@ private fun ColorPicker(selectedHex: String, onSelect: (String) -> Unit) {
                                 .background(color)
                                 .then(
                                     if (isSelected) Modifier.border(3.dp, Color.White, CircleShape)
-                                    else Modifier.border(1.dp, DarkBorder, CircleShape)
+                                    else Modifier.border(1.dp, colors.border, CircleShape)
                                 )
                                 .clickable { onSelect(hex) },
                             contentAlignment = Alignment.Center
@@ -1298,6 +1339,7 @@ private fun PatternAutofillCard(
     var pattern by remember { mutableStateOf(listOf<String>()) }
     var startDay by remember { mutableStateOf("1") }
     var endDay by remember { mutableStateOf("") }
+    val colors = LocalAppColors.current
 
     val patternDisplay = pattern.joinToString(" → ") { code ->
         shiftTypeManager.getById(code)?.shortLabel ?: "?"
@@ -1307,14 +1349,14 @@ private fun PatternAutofillCard(
         Text(
             text = "짧은 패턴을 만들면 반복해서 채웁니다",
             style = MaterialTheme.typography.bodySmall,
-            color = TextMuted
+            color = colors.textMuted
         )
         Spacer(modifier = Modifier.height(12.dp))
 
         if (pattern.isNotEmpty()) {
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = DarkSurface
+                color = colors.surface
             ) {
                 Row(
                     modifier = Modifier
@@ -1326,13 +1368,13 @@ private fun PatternAutofillCard(
                     Text(
                         text = patternDisplay,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = TextPrimary,
+                        color = colors.textPrimary,
                         modifier = Modifier.weight(1f)
                     )
                     Text(
                         text = "${pattern.size}일 주기",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Purple80
+                        color = colors.accent
                     )
                 }
             }
@@ -1342,7 +1384,7 @@ private fun PatternAutofillCard(
         Text(
             text = "근무 추가 (순서대로 탭)",
             style = MaterialTheme.typography.labelLarge,
-            color = TextSecondary
+            color = colors.textSecondary
         )
         Spacer(modifier = Modifier.height(6.dp))
         Row(
@@ -1351,7 +1393,7 @@ private fun PatternAutofillCard(
         ) {
             shiftOptions.forEach { (code, label) ->
                 val config = shiftTypeManager.getById(code)
-                val color = config?.color ?: TextMuted
+                val color = config?.color ?: colors.textMuted
                 OutlinedButton(
                     onClick = { pattern = pattern + code },
                     shape = RoundedCornerShape(10.dp),
@@ -1388,12 +1430,12 @@ private fun PatternAutofillCard(
             }
         }
 
-        HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 4.dp))
+        HorizontalDivider(color = colors.border, modifier = Modifier.padding(vertical = 4.dp))
 
         Text(
             text = "채울 범위 (이번 달 기준)",
             style = MaterialTheme.typography.labelLarge,
-            color = TextSecondary
+            color = colors.textSecondary
         )
         Spacer(modifier = Modifier.height(8.dp))
         Row(
@@ -1404,18 +1446,18 @@ private fun PatternAutofillCard(
             OutlinedTextField(
                 value = startDay,
                 onValueChange = { startDay = it.filter { c -> c.isDigit() }.take(2) },
-                label = { Text("시작일", color = TextMuted) },
+                label = { Text("시작일", color = colors.textMuted) },
                 modifier = Modifier.weight(1f),
                 colors = settingsFieldColors(),
                 shape = RoundedCornerShape(12.dp),
                 singleLine = true
             )
-            Text("~", color = TextMuted)
+            Text("~", color = colors.textMuted)
             OutlinedTextField(
                 value = endDay,
                 onValueChange = { endDay = it.filter { c -> c.isDigit() }.take(2) },
-                label = { Text("종료일", color = TextMuted) },
-                placeholder = { Text("말일", color = TextMuted) },
+                label = { Text("종료일", color = colors.textMuted) },
+                placeholder = { Text("말일", color = colors.textMuted) },
                 modifier = Modifier.weight(1f),
                 colors = settingsFieldColors(),
                 shape = RoundedCornerShape(12.dp),
@@ -1449,7 +1491,7 @@ private fun PatternAutofillCard(
                     Toast.LENGTH_LONG
                 ).show()
             },
-            colors = ButtonDefaults.buttonColors(containerColor = Purple40),
+            colors = ButtonDefaults.buttonColors(containerColor = colors.accentDark),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth(),
             enabled = pattern.isNotEmpty()
@@ -1468,24 +1510,25 @@ private fun PushToggleRow(
     enabled: Boolean,
     onToggle: (Boolean) -> Unit
 ) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontWeight = FontWeight.Medium, color = if (enabled) TextPrimary else TextMuted)
-            Text(description, style = MaterialTheme.typography.bodySmall, color = TextMuted)
+            Text(title, fontWeight = FontWeight.Medium, color = if (enabled) colors.textPrimary else colors.textMuted)
+            Text(description, style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
         }
         Switch(
             checked = enabled,
             onCheckedChange = onToggle,
             modifier = Modifier.height(28.dp),
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Purple80,
-                checkedTrackColor = Purple40,
-                uncheckedThumbColor = TextMuted,
-                uncheckedTrackColor = DarkSurface
+                checkedThumbColor = colors.accent,
+                checkedTrackColor = colors.accentDark,
+                uncheckedThumbColor = colors.textMuted,
+                uncheckedTrackColor = colors.surface
             )
         )
     }
@@ -1499,6 +1542,7 @@ private fun DebugToolsSection(app: MicheduleApp) {
     val context = LocalContext.current
     var copyCode by remember { mutableStateOf("") }
     var isCopying by remember { mutableStateOf(false) }
+    val colors = LocalAppColors.current
 
     SettingsCard(title = "🛠 개발자 도구 (DEBUG)") {
         Text(
@@ -1508,7 +1552,7 @@ private fun DebugToolsSection(app: MicheduleApp) {
         )
         Spacer(modifier = Modifier.height(8.dp))
 
-        Text("프로덕션 데이터 복사", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+        Text("프로덕션 데이터 복사", style = MaterialTheme.typography.labelLarge, color = colors.textSecondary)
         Spacer(modifier = Modifier.height(4.dp))
 
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -1516,10 +1560,10 @@ private fun DebugToolsSection(app: MicheduleApp) {
                 value = copyCode,
                 onValueChange = { copyCode = it.uppercase().take(6) },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("user_code", color = TextMuted) },
+                placeholder = { Text("user_code", color = colors.textMuted) },
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Purple80, unfocusedBorderColor = DarkBorder,
-                    cursorColor = Purple80, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
+                    focusedBorderColor = colors.accent, unfocusedBorderColor = colors.border,
+                    cursorColor = colors.accent, focusedTextColor = colors.textPrimary, unfocusedTextColor = colors.textPrimary
                 ),
                 shape = RoundedCornerShape(10.dp),
                 singleLine = true,
@@ -1542,7 +1586,7 @@ private fun DebugToolsSection(app: MicheduleApp) {
                     }
                 },
                 enabled = copyCode.isNotBlank() && !isCopying,
-                colors = ButtonDefaults.buttonColors(containerColor = Purple40),
+                colors = ButtonDefaults.buttonColors(containerColor = colors.accentDark),
                 shape = RoundedCornerShape(10.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
             ) {
@@ -1570,7 +1614,7 @@ private fun DebugToolsSection(app: MicheduleApp) {
             shape = RoundedCornerShape(10.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("전체 프로덕션 데이터 복사", fontSize = 12.sp, color = TextSecondary)
+            Text("전체 프로덕션 데이터 복사", fontSize = 12.sp, color = colors.textSecondary)
         }
     }
 }

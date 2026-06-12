@@ -10,6 +10,7 @@ import com.ljh.michedule.data.parseTimeRanges
 import com.ljh.michedule.data.db.AppDatabase
 import com.ljh.michedule.data.repository.ChatRepository
 import com.ljh.michedule.data.repository.ScheduleRepository
+import com.ljh.michedule.data.repository.TimelineRepository
 import com.ljh.michedule.data.sync.SupabaseSync
 import com.ljh.michedule.model.ShiftType
 import io.ktor.client.HttpClient
@@ -36,6 +37,8 @@ class MicheduleApp : Application() {
         private set
     lateinit var chatRepository: ChatRepository
         private set
+    lateinit var timelineRepository: TimelineRepository
+        private set
     var supabaseSync: SupabaseSync? = null
         private set
 
@@ -48,6 +51,7 @@ class MicheduleApp : Application() {
         prefsManager = PrefsManager(this)
         shiftTypeManager = ShiftTypeManager(database.shiftTypeConfigDao(), appScope)
         chatRepository = ChatRepository(database.chatMessageDao(), prefsManager, this)
+        timelineRepository = TimelineRepository(database.timelineDao(), prefsManager, this)
 
         appScope.launch {
             cleanupForcedDebugAccount()

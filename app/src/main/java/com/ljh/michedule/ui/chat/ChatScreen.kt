@@ -37,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.Image
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import coil.compose.rememberAsyncImagePainter
 import coil.request.CachePolicy
 import coil.request.ImageRequest
@@ -96,10 +97,12 @@ fun ChatScreen(
         }
     }
 
+    val colors = LocalAppColors.current
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBg)
+            .background(colors.background)
     ) {
         LazyColumn(
             state = listState,
@@ -108,7 +111,8 @@ fun ChatScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp),
             reverseLayout = true,
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            contentPadding = PaddingValues(bottom = 4.dp, top = 4.dp)
         ) {
             val grouped = groupMessagesByDate(uiState.messages)
             grouped.forEach { (dateLabel, messages) ->
@@ -159,7 +163,7 @@ fun ChatScreen(
             if (uiState.isLoading) {
                 item {
                     Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = Purple80, modifier = Modifier.size(24.dp))
+                        CircularProgressIndicator(color = colors.accent, modifier = Modifier.size(24.dp))
                     }
                 }
             }
@@ -189,10 +193,11 @@ fun ChatScreen(
 
 @Composable
 private fun EmptyChatScreen(onNavigateToSettings: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = LocalAppColors.current
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBg),
+            .background(colors.background),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -201,13 +206,13 @@ private fun EmptyChatScreen(onNavigateToSettings: () -> Unit, modifier: Modifier
         Text(
             "상대방과 연결 후\n채팅할 수 있습니다",
             textAlign = TextAlign.Center,
-            color = TextMuted,
+            color = colors.textMuted,
             style = MaterialTheme.typography.bodyLarge
         )
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = onNavigateToSettings,
-            colors = ButtonDefaults.buttonColors(containerColor = Purple40),
+            colors = ButtonDefaults.buttonColors(containerColor = colors.accentDark),
             shape = RoundedCornerShape(12.dp)
         ) {
             Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -228,7 +233,8 @@ private fun ChatBubble(
     onLongClick: () -> Unit,
     onImageClick: ((String) -> Unit)? = null
 ) {
-    val bubbleColor = if (isMine) Purple40 else DarkCard
+    val colors = LocalAppColors.current
+    val bubbleColor = if (isMine) colors.bubbleMine else colors.bubbleOther
     val bubbleShape = if (isMine) {
         RoundedCornerShape(16.dp, 4.dp, 16.dp, 16.dp)
     } else if (showProfile) {
@@ -270,7 +276,7 @@ private fun ChatBubble(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(DarkSurface),
+                            .background(colors.surface),
                         contentAlignment = Alignment.Center
                     ) {
                         Text("👤", fontSize = 16.sp)
@@ -289,7 +295,7 @@ private fun ChatBubble(
                 Text(
                     partnerName,
                     fontSize = 12.sp,
-                    color = TextSecondary,
+                    color = colors.textSecondary,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(start = 2.dp, bottom = 3.dp)
                 )
@@ -303,7 +309,9 @@ private fun ChatBubble(
                     Text(
                         timeStr,
                         fontSize = 10.sp,
-                        color = TextMuted,
+                        color = colors.textMuted,
+                        maxLines = 1,
+                        softWrap = false,
                         modifier = Modifier.padding(end = 4.dp, bottom = 2.dp)
                     )
                 }
@@ -316,7 +324,7 @@ private fun ChatBubble(
                 }) {
                     Surface(
                         shape = bubbleShape,
-                        color = if (message.messageType == "image") Color.Transparent else bubbleColor,
+                        color = bubbleColor,
                         modifier = Modifier.combinedClickable(
                             onClick = {
                                 if (message.messageType == "image" && !message.imageUrl.isNullOrBlank()) {
@@ -327,49 +335,20 @@ private fun ChatBubble(
                         )
                     ) {
                         if (message.messageType == "image" && !message.imageUrl.isNullOrBlank()) {
-                            val painter = rememberAsyncImagePainter(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(message.imageUrl)
-                                    .crossfade(300)
-                                    .memoryCachePolicy(CachePolicy.ENABLED)
-                                    .diskCachePolicy(CachePolicy.ENABLED)
-                                    .build()
-                            )
-                            Box(
+                            AsyncImage(
+                                model = message.imageUrl,
+                                contentDescription = "이미지",
                                 modifier = Modifier
-                                    .widthIn(min = 120.dp, max = 220.dp)
-                                    .heightIn(min = 80.dp, max = 300.dp)
+                                    .widthIn(max = 220.dp)
+                                    .heightIn(max = 300.dp)
                                     .clip(bubbleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                when (painter.state) {
-                                    is coil.compose.AsyncImagePainter.State.Loading -> {
-                                        CircularProgressIndicator(
-                                            color = Purple80,
-                                            modifier = Modifier.size(24.dp),
-                                            strokeWidth = 2.dp
-                                        )
-                                    }
-                                    is coil.compose.AsyncImagePainter.State.Error -> {
-                                        Text("⚠️", fontSize = 24.sp)
-                                    }
-                                    else -> {}
-                                }
-                                Image(
-                                    painter = painter,
-                                    contentDescription = "이미지",
-                                    modifier = Modifier
-                                        .widthIn(max = 220.dp)
-                                        .heightIn(max = 300.dp)
-                                        .clip(bubbleShape),
-                                    contentScale = ContentScale.Fit
-                                )
-                            }
+                                contentScale = ContentScale.Fit
+                            )
                         } else {
                             Text(
                                 message.content,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                color = Color.White,
+                                color = if (isMine || colors.isDark) Color.White else colors.textPrimary,
                                 fontSize = 15.sp,
                                 lineHeight = 21.sp
                             )
@@ -382,8 +361,8 @@ private fun ChatBubble(
                                 .align(Alignment.BottomEnd)
                                 .offset(x = 2.dp, y = 14.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(DarkSurface)
-                                .border(1.dp, DarkBorder, RoundedCornerShape(10.dp))
+                                .background(colors.surface)
+                                .border(1.dp, colors.border, RoundedCornerShape(10.dp))
                                 .padding(horizontal = 4.dp, vertical = 1.dp),
                             horizontalArrangement = Arrangement.spacedBy(1.dp)
                         ) {
@@ -398,7 +377,9 @@ private fun ChatBubble(
                     Text(
                         timeStr,
                         fontSize = 10.sp,
-                        color = TextMuted,
+                        color = colors.textMuted,
+                        maxLines = 1,
+                        softWrap = false,
                         modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
                     )
                 }
@@ -416,6 +397,7 @@ private fun MessageActionMenu(
     onDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val colors = LocalAppColors.current
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     Row(
@@ -426,8 +408,8 @@ private fun MessageActionMenu(
     ) {
         Surface(
             shape = RoundedCornerShape(24.dp),
-            color = DarkCard,
-            border = BorderStroke(1.dp, DarkBorder),
+            color = colors.card,
+            border = BorderStroke(1.dp, colors.border),
             shadowElevation = 4.dp
         ) {
             Row(
@@ -450,14 +432,14 @@ private fun MessageActionMenu(
                         .padding(horizontal = 4.dp)
                         .width(1.dp)
                         .height(20.dp)
-                        .background(DarkBorder)
+                        .background(colors.border)
                 )
 
                 if (!isImage) {
                     Icon(
                         Icons.Default.ContentCopy,
                         contentDescription = "복사",
-                        tint = TextSecondary,
+                        tint = colors.textSecondary,
                         modifier = Modifier
                             .size(28.dp)
                             .clip(CircleShape)
@@ -482,7 +464,7 @@ private fun MessageActionMenu(
                 Icon(
                     Icons.Default.Close,
                     contentDescription = "닫기",
-                    tint = TextMuted,
+                    tint = colors.textMuted,
                     modifier = Modifier
                         .size(28.dp)
                         .clip(CircleShape)
@@ -496,8 +478,8 @@ private fun MessageActionMenu(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("메시지 삭제", color = TextPrimary) },
-            text = { Text("이 메시지를 삭제하시겠습니까?", color = TextSecondary) },
+            title = { Text("메시지 삭제", color = colors.textPrimary) },
+            text = { Text("이 메시지를 삭제하시겠습니까?", color = colors.textSecondary) },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteConfirm = false
@@ -508,16 +490,17 @@ private fun MessageActionMenu(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("취소", color = TextPrimary)
+                    Text("취소", color = colors.textPrimary)
                 }
             },
-            containerColor = DarkCard
+            containerColor = colors.card
         )
     }
 }
 
 @Composable
 private fun DateDivider(date: String) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -526,13 +509,13 @@ private fun DateDivider(date: String) {
     ) {
         Surface(
             shape = RoundedCornerShape(12.dp),
-            color = DarkSurface
+            color = colors.surface
         ) {
             Text(
                 date,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                 fontSize = 11.sp,
-                color = TextMuted
+                color = colors.textMuted
             )
         }
     }
@@ -545,9 +528,10 @@ private fun ChatInput(
     onSend: () -> Unit,
     onImageClick: () -> Unit
 ) {
+    val colors = LocalAppColors.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = DarkCard
+        color = colors.card
     ) {
         Row(
             modifier = Modifier
@@ -558,7 +542,7 @@ private fun ChatInput(
             Icon(
                 Icons.Default.Image,
                 contentDescription = "이미지",
-                tint = TextMuted,
+                tint = colors.textMuted,
                 modifier = Modifier
                     .size(28.dp)
                     .clip(CircleShape)
@@ -575,17 +559,17 @@ private fun ChatInput(
                     .weight(1f)
                     .heightIn(min = 36.dp, max = 100.dp)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(DarkSurface)
+                    .background(colors.surface)
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 textStyle = LocalTextStyle.current.copy(
                     fontSize = 15.sp,
-                    color = TextPrimary
+                    color = colors.textPrimary
                 ),
                 maxLines = 4,
-                cursorBrush = SolidColor(Purple80),
+                cursorBrush = SolidColor(colors.accent),
                 decorationBox = { innerTextField ->
                     if (text.isEmpty()) {
-                        Text("메시지 입력", color = TextMuted, fontSize = 15.sp)
+                        Text("메시지 입력", color = colors.textMuted, fontSize = 15.sp)
                     }
                     innerTextField()
                 }
@@ -597,14 +581,14 @@ private fun ChatInput(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(if (text.isNotBlank()) Purple40 else Color.Transparent)
+                    .background(if (text.isNotBlank()) colors.accentDark else Color.Transparent)
                     .clickable(enabled = text.isNotBlank(), onClick = onSend),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.AutoMirrored.Filled.Send,
                     contentDescription = "전송",
-                    tint = if (text.isNotBlank()) Color.White else TextMuted,
+                    tint = if (text.isNotBlank()) Color.White else colors.textMuted,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -693,7 +677,7 @@ private fun FullscreenImageViewer(imageUrl: String, onDismiss: () -> Unit) {
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(DarkCard.copy(alpha = 0.7f))
+                    .background(Color.Black.copy(alpha = 0.5f))
             ) {
                 Icon(Icons.Default.Download, contentDescription = "저장", tint = Color.White, modifier = Modifier.size(22.dp))
             }
@@ -703,7 +687,7 @@ private fun FullscreenImageViewer(imageUrl: String, onDismiss: () -> Unit) {
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(DarkCard.copy(alpha = 0.7f))
+                    .background(Color.Black.copy(alpha = 0.5f))
             ) {
                 Icon(Icons.Default.Close, contentDescription = "닫기", tint = Color.White, modifier = Modifier.size(22.dp))
             }

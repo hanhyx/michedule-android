@@ -38,6 +38,7 @@ class PrefsManager(private val context: Context) {
         private val KEY_PUSH_DATE_PLAN_ENABLED = booleanPreferencesKey("push_date_plan_enabled")
         private val KEY_PUSH_DATE_PLAN_RESPONSE_ENABLED = booleanPreferencesKey("push_date_plan_response_enabled")
         private val KEY_PUSH_SCHEDULE_CHANGE_ENABLED = booleanPreferencesKey("push_schedule_change_enabled")
+        private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
 
         private fun generateCode(): String {
             val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -66,6 +67,7 @@ class PrefsManager(private val context: Context) {
     val pushDatePlanEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PUSH_DATE_PLAN_ENABLED] ?: true }
     val pushDatePlanResponseEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PUSH_DATE_PLAN_RESPONSE_ENABLED] ?: true }
     val pushScheduleChangeEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PUSH_SCHEDULE_CHANGE_ENABLED] ?: false }
+    val themeMode: Flow<String> = context.dataStore.data.map { it[KEY_THEME_MODE] ?: "dark" }
 
     suspend fun ensureMyCode(): String {
         var code = ""
@@ -163,6 +165,10 @@ class PrefsManager(private val context: Context) {
 
     suspend fun setPushScheduleChangeEnabled(enabled: Boolean) {
         context.dataStore.edit { it[KEY_PUSH_SCHEDULE_CHANGE_ENABLED] = enabled }
+    }
+
+    suspend fun setThemeMode(mode: String) {
+        context.dataStore.edit { it[KEY_THEME_MODE] = mode }
     }
 
     suspend fun clearPartner() {

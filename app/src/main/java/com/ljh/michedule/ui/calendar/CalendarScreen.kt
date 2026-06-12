@@ -61,6 +61,7 @@ fun CalendarScreen(
     onNavigateToAddEvent: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalAppColors.current
     val uiState by viewModel.uiState.collectAsState()
     val stm = viewModel.shiftTypeManager
     val context = LocalContext.current
@@ -160,7 +161,7 @@ fun CalendarScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBg)
+            .background(colors.background)
     ) {
         Box(
             modifier = Modifier.fillMaxWidth(),
@@ -173,7 +174,7 @@ fun CalendarScreen(
                 Icon(
                     imageVector = Icons.Default.CameraAlt,
                     contentDescription = "근무표 사진 인식",
-                    tint = Purple40,
+                    tint = colors.accentDark,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -188,7 +189,7 @@ fun CalendarScreen(
                 Icon(
                     imageVector = if (uiState.isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
                     contentDescription = if (uiState.isLocked) "잠금 해제" else "잠금",
-                    tint = if (uiState.isLocked) Color(0xFFF87171) else TextMuted,
+                    tint = if (uiState.isLocked) Color(0xFFF87171) else colors.textMuted,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -248,15 +249,15 @@ fun CalendarScreen(
     if (showOcrSheet) {
         AlertDialog(
             onDismissRequest = { showOcrSheet = false },
-            containerColor = DarkCard,
+            containerColor = colors.card,
             title = {
-                Text("📷 근무표 사진 인식", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("📷 근무표 사진 인식", color = colors.textPrimary, fontWeight = FontWeight.Bold)
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         "근무표 사진을 촬영하거나 이미지를 선택하면\n자동으로 근무 일정이 입력됩니다",
-                        color = TextMuted,
+                        color = colors.textMuted,
                         fontSize = 13.sp
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -266,7 +267,7 @@ fun CalendarScreen(
                             cameraPermLauncher.launch(Manifest.permission.CAMERA)
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Purple40),
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.accentDark),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -280,18 +281,18 @@ fun CalendarScreen(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, DarkBorder)
+                        border = BorderStroke(1.dp, colors.border)
                     ) {
-                        Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp), tint = TextSecondary)
+                        Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.textSecondary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("갤러리에서 선택", color = TextSecondary)
+                        Text("갤러리에서 선택", color = colors.textSecondary)
                     }
                 }
             },
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showOcrSheet = false }) {
-                    Text("취소", color = TextMuted)
+                    Text("취소", color = colors.textMuted)
                 }
             }
         )
@@ -306,7 +307,7 @@ fun CalendarScreen(
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator(color = Purple40)
+                CircularProgressIndicator(color = colors.accentDark)
                 Spacer(modifier = Modifier.height(12.dp))
                 Text("근무표 인식 중...", color = Color.White, fontSize = 14.sp)
             }
@@ -320,15 +321,15 @@ fun CalendarScreen(
                 showCandidateDialog = false
                 ocrCandidates = emptyList()
             },
-            containerColor = DarkCard,
+            containerColor = colors.card,
             title = {
-                Text("👤 누구의 근무표인가요?", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("👤 누구의 근무표인가요?", color = colors.textPrimary, fontWeight = FontWeight.Bold)
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
                         "${ocrCandidates.size}명의 근무 일정이 인식되었습니다",
-                        color = TextMuted,
+                        color = colors.textMuted,
                         fontSize = 13.sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
@@ -351,7 +352,7 @@ fun CalendarScreen(
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, Purple40.copy(alpha = 0.5f))
+                            border = BorderStroke(1.dp, colors.accentDark.copy(alpha = 0.5f))
                         ) {
                             Column(
                                 modifier = Modifier.fillMaxWidth(),
@@ -359,13 +360,13 @@ fun CalendarScreen(
                             ) {
                                 Text(
                                     candidate.name,
-                                    color = Color.White,
+                                    color = colors.textPrimary,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp
                                 )
                                 Text(
                                     "${candidate.result.shifts.size}일  |  $shiftSummary",
-                                    color = TextMuted,
+                                    color = colors.textMuted,
                                     fontSize = 11.sp
                                 )
                             }
@@ -379,7 +380,7 @@ fun CalendarScreen(
                     showCandidateDialog = false
                     ocrCandidates = emptyList()
                 }) {
-                    Text("취소", color = TextMuted)
+                    Text("취소", color = colors.textMuted)
                 }
             }
         )
@@ -390,6 +391,7 @@ fun CalendarScreen(
 
 @Composable
 private fun TodayHeroBanner(uiState: CalendarUiState, stm: ShiftTypeManager) {
+    val colors = LocalAppColors.current
     val today = LocalDate.now()
     val todayStr = today.toString()
     val myShift = uiState.shifts[todayStr]?.let { stm.getById(it.type) }
@@ -404,8 +406,8 @@ private fun TodayHeroBanner(uiState: CalendarUiState, stm: ShiftTypeManager) {
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 3.dp),
         shape = RoundedCornerShape(10.dp),
-        color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder)
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border)
     ) {
         Row(
             modifier = Modifier
@@ -417,29 +419,29 @@ private fun TodayHeroBanner(uiState: CalendarUiState, stm: ShiftTypeManager) {
                 text = today.format(DateTimeFormatter.ofPattern("M/d")),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextSecondary
+                color = colors.textSecondary
             )
             if (mood != null) {
                 Text(mood.emoji, fontSize = 12.sp, modifier = Modifier.padding(start = 2.dp))
             }
             Spacer(modifier = Modifier.width(8.dp))
-            Text(myDisplayName, fontSize = 11.sp, color = TextMuted)
-            Text(":", fontSize = 11.sp, color = TextMuted)
+            Text(myDisplayName, fontSize = 11.sp, color = colors.textMuted)
+            Text(":", fontSize = 11.sp, color = colors.textMuted)
             Text(
                 text = myShift?.label ?: "─",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = myShift?.color ?: TextMuted,
+                color = myShift?.color ?: colors.textMuted,
                 modifier = Modifier.padding(start = 2.dp)
             )
             Spacer(modifier = Modifier.width(10.dp))
-            Text(partnerDisplayName, fontSize = 11.sp, color = TextMuted)
-            Text(":", fontSize = 11.sp, color = TextMuted)
+            Text(partnerDisplayName, fontSize = 11.sp, color = colors.textMuted)
+            Text(":", fontSize = 11.sp, color = colors.textMuted)
             Text(
                 text = partnerShift?.label ?: "─",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = partnerShift?.color ?: TextMuted,
+                color = partnerShift?.color ?: colors.textMuted,
                 modifier = Modifier.padding(start = 2.dp)
             )
         }
@@ -450,6 +452,7 @@ private fun TodayHeroBanner(uiState: CalendarUiState, stm: ShiftTypeManager) {
 
 @Composable
 private fun ViewModeToggle(mode: ViewMode, onModeChange: (ViewMode) -> Unit) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -458,8 +461,8 @@ private fun ViewModeToggle(mode: ViewMode, onModeChange: (ViewMode) -> Unit) {
     ) {
         Surface(
             shape = RoundedCornerShape(8.dp),
-            color = DarkSurface,
-            modifier = Modifier.border(1.dp, DarkBorder, RoundedCornerShape(8.dp))
+            color = colors.surface,
+            modifier = Modifier.border(1.dp, colors.border, RoundedCornerShape(8.dp))
         ) {
             Row {
                 listOf(
@@ -472,13 +475,13 @@ private fun ViewModeToggle(mode: ViewMode, onModeChange: (ViewMode) -> Unit) {
                             .clickable { onModeChange(m) }
                             .padding(1.dp),
                         shape = RoundedCornerShape(7.dp),
-                        color = if (mode == m) Purple40 else Color.Transparent
+                        color = if (mode == m) colors.accentDark else Color.Transparent
                     ) {
                         Text(
                             text = label,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 5.dp),
                             style = MaterialTheme.typography.labelMedium,
-                            color = if (mode == m) Color.White else TextMuted
+                            color = if (mode == m) Color.White else colors.textMuted
                         )
                     }
                 }
@@ -580,6 +583,7 @@ private fun MemberAvatar(
     defaultEmoji: String,
     onClick: () -> Unit
 ) {
+    val colors = LocalAppColors.current
     val photoSize = 32.dp
     val alpha = if (isSelected) 1f else 0.5f
 
@@ -606,7 +610,7 @@ private fun MemberAvatar(
                         .size(photoSize)
                         .clip(CircleShape)
                         .then(
-                            if (isSelected) Modifier.border(2.dp, Purple80, CircleShape)
+                            if (isSelected) Modifier.border(2.dp, colors.accent, CircleShape)
                             else Modifier
                         ),
                     contentScale = ContentScale.Crop,
@@ -617,9 +621,9 @@ private fun MemberAvatar(
                     modifier = Modifier
                         .size(photoSize)
                         .clip(CircleShape)
-                        .background(if (isSelected) DarkSurface else DarkCard)
+                        .background(if (isSelected) colors.surface else colors.card)
                         .then(
-                            if (isSelected) Modifier.border(2.dp, Purple80, CircleShape)
+                            if (isSelected) Modifier.border(2.dp, colors.accent, CircleShape)
                             else Modifier
                         ),
                     contentAlignment = Alignment.Center
@@ -633,7 +637,7 @@ private fun MemberAvatar(
                         .size(10.dp)
                         .clip(CircleShape)
                         .background(StatusOnline)
-                        .border(1.5.dp, DarkBg, CircleShape)
+                        .border(1.5.dp, colors.background, CircleShape)
                         .align(Alignment.BottomEnd)
                 )
             }
@@ -645,7 +649,7 @@ private fun MemberAvatar(
             name,
             fontSize = 10.sp,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-            color = if (isSelected) Color.White else TextMuted,
+            color = if (isSelected) colors.textPrimary else colors.textMuted,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -654,6 +658,7 @@ private fun MemberAvatar(
 
 @Composable
 private fun MonthHeader(yearMonth: YearMonth, onPrev: () -> Unit, onNext: () -> Unit) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -662,7 +667,7 @@ private fun MonthHeader(yearMonth: YearMonth, onPrev: () -> Unit, onNext: () -> 
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         IconButton(onClick = onPrev, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "이전", tint = TextPrimary, modifier = Modifier.size(20.dp))
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "이전", tint = colors.textPrimary, modifier = Modifier.size(20.dp))
         }
         Text(
             text = "${yearMonth.year}년 ${yearMonth.monthValue}월",
@@ -670,7 +675,7 @@ private fun MonthHeader(yearMonth: YearMonth, onPrev: () -> Unit, onNext: () -> 
             fontWeight = FontWeight.Bold
         )
         IconButton(onClick = onNext, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "다음", tint = TextPrimary, modifier = Modifier.size(20.dp))
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "다음", tint = colors.textPrimary, modifier = Modifier.size(20.dp))
         }
     }
 }
@@ -684,6 +689,7 @@ private fun MonthlyCalendarGrid(
     onDateLongPress: (LocalDate) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalAppColors.current
     val yearMonth = uiState.currentMonth
     val firstDay = yearMonth.atDay(1)
     val daysInMonth = yearMonth.lengthOfMonth()
@@ -704,7 +710,7 @@ private fun MonthlyCalendarGrid(
                     color = when (dow) {
                         "일" -> Color(0xFFF87171)
                         "토" -> Color(0xFF60A5FA)
-                        else -> TextMuted
+                        else -> colors.textMuted
                     }
                 )
             }
@@ -817,10 +823,11 @@ private fun SoloCell(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalAppColors.current
     val borderMod = if (isToday) {
-        Modifier.border(2.dp, Purple80, RoundedCornerShape(6.dp))
+        Modifier.border(2.dp, colors.accent, RoundedCornerShape(6.dp))
     } else {
-        Modifier.border(0.5.dp, DarkBorder.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+        Modifier.border(0.5.dp, colors.border.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
     }
 
     Column(
@@ -833,10 +840,10 @@ private fun SoloCell(
     ) {
         val isHoliday = holidayName != null
         val dayColor = when {
-            isToday -> Purple80
+            isToday -> colors.accent
             isHoliday || isSunday -> Color(0xFFF87171)
             isSaturday -> Color(0xFF60A5FA)
-            else -> TextPrimary
+            else -> colors.textPrimary
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -935,7 +942,7 @@ private fun SoloCell(
             }
         }
         if (displayExtras.size > 2) {
-            Text("+${displayExtras.size - 2}", fontSize = 8.sp, color = TextMuted, lineHeight = 10.sp)
+            Text("+${displayExtras.size - 2}", fontSize = 8.sp, color = colors.textMuted, lineHeight = 10.sp)
         }
 
         // 감정 메모
@@ -950,7 +957,7 @@ private fun SoloCell(
                 Text("📝$m", fontSize = 8.sp, color = Color(0xFF93C5FD), maxLines = 1, overflow = TextOverflow.Ellipsis, lineHeight = 10.sp, modifier = Modifier.padding(top = 1.dp))
             }
             if (memos.size > 2) {
-                Text("+${memos.size - 2}", fontSize = 7.sp, color = TextMuted, lineHeight = 9.sp)
+                Text("+${memos.size - 2}", fontSize = 7.sp, color = colors.textMuted, lineHeight = 9.sp)
             }
         }
 
@@ -966,7 +973,7 @@ private fun SoloCell(
             Text(
                 text = "✅${item.title}",
                 fontSize = 8.sp,
-                color = if (item.isDone) TextMuted else Color(0xFF6EE7B7),
+                color = if (item.isDone) colors.textMuted else Color(0xFF6EE7B7),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 lineHeight = 10.sp,
@@ -974,7 +981,7 @@ private fun SoloCell(
             )
         }
         if ((todoItems?.size ?: 0) > 3) {
-            Text("+${todoItems!!.size - 3}", fontSize = 7.sp, color = TextMuted, lineHeight = 9.sp)
+            Text("+${todoItems!!.size - 3}", fontSize = 7.sp, color = colors.textMuted, lineHeight = 9.sp)
         }
     }
 }
@@ -986,6 +993,7 @@ private fun SoloCell(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun WeeklyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarUiState, stm: ShiftTypeManager) {
+    val colors = LocalAppColors.current
     val today = LocalDate.now()
     val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY))
 
@@ -1008,10 +1016,10 @@ private fun WeeklyTimelineScreen(viewModel: CalendarViewModel, uiState: Calendar
                         text = listOf("일", "월", "화", "수", "목", "금", "토")[i],
                         fontSize = 10.sp,
                         color = when {
-                            isToday -> Purple80
+                            isToday -> colors.accent
                             i == 0 -> Color(0xFFF87171)
                             i == 6 -> Color(0xFF60A5FA)
-                            else -> TextMuted
+                            else -> colors.textMuted
                         },
                         fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal
                     )
@@ -1019,13 +1027,13 @@ private fun WeeklyTimelineScreen(viewModel: CalendarViewModel, uiState: Calendar
                         text = "${d.dayOfMonth}",
                         fontSize = 13.sp,
                         fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Medium,
-                        color = if (isToday) Purple80 else TextPrimary
+                        color = if (isToday) colors.accent else colors.textPrimary
                     )
                 }
             }
         }
 
-        HorizontalDivider(color = DarkBorder)
+        HorizontalDivider(color = colors.border)
 
         // Timeline grid (scrollable)
         Column(
@@ -1047,7 +1055,7 @@ private fun WeeklyTimelineScreen(viewModel: CalendarViewModel, uiState: Calendar
                             .width(36.dp)
                             .padding(top = 2.dp),
                         fontSize = 10.sp,
-                        color = TextMuted,
+                        color = colors.textMuted,
                         textAlign = TextAlign.Center
                     )
 
@@ -1080,7 +1088,7 @@ private fun WeeklyTimelineScreen(viewModel: CalendarViewModel, uiState: Calendar
                                         else -> Color.Transparent
                                     }
                                 )
-                                .border(0.5.dp, DarkBorder.copy(alpha = 0.3f))
+                                .border(0.5.dp, colors.border.copy(alpha = 0.3f))
                                 .combinedClickable(
                                     onClick = {},
                                     onLongClick = { viewModel.selectDate(d) }
@@ -1100,7 +1108,7 @@ private fun WeeklyTimelineScreen(viewModel: CalendarViewModel, uiState: Calendar
                 }
                 if (hour < 23) {
                     HorizontalDivider(
-                        color = DarkBorder.copy(alpha = 0.2f),
+                        color = colors.border.copy(alpha = 0.2f),
                         modifier = Modifier.padding(start = 36.dp)
                     )
                 }
@@ -1153,6 +1161,7 @@ private fun isStartHour(hour: Int, timeRange: String?, fallbackShift: ShiftType?
 
 @Composable
 private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarUiState, stm: ShiftTypeManager) {
+    val colors = LocalAppColors.current
     val date = uiState.selectedDate
     val dateStr = date.toString()
     val myShiftConfig = uiState.shifts[dateStr]?.type?.takeIf { it.isNotBlank() }?.let { stm.getById(it) }
@@ -1175,7 +1184,7 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
             IconButton(onClick = {
                 viewModel.selectDate(date.minusDays(1))
             }) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "이전", tint = TextPrimary)
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "이전", tint = colors.textPrimary)
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
@@ -1184,13 +1193,13 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
                     fontWeight = FontWeight.Bold
                 )
                 if (date == LocalDate.now()) {
-                    Text("오늘", style = MaterialTheme.typography.bodySmall, color = Purple80)
+                    Text("오늘", style = MaterialTheme.typography.bodySmall, color = colors.accent)
                 }
             }
             IconButton(onClick = {
                 viewModel.selectDate(date.plusDays(1))
             }) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "다음", tint = TextPrimary)
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "다음", tint = colors.textPrimary)
             }
         }
 
@@ -1205,19 +1214,19 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
             Surface(
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(12.dp),
-                color = myShiftConfig?.bgColor ?: DarkSurface
+                color = myShiftConfig?.bgColor ?: colors.surface
             ) {
                 Column(
                     modifier = Modifier.padding(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("나", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                    Text("나", style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
                     if (myShiftConfig != null) {
                         Text(myShiftConfig.emoji, fontSize = 24.sp)
                         Text(myShiftConfig.label, fontWeight = FontWeight.Bold, color = myShiftConfig.color, fontSize = 13.sp)
                         Text(myShiftConfig.defaultTimeRange, fontSize = 10.sp, color = myShiftConfig.color.copy(alpha = 0.7f))
                     } else {
-                        Text("미설정", color = TextMuted, fontSize = 13.sp)
+                        Text("미설정", color = colors.textMuted, fontSize = 13.sp)
                     }
                 }
             }
@@ -1225,19 +1234,19 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
             Surface(
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(12.dp),
-                color = partnerShiftConfig?.bgColor ?: DarkSurface
+                color = partnerShiftConfig?.bgColor ?: colors.surface
             ) {
                 Column(
                     modifier = Modifier.padding(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("상대", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                    Text("상대", style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
                     if (partnerShiftConfig != null) {
                         Text(partnerShiftConfig.emoji, fontSize = 24.sp)
                         Text(partnerShiftConfig.label, fontWeight = FontWeight.Bold, color = partnerShiftConfig.color, fontSize = 13.sp)
                         Text(partnerShiftConfig.defaultTimeRange, fontSize = 10.sp, color = partnerShiftConfig.color.copy(alpha = 0.7f))
                     } else {
-                        Text("미설정", color = TextMuted, fontSize = 13.sp)
+                        Text("미설정", color = colors.textMuted, fontSize = 13.sp)
                     }
                 }
             }
@@ -1250,7 +1259,7 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 4.dp),
                 shape = RoundedCornerShape(12.dp),
-                color = DarkCard
+                color = colors.card
             ) {
                 Row(
                     modifier = Modifier.padding(12.dp),
@@ -1258,7 +1267,7 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
                 ) {
                     Text(mood.emoji, fontSize = 20.sp)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(mood.note.ifBlank { "오늘의 감정" }, color = TextSecondary)
+                    Text(mood.note.ifBlank { "오늘의 감정" }, color = colors.textSecondary)
                 }
             }
         }
@@ -1288,7 +1297,7 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
                         text = String.format("%02d:00", hour),
                         modifier = Modifier.width(48.dp),
                         fontSize = 11.sp,
-                        color = TextMuted,
+                        color = colors.textMuted,
                         textAlign = TextAlign.End
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -1304,7 +1313,7 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
                                 if (isMyWork) (myShiftConfig?.color ?: Color.Gray).copy(alpha = 0.2f)
                                 else Color.Transparent
                             )
-                            .border(0.5.dp, DarkBorder.copy(alpha = 0.3f), RoundedCornerShape(4.dp)),
+                            .border(0.5.dp, colors.border.copy(alpha = 0.3f), RoundedCornerShape(4.dp)),
                         contentAlignment = Alignment.CenterStart
                     ) {
                         if (isMyWork && (myShiftConfig != null || myShift != null) && isStartHour(hour, myShiftConfig?.defaultTimeRange, myShift)) {
@@ -1335,7 +1344,7 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
                                 if (isPartnerWork) (partnerShiftConfig?.color ?: Color.Gray).copy(alpha = 0.15f)
                                 else Color.Transparent
                             )
-                            .border(0.5.dp, DarkBorder.copy(alpha = 0.3f), RoundedCornerShape(4.dp)),
+                            .border(0.5.dp, colors.border.copy(alpha = 0.3f), RoundedCornerShape(4.dp)),
                         contentAlignment = Alignment.CenterStart
                     ) {
                         if (isPartnerWork && (partnerShiftConfig != null || partnerShift != null) && isStartHour(hour, partnerShiftConfig?.defaultTimeRange, partnerShift)) {
@@ -1359,6 +1368,7 @@ private fun DailyTimelineScreen(viewModel: CalendarViewModel, uiState: CalendarU
 
 @Composable
 private fun CompactStatsBar(uiState: CalendarUiState, stm: ShiftTypeManager) {
+    val colors = LocalAppColors.current
     val allTypes by stm.allTypes.collectAsState()
     val counts = remember(uiState.shifts, allTypes) {
         val map = mutableMapOf<String, Int>()
@@ -1378,7 +1388,7 @@ private fun CompactStatsBar(uiState: CalendarUiState, stm: ShiftTypeManager) {
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = DarkCard
+        color = colors.card
     ) {
         Row(
             modifier = Modifier

@@ -26,11 +26,12 @@ fun OnboardingScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var name by remember { mutableStateOf("") }
+    val colors = LocalAppColors.current
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBg)
+            .background(colors.background)
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -44,13 +45,13 @@ fun OnboardingScreen(
             text = "Michedule",
             style = MaterialTheme.typography.displayLarge,
             fontWeight = FontWeight.Bold,
-            color = Purple80
+            color = colors.accent
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "초대를 받았습니다!\n이름만 입력하면 바로 연결됩니다.",
             style = MaterialTheme.typography.bodyLarge,
-            color = TextSecondary,
+            color = colors.textSecondary,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(32.dp))
@@ -58,16 +59,16 @@ fun OnboardingScreen(
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
-            label = { Text("내 이름", color = TextMuted) },
-            placeholder = { Text("이름 입력", color = TextMuted) },
+            label = { Text("내 이름", color = colors.textMuted) },
+            placeholder = { Text("이름 입력", color = colors.textMuted) },
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Purple80,
-                unfocusedBorderColor = DarkBorder,
-                cursorColor = Purple80,
-                focusedTextColor = TextPrimary,
-                unfocusedTextColor = TextPrimary,
-                focusedLabelColor = Purple80
+                focusedBorderColor = colors.accent,
+                unfocusedBorderColor = colors.border,
+                cursorColor = colors.accent,
+                focusedTextColor = colors.textPrimary,
+                unfocusedTextColor = colors.textPrimary,
+                focusedLabelColor = colors.accent
             ),
             shape = RoundedCornerShape(12.dp),
             singleLine = true
@@ -85,8 +86,8 @@ fun OnboardingScreen(
             },
             enabled = name.isNotBlank(),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Purple40,
-                disabledContainerColor = DarkSurface
+                containerColor = colors.accentDark,
+                disabledContainerColor = colors.surface
             ),
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier

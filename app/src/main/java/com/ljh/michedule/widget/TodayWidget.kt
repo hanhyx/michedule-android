@@ -81,7 +81,7 @@ class TodayWidget : GlanceAppWidget() {
                 memo = myEntity?.memo,
                 mood = myMood?.emoji,
                 moodNote = myMood?.note?.takeIf { it.isNotBlank() },
-                todoTexts = myTodos.take(4).map { (if (it.isDone) "✅ " else "☐ ") + it.title },
+                todoTexts = myTodos.take(4).map { (if (it.isDone) "✅ " else "⬜ ") + it.title },
                 typeConfigMap = typeConfigs
             )
 
@@ -262,9 +262,11 @@ private fun TodayWidgetContent(
 
                 // 할일
                 myDetail.todoTexts.forEach { todo ->
+                    val isDone = todo.startsWith("✅")
+                    val displayColor = if (isDone) muted else todoColor
                     Text(
                         todo.take(20),
-                        style = TextStyle(color = ColorProvider(todoColor, todoColor), fontSize = 9.sp)
+                        style = TextStyle(color = ColorProvider(displayColor, displayColor), fontSize = 9.sp)
                     )
                 }
             }
