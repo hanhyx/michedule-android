@@ -129,6 +129,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
     val colors = LocalAppColors.current
 
     var editName by remember(myName) { mutableStateOf(myName) }
+    var showPhotoOptions by remember { mutableStateOf(false) }
 
     val myPhotoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -148,7 +149,10 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
-                    modifier = Modifier.clickable { myPhotoPicker.launch("image/*") },
+                    modifier = Modifier.clickable {
+                        if (myPhotoUri.isNotBlank()) showPhotoOptions = true
+                        else myPhotoPicker.launch("image/*")
+                    },
                     contentAlignment = Alignment.BottomEnd
                 ) {
                     if (myPhotoUri.isNotBlank()) {
@@ -226,6 +230,66 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
             ) {
                 Text("저장")
             }
+        }
+
+        if (showPhotoOptions) {
+            AlertDialog(
+                onDismissRequest = { showPhotoOptions = false },
+                title = { Text("프로필 사진", color = colors.textPrimary) },
+                text = {
+                    Column {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showPhotoOptions = false
+                                    myPhotoPicker.launch("image/*")
+                                },
+                            color = Color.Transparent
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.PhotoCamera, contentDescription = null, tint = colors.accent, modifier = Modifier.size(22.dp))
+                                Spacer(Modifier.width(14.dp))
+                                Text("사진 변경", color = colors.textPrimary, fontSize = 15.sp)
+                            }
+                        }
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showPhotoOptions = false
+                                    scope.launch {
+                                        prefsManager.setMyPhotoUri("")
+                                        app.triggerUpload()
+                                        Toast
+                                            .makeText(context, "기본 이미지로 변경됨", Toast.LENGTH_SHORT)
+                                            .show()
+                                    }
+                                },
+                            color = Color.Transparent
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(22.dp))
+                                Spacer(Modifier.width(14.dp))
+                                Text("기본 이미지로 변경", color = Color(0xFFEF4444), fontSize = 15.sp)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = { showPhotoOptions = false }) {
+                        Text("취소", color = colors.textMuted)
+                    }
+                },
+                containerColor = colors.card
+            )
         }
 
         SettingsCard(title = "일정 공유") {
