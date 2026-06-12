@@ -152,7 +152,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
     val hasUnsavedPhoto = pendingPhotoUri != null || pendingPhotoDelete
 
     val myPhotoPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         uri?.let {
             rawPickedUri = it
@@ -174,7 +174,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                 Box(
                     modifier = Modifier.clickable {
                         if (displayPhotoUri.isNotBlank()) showPhotoOptions = true
-                        else myPhotoPicker.launch("image/*")
+                        else myPhotoPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                     },
                     contentAlignment = Alignment.BottomEnd
                 ) {
@@ -272,7 +272,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                                 .fillMaxWidth()
                                 .clickable {
                                     showPhotoOptions = false
-                                    myPhotoPicker.launch("image/*")
+                                    myPhotoPicker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                                 },
                             color = Color.Transparent
                         ) {
@@ -1737,30 +1737,27 @@ private fun ProfileCropDialog(
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
 
-    val circleSize = 260.dp
+    val circleSize = 180.dp
     val circleSizePx = with(LocalDensity.current) { circleSize.toPx() }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = colors.card,
-            modifier = Modifier.fillMaxWidth()
+            shape = RoundedCornerShape(16.dp),
+            color = colors.card
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier.padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("위치 조정", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                Spacer(Modifier.height(4.dp))
-                Text("드래그로 이동, 핀치로 확대/축소", fontSize = 13.sp, color = colors.textMuted)
-                Spacer(Modifier.height(16.dp))
+                Text("드래그/핀치로 조정", fontSize = 13.sp, color = colors.textMuted)
+                Spacer(Modifier.height(12.dp))
 
                 Box(
                     modifier = Modifier
                         .size(circleSize)
                         .clip(CircleShape)
                         .background(colors.surface)
-                        .border(3.dp, colors.accent, CircleShape)
+                        .border(2.dp, colors.accent, CircleShape)
                         .pointerInput(Unit) {
                             detectTransformGestures { _, pan, zoom, _ ->
                                 scale = (scale * zoom).coerceIn(0.5f, 4f)
@@ -1788,34 +1785,35 @@ private fun ProfileCropDialog(
                     )
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(12.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(onClick = { scale = 1f; offsetX = 0f; offsetY = 0f }) {
-                        Text("초기화", color = colors.textMuted)
+                    TextButton(onClick = { scale = 1f; offsetX = 0f; offsetY = 0f }, contentPadding = PaddingValues(horizontal = 8.dp)) {
+                        Text("초기화", fontSize = 13.sp, color = colors.textMuted)
                     }
-                    Row {
-                        TextButton(onClick = onDismiss) {
-                            Text("취소", color = colors.textMuted)
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Button(
-                            onClick = {
-                                scope.launch {
-                                    val croppedUri = cropProfileImage(
-                                        context, imageUri, scale, offsetX, offsetY, circleSizePx.toInt()
-                                    )
-                                    if (croppedUri != null) onConfirm(croppedUri) else onDismiss()
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = colors.accentDark),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("확인")
-                        }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = onDismiss, contentPadding = PaddingValues(horizontal = 8.dp)) {
+                        Text("취소", fontSize = 13.sp, color = colors.textMuted)
+                    }
+                    Spacer(Modifier.width(4.dp))
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                val croppedUri = cropProfileImage(
+                                    context, imageUri, scale, offsetX, offsetY, circleSizePx.toInt()
+                                )
+                                if (croppedUri != null) onConfirm(croppedUri) else onDismiss()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.accentDark),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                    ) {
+                        Text("확인", fontSize = 13.sp)
                     }
                 }
             }
@@ -1832,15 +1830,12 @@ private suspend fun cropProfileImage(
     viewSize: Int
 ): android.net.Uri? = withContext(Dispatchers.IO) {
     try {
-        val input = context.contentResolver.openInputStream(uri) ?: return@withContext null
-        val original = BitmapFactory.decodeStream(input)
-        input.close()
+        val original = loadBitmapWithExif(context, uri) ?: return@withContext null
 
         val outputSize = 512
         val result = Bitmap.createBitmap(outputSize, outputSize, Bitmap.Config.ARGB_8888)
         val canvas = android.graphics.Canvas(result)
 
-        val imgScale = outputSize.toFloat() / viewSize * scale
         val srcW = original.width.toFloat()
         val srcH = original.height.toFloat()
 
@@ -1870,4 +1865,39 @@ private suspend fun cropProfileImage(
     } catch (e: Exception) {
         null
     }
+}
+
+private fun loadBitmapWithExif(context: Context, uri: android.net.Uri): Bitmap? {
+    val input = context.contentResolver.openInputStream(uri) ?: return null
+    val original = BitmapFactory.decodeStream(input)
+    input.close()
+
+    val exifInput = context.contentResolver.openInputStream(uri) ?: return original
+    val exif = try {
+        androidx.exifinterface.media.ExifInterface(exifInput)
+    } catch (_: Exception) {
+        exifInput.close()
+        return original
+    }
+    exifInput.close()
+
+    val orientation = exif.getAttributeInt(
+        androidx.exifinterface.media.ExifInterface.TAG_ORIENTATION,
+        androidx.exifinterface.media.ExifInterface.ORIENTATION_NORMAL
+    )
+
+    val rotation = when (orientation) {
+        androidx.exifinterface.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+        androidx.exifinterface.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+        androidx.exifinterface.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+        else -> 0f
+    }
+
+    if (rotation == 0f) return original
+
+    val matrix = android.graphics.Matrix()
+    matrix.postRotate(rotation)
+    val rotated = Bitmap.createBitmap(original, 0, 0, original.width, original.height, matrix, true)
+    if (rotated !== original) original.recycle()
+    return rotated
 }
