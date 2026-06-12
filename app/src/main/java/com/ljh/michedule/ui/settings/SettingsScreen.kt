@@ -2,6 +2,8 @@ package com.ljh.michedule.ui.settings
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -9,6 +11,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -24,15 +27,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
@@ -41,7 +47,10 @@ import com.ljh.michedule.data.PrefsManager
 import com.ljh.michedule.data.ShiftTypeManager
 import com.ljh.michedule.data.db.ShiftTypeConfig
 import com.ljh.michedule.ui.theme.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.UUID
 
 @Composable
@@ -130,11 +139,25 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
 
     var editName by remember(myName) { mutableStateOf(myName) }
     var showPhotoOptions by remember { mutableStateOf(false) }
+    var pendingPhotoUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var pendingPhotoDelete by remember { mutableStateOf(false) }
+    var showCropDialog by remember { mutableStateOf(false) }
+    var rawPickedUri by remember { mutableStateOf<android.net.Uri?>(null) }
+
+    val displayPhotoUri = when {
+        pendingPhotoDelete -> ""
+        pendingPhotoUri != null -> pendingPhotoUri.toString()
+        else -> myPhotoUri
+    }
+    val hasUnsavedPhoto = pendingPhotoUri != null || pendingPhotoDelete
 
     val myPhotoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
-        uri?.let { app.saveMyProfilePhoto(it) }
+        uri?.let {
+            rawPickedUri = it
+            showCropDialog = true
+        }
     }
 
     Column(
@@ -150,26 +173,24 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
             ) {
                 Box(
                     modifier = Modifier.clickable {
-                        if (myPhotoUri.isNotBlank()) showPhotoOptions = true
+                        if (displayPhotoUri.isNotBlank()) showPhotoOptions = true
                         else myPhotoPicker.launch("image/*")
                     },
                     contentAlignment = Alignment.BottomEnd
                 ) {
-                    if (myPhotoUri.isNotBlank()) {
+                    if (displayPhotoUri.isNotBlank()) {
                         AsyncImage(
                             model = ImageRequest.Builder(context)
-                                .data(myPhotoUri)
+                                .data(displayPhotoUri)
                                 .crossfade(200)
                                 .memoryCachePolicy(CachePolicy.ENABLED)
                                 .diskCachePolicy(CachePolicy.ENABLED)
-                                .memoryCacheKey(myPhotoUri)
-                                .diskCacheKey(myPhotoUri)
                                 .build(),
                             contentDescription = "내 프로필 사진",
                             modifier = Modifier
                                 .size(64.dp)
                                 .clip(CircleShape)
-                                .border(2.dp, colors.accent, CircleShape),
+                                .border(2.dp, if (hasUnsavedPhoto) Color(0xFFFBBF24) else colors.accent, CircleShape),
                             contentScale = ContentScale.Crop
                         )
                     } else {
@@ -178,7 +199,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                                 .size(64.dp)
                                 .clip(CircleShape)
                                 .background(colors.surface)
-                                .border(2.dp, colors.border, CircleShape),
+                                .border(2.dp, if (hasUnsavedPhoto) Color(0xFFFBBF24) else colors.border, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Text("👤", fontSize = 28.sp)
@@ -221,6 +242,14 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                         if (myName != newName) {
                             app.updateMyName(newName)
                         }
+                        if (pendingPhotoDelete) {
+                            prefsManager.setMyPhotoUri("")
+                            app.triggerUpload()
+                            pendingPhotoDelete = false
+                        } else if (pendingPhotoUri != null) {
+                            app.saveMyProfilePhoto(pendingPhotoUri!!)
+                            pendingPhotoUri = null
+                        }
                         Toast.makeText(context, "저장됨", Toast.LENGTH_SHORT).show()
                     }
                 },
@@ -261,13 +290,8 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                                 .fillMaxWidth()
                                 .clickable {
                                     showPhotoOptions = false
-                                    scope.launch {
-                                        prefsManager.setMyPhotoUri("")
-                                        app.triggerUpload()
-                                        Toast
-                                            .makeText(context, "기본 이미지로 변경됨", Toast.LENGTH_SHORT)
-                                            .show()
-                                    }
+                                    pendingPhotoUri = null
+                                    pendingPhotoDelete = true
                                 },
                             color = Color.Transparent
                         ) {
@@ -289,6 +313,22 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                     }
                 },
                 containerColor = colors.card
+            )
+        }
+
+        if (showCropDialog && rawPickedUri != null) {
+            ProfileCropDialog(
+                imageUri = rawPickedUri!!,
+                onConfirm = { croppedUri ->
+                    pendingPhotoUri = croppedUri
+                    pendingPhotoDelete = false
+                    showCropDialog = false
+                    rawPickedUri = null
+                },
+                onDismiss = {
+                    showCropDialog = false
+                    rawPickedUri = null
+                }
             )
         }
 
@@ -1680,5 +1720,154 @@ private fun DebugToolsSection(app: MicheduleApp) {
         ) {
             Text("전체 프로덕션 데이터 복사", fontSize = 12.sp, color = colors.textSecondary)
         }
+    }
+}
+
+@Composable
+private fun ProfileCropDialog(
+    imageUri: android.net.Uri,
+    onConfirm: (android.net.Uri) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colors = LocalAppColors.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    var offsetY by remember { mutableFloatStateOf(0f) }
+
+    val circleSize = 260.dp
+    val circleSizePx = with(LocalDensity.current) { circleSize.toPx() }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = colors.card,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("위치 조정", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                Spacer(Modifier.height(4.dp))
+                Text("드래그로 이동, 핀치로 확대/축소", fontSize = 13.sp, color = colors.textMuted)
+                Spacer(Modifier.height(16.dp))
+
+                Box(
+                    modifier = Modifier
+                        .size(circleSize)
+                        .clip(CircleShape)
+                        .background(colors.surface)
+                        .border(3.dp, colors.accent, CircleShape)
+                        .pointerInput(Unit) {
+                            detectTransformGestures { _, pan, zoom, _ ->
+                                scale = (scale * zoom).coerceIn(0.5f, 4f)
+                                offsetX += pan.x
+                                offsetY += pan.y
+                                val maxOffset = circleSizePx * scale * 0.5f
+                                offsetX = offsetX.coerceIn(-maxOffset, maxOffset)
+                                offsetY = offsetY.coerceIn(-maxOffset, maxOffset)
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    AsyncImage(
+                        model = imageUri,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                                translationX = offsetX
+                                translationY = offsetY
+                            }
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    TextButton(onClick = { scale = 1f; offsetX = 0f; offsetY = 0f }) {
+                        Text("초기화", color = colors.textMuted)
+                    }
+                    Row {
+                        TextButton(onClick = onDismiss) {
+                            Text("취소", color = colors.textMuted)
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    val croppedUri = cropProfileImage(
+                                        context, imageUri, scale, offsetX, offsetY, circleSizePx.toInt()
+                                    )
+                                    if (croppedUri != null) onConfirm(croppedUri) else onDismiss()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = colors.accentDark),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("확인")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private suspend fun cropProfileImage(
+    context: Context,
+    uri: android.net.Uri,
+    scale: Float,
+    offsetX: Float,
+    offsetY: Float,
+    viewSize: Int
+): android.net.Uri? = withContext(Dispatchers.IO) {
+    try {
+        val input = context.contentResolver.openInputStream(uri) ?: return@withContext null
+        val original = BitmapFactory.decodeStream(input)
+        input.close()
+
+        val outputSize = 512
+        val result = Bitmap.createBitmap(outputSize, outputSize, Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(result)
+
+        val imgScale = outputSize.toFloat() / viewSize * scale
+        val srcW = original.width.toFloat()
+        val srcH = original.height.toFloat()
+
+        val fitScale = maxOf(outputSize / srcW, outputSize / srcH)
+        val drawScale = fitScale * scale
+
+        val drawW = srcW * drawScale
+        val drawH = srcH * drawScale
+        val dx = (outputSize - drawW) / 2f + offsetX * (outputSize.toFloat() / viewSize)
+        val dy = (outputSize - drawH) / 2f + offsetY * (outputSize.toFloat() / viewSize)
+
+        val path = android.graphics.Path()
+        path.addCircle(outputSize / 2f, outputSize / 2f, outputSize / 2f, android.graphics.Path.Direction.CW)
+        canvas.clipPath(path)
+
+        val destRect = android.graphics.RectF(dx, dy, dx + drawW, dy + drawH)
+        canvas.drawBitmap(original, null, destRect, null)
+
+        val file = File(context.filesDir, "my_profile_cropped.jpg")
+        file.outputStream().use { out ->
+            result.compress(Bitmap.CompressFormat.JPEG, 90, out)
+        }
+        original.recycle()
+        result.recycle()
+
+        android.net.Uri.fromFile(file)
+    } catch (e: Exception) {
+        null
     }
 }
