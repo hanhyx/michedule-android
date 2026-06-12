@@ -1,0 +1,126 @@
+{
+    "user_code":  "I33J1S",
+    "user_name":  "송도여신",
+    "partner_code":  "0BBT88",
+    "shifts":  {
+                   "2026-06-10":  "off",
+                   "2026-06-11":  "day",
+                   "2026-06-12":  "day",
+                   "2026-06-13":  "day",
+                   "2026-06-14":  "off",
+                   "2026-06-15":  "night",
+                   "2026-06-16":  "off",
+                   "2026-06-17":  "night",
+                   "2026-06-18":  "off",
+                   "2026-06-19":  "day",
+                   "2026-06-20":  "day",
+                   "2026-06-21":  "off",
+                   "2026-06-22":  "day",
+                   "2026-06-23":  "day",
+                   "2026-06-24":  "night",
+                   "2026-06-25":  "off",
+                   "2026-06-26":  "night",
+                   "2026-06-27":  "off",
+                   "2026-06-28":  "off",
+                   "2026-06-29":  "day",
+                   "2026-06-30":  "day"
+               },
+    "memos":  {
+
+              },
+    "albas":  {
+                  "2026-06-12":  true,
+                  "2026-06-19":  true,
+                  "2026-06-20":  true
+              },
+    "moods":  {
+
+              },
+    "todo_counts":  {
+
+                    },
+    "date_plans":  {
+                       "2026-06-03":  {
+                                          "by":  "0BBT88",
+                                          "memo":  "보고파"
+                                      },
+                       "2026-06-04":  {
+                                          "by":  "0BBT88",
+                                          "memo":  "따릉해"
+                                      },
+                       "2026-06-10":  {
+                                          "by":  "0BBT88",
+                                          "memo":  ""
+                                      },
+                       "2026-06-11":  {
+                                          "by":  "0BBT88",
+                                          "memo":  "보고시퍼"
+                                      },
+                       "2026-06-13":  {
+                                          "by":  "0BBT88",
+                                          "memo":  "미혀닝"
+                                      },
+                       "2026-06-14":  {
+                                          "by":  "0BBT88",
+                                          "memo":  "만나는날"
+                                      },
+                       "2026-06-20":  {
+                                          "by":  "I33J1S",
+                                          "memo":  "혁이랑 새벽에 만나야쥐"
+                                      }
+                   },
+    "updated_at":  "2026-06-10T09:21:30.499453+00:00",
+    "shift_types":  {
+                        "day":  {
+                                    "bg":  "#33FBBF24",
+                                    "color":  "#FFFBBF24",
+                                    "emoji":  "☀️",
+                                    "label":  "주간",
+                                    "short":  "주"
+                                },
+                        "off":  {
+                                    "bg":  "#3334D399",
+                                    "color":  "#FF34D399",
+                                    "emoji":  "😴",
+                                    "label":  "비번",
+                                    "short":  "비"
+                                },
+                        "alba":  {
+                                     "bg":  "#33F97316",
+                                     "color":  "#FFF97316",
+                                     "emoji":  "🍺",
+                                     "label":  "알바",
+                                     "short":  "알"
+                                 },
+                        "night":  {
+                                      "bg":  "#33818CF8",
+                                      "color":  "#FF818CF8",
+                                      "emoji":  "🌙",
+                                      "label":  "야간",
+                                      "short":  "야"
+                                  },
+                        "nightEarly":  {
+                                           "bg":  "#33F472B6",
+                                           "color":  "#FFF472B6",
+                                           "emoji":  "🌇",
+                                           "label":  "조기야간",
+                                           "short":  "조"
+                                       }
+                    },
+    "fcm_token":  "dbDe5vrNRHmwf-a0vhc7rV:APA91bEv4pVeLTBPUB2CRo0U5SJzJoaeUs1A6KMYPdWtWkowQYOX-eDkH8SSHkOmVBfnNfulZFvUfqbEGmLBZVbIdStwoDUDhk-GDaLevZpgrt0N4trLq1I",
+    "todos":  {
+
+              },
+    "extra_shifts":  {
+                         "2026-06-12":  [
+                                            "alba"
+                                        ],
+                         "2026-06-19":  [
+                                            "alba"
+                                        ],
+                         "2026-06-20":  [
+                                            "alba"
+                                        ]
+                     },
+    "profile_photo_url":  null
+}

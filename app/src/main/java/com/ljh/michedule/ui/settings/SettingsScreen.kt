@@ -34,6 +34,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.ljh.michedule.MicheduleApp
 import com.ljh.michedule.data.PrefsManager
 import com.ljh.michedule.data.ShiftTypeManager
@@ -149,7 +151,14 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                 ) {
                     if (myPhotoUri.isNotBlank()) {
                         AsyncImage(
-                            model = myPhotoUri,
+                            model = ImageRequest.Builder(context)
+                                .data(myPhotoUri)
+                                .crossfade(200)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .memoryCacheKey(myPhotoUri)
+                                .diskCacheKey(myPhotoUri)
+                                .build(),
                             contentDescription = "내 프로필 사진",
                             modifier = Modifier
                                 .size(64.dp)
@@ -349,7 +358,14 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                     ) {
                         if (partnerPhotoUri.isNotBlank()) {
                             AsyncImage(
-                                model = partnerPhotoUri,
+                                model = ImageRequest.Builder(context)
+                                    .data(partnerPhotoUri)
+                                    .crossfade(200)
+                                    .memoryCachePolicy(CachePolicy.ENABLED)
+                                    .diskCachePolicy(CachePolicy.ENABLED)
+                                    .memoryCacheKey(partnerPhotoUri)
+                                    .diskCacheKey(partnerPhotoUri)
+                                    .build(),
                                 contentDescription = "상대 프로필",
                                 modifier = Modifier
                                     .size(40.dp)

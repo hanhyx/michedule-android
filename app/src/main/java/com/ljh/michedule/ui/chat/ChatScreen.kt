@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.ljh.michedule.MicheduleApp
 import com.ljh.michedule.data.db.ChatMessageEntity
 import com.ljh.michedule.ui.theme.*
@@ -219,7 +221,14 @@ private fun ChatBubble(
             if (showProfile) {
                 if (partnerPhotoUri.isNotBlank()) {
                     AsyncImage(
-                        model = partnerPhotoUri,
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(partnerPhotoUri)
+                            .crossfade(200)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .memoryCacheKey(partnerPhotoUri)
+                            .diskCacheKey(partnerPhotoUri)
+                            .build(),
                         contentDescription = partnerName,
                         modifier = Modifier
                             .size(36.dp)

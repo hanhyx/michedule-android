@@ -29,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.ljh.michedule.MicheduleApp
 import com.ljh.michedule.data.ShiftTypeManager
 import com.ljh.michedule.data.db.EventEntity
@@ -587,7 +589,14 @@ private fun MemberAvatar(
         Box {
             if (photoUri.isNotBlank()) {
                 AsyncImage(
-                    model = photoUri,
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(photoUri)
+                        .crossfade(200)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .memoryCacheKey(photoUri)
+                        .diskCacheKey(photoUri)
+                        .build(),
                     contentDescription = name,
                     modifier = Modifier
                         .size(photoSize)
