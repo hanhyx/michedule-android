@@ -15,8 +15,8 @@ android {
         applicationId = "com.ljh.michedule"
         minSdk = 26
         targetSdk = 35
-        versionCode = 82
-        versionName = "3.13.8"
+        versionCode = 83
+        versionName = "3.13.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
