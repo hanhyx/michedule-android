@@ -44,8 +44,13 @@ class ScheduleRepository(private val db: AppDatabase) {
         return datePlanDao.getPlanForDate(date.toString())
     }
 
-    suspend fun setDatePlan(date: LocalDate, memo: String, createdBy: String) {
-        datePlanDao.upsert(DatePlanEntity(date = date.toString(), memo = memo, createdBy = createdBy))
+    suspend fun setDatePlan(date: LocalDate, memo: String, createdBy: String, response: String = "") {
+        datePlanDao.upsert(DatePlanEntity(date = date.toString(), memo = memo, createdBy = createdBy, response = response))
+    }
+
+    suspend fun respondToDatePlan(date: LocalDate, response: String) {
+        val existing = datePlanDao.getPlanOnce(date.toString()) ?: return
+        datePlanDao.upsert(existing.copy(response = response))
     }
 
     suspend fun migrateCreatedByToCode(myCode: String, partnerCode: String, partnerName: String) {
@@ -204,6 +209,12 @@ class ScheduleRepository(private val db: AppDatabase) {
     // Todos
     fun getTodosForDate(date: LocalDate): Flow<List<TodoEntity>> {
         return todoDao.getTodosForDate(date.toString())
+    }
+
+    fun getTodosForMonth(yearMonth: YearMonth): Flow<List<TodoEntity>> {
+        val start = yearMonth.atDay(1).toString()
+        val end = yearMonth.atEndOfMonth().toString()
+        return todoDao.getTodosInRange(start, end)
     }
 
     suspend fun addTodo(todo: TodoEntity): Long = todoDao.insert(todo)

@@ -25,6 +25,7 @@ data class CalendarUiState(
     val friendShifts: Map<String, FriendShiftEntity> = emptyMap(),
     val moods: Map<String, MoodEntity> = emptyMap(),
     val todos: List<TodoEntity> = emptyList(),
+    val monthlyTodos: Map<String, List<TodoEntity>> = emptyMap(),
     val shiftHistory: List<ShiftHistoryEntity> = emptyList(),
     val currentMood: MoodEntity? = null,
     val viewMode: ViewMode = ViewMode.MONTHLY,
@@ -95,6 +96,15 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 .distinctUntilChanged()
                 .flatMapLatest { date -> repo.getTodosForDate(date) }
                 .collect { todos -> _uiState.update { it.copy(todos = todos) } }
+        }
+
+        viewModelScope.launch {
+            _uiState.map { it.currentMonth }
+                .distinctUntilChanged()
+                .flatMapLatest { month -> repo.getTodosForMonth(month) }
+                .collect { allTodos ->
+                    _uiState.update { it.copy(monthlyTodos = allTodos.groupBy { t -> t.date }) }
+                }
         }
 
         viewModelScope.launch {
@@ -219,6 +229,14 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             repo.setDatePlan(date, memo, myCode)
             app.triggerUpload()
             app.sendDatePlanPush(date.toString(), memo)
+        }
+    }
+
+    fun respondToDatePlan(date: LocalDate, response: String) {
+        viewModelScope.launch {
+            repo.respondToDatePlan(date, response)
+            app.triggerUpload()
+            app.sendDatePlanResponsePush(date.toString(), response)
         }
     }
 

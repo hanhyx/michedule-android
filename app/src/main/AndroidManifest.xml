@@ -66,6 +66,10 @@
             android:name=".alarm.AlarmReceiver"
             android:exported="false" />
 
+        <receiver
+            android:name=".fcm.ChatReplyReceiver"
+            android:exported="false" />
+
         <service
             android:name=".fcm.MicheduleMessagingService"
             android:exported="false">

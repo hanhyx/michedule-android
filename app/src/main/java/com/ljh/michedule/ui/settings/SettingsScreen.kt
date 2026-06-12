@@ -129,13 +129,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
     val myPhotoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
-        uri?.let { app.saveProfilePhoto(it, isPartner = false) }
-    }
-
-    val partnerPhotoPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        uri?.let { app.saveProfilePhoto(it, isPartner = true) }
+        uri?.let { app.saveMyProfilePhoto(it) }
     }
 
     Column(
@@ -353,46 +347,26 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier.clickable { partnerPhotoPicker.launch("image/*") },
-                            contentAlignment = Alignment.BottomEnd
-                        ) {
-                            if (partnerPhotoUri.isNotBlank()) {
-                                AsyncImage(
-                                    model = partnerPhotoUri,
-                                    contentDescription = "상대 프로필",
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(CircleShape)
-                                        .border(2.dp, Color(0xFFF472B6), CircleShape),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(CircleShape)
-                                        .background(DarkSurface)
-                                        .border(2.dp, DarkBorder, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("💜", fontSize = 22.sp)
-                                }
-                            }
+                        if (partnerPhotoUri.isNotBlank()) {
+                            AsyncImage(
+                                model = partnerPhotoUri,
+                                contentDescription = "상대 프로필",
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .border(2.dp, Color(0xFFF472B6), CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
                             Box(
                                 modifier = Modifier
-                                    .size(18.dp)
+                                    .size(40.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFFF472B6))
-                                    .border(1.dp, DarkCard, CircleShape),
+                                    .background(DarkSurface)
+                                    .border(2.dp, DarkBorder, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    Icons.Default.CameraAlt,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(10.dp)
-                                )
+                                Text("💜", fontSize = 18.sp)
                             }
                         }
                         Spacer(modifier = Modifier.width(12.dp))
@@ -403,7 +377,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                                 color = TextPrimary
                             )
                             Text(
-                                "사진을 탭하여 상대 프로필 설정",
+                                "상대방이 설정한 프로필 사진",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = TextMuted
                             )
@@ -596,30 +570,60 @@ private fun WorkTab(
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     listOf(1, 2, 3, 4).forEach { hours ->
                         val isSelected = alarmHoursBefore == hours
                         Surface(
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(10.dp),
                             color = if (isSelected) Purple40 else DarkSurface,
                             onClick = {
                                 scope.launch { prefsManager.setAlarmHoursBefore(hours) }
                             }
                         ) {
                             Text(
-                                text = "${hours}시간",
-                                modifier = Modifier.padding(vertical = 10.dp),
+                                text = "${hours}h",
+                                modifier = Modifier.padding(vertical = 8.dp),
                                 textAlign = TextAlign.Center,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isSelected) Purple80 else TextMuted,
-                                style = MaterialTheme.typography.bodyMedium
+                                style = MaterialTheme.typography.bodySmall
                             )
                         }
                     }
                 }
+
                 Spacer(modifier = Modifier.height(8.dp))
+                var customHoursText by remember(alarmHoursBefore) { mutableStateOf("$alarmHoursBefore") }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("직접 입력:", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    OutlinedTextField(
+                        value = customHoursText,
+                        onValueChange = { v ->
+                            customHoursText = v.filter { it.isDigit() }.take(2)
+                            customHoursText.toIntOrNull()?.takeIf { it in 1..24 }?.let { hours ->
+                                scope.launch { prefsManager.setAlarmHoursBefore(hours) }
+                            }
+                        },
+                        modifier = Modifier.width(56.dp).height(40.dp),
+                        singleLine = true,
+                        textStyle = LocalTextStyle.current.copy(fontSize = 13.sp, textAlign = TextAlign.Center, color = TextPrimary),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Purple80, unfocusedBorderColor = DarkBorder,
+                            cursorColor = Purple80
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("시간 전", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "예: 야간(18:00) → ${alarmHoursBefore}시간 전 = ${18 - alarmHoursBefore}:00 알림",
                     style = MaterialTheme.typography.bodySmall,
@@ -639,7 +643,7 @@ private fun WorkTab(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 2.dp),
+                            .padding(vertical = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -650,7 +654,7 @@ private fun WorkTab(
                             onCheckedChange = { enabled ->
                                 scope.launch { prefsManager.toggleAlarmForType(code, enabled) }
                             },
-                            modifier = Modifier.height(28.dp),
+                            modifier = Modifier.height(24.dp),
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Purple80,
                                 checkedTrackColor = Purple40,
@@ -660,6 +664,24 @@ private fun WorkTab(
                         )
                     }
                 }
+            }
+        }
+
+        SettingsCard(title = "푸시 알림") {
+            val pushChat by prefsManager.pushChatEnabled.collectAsState(initial = true)
+            val pushDatePlan by prefsManager.pushDatePlanEnabled.collectAsState(initial = true)
+            val pushDatePlanResponse by prefsManager.pushDatePlanResponseEnabled.collectAsState(initial = true)
+
+            PushToggleRow("💬 채팅 메시지", "새 메시지 수신 시 알림", pushChat) {
+                scope.launch { prefsManager.setPushChatEnabled(it) }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            PushToggleRow("💕 만나요 알림", "상대가 만나요를 보냈을 때", pushDatePlan) {
+                scope.launch { prefsManager.setPushDatePlanEnabled(it) }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            PushToggleRow("💌 만나요 응답", "상대가 만나요에 응답했을 때", pushDatePlanResponse) {
+                scope.launch { prefsManager.setPushDatePlanResponseEnabled(it) }
             }
         }
 
@@ -1411,5 +1433,35 @@ private fun PatternAutofillCard(
             Spacer(modifier = Modifier.width(4.dp))
             Text("패턴으로 채우기")
         }
+    }
+}
+
+@Composable
+private fun PushToggleRow(
+    title: String,
+    description: String,
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.Medium, color = if (enabled) TextPrimary else TextMuted)
+            Text(description, style = MaterialTheme.typography.bodySmall, color = TextMuted)
+        }
+        Switch(
+            checked = enabled,
+            onCheckedChange = onToggle,
+            modifier = Modifier.height(28.dp),
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Purple80,
+                checkedTrackColor = Purple40,
+                uncheckedThumbColor = TextMuted,
+                uncheckedTrackColor = DarkSurface
+            )
+        )
     }
 }

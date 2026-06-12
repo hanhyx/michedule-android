@@ -47,6 +47,7 @@ data class ScheduleRow(
     val date_plans: JsonObject = JsonObject(emptyMap()),
     val shift_types: JsonObject = JsonObject(emptyMap()),
     val fcm_token: String? = null,
+    val profile_photo_url: String? = null,
     val updated_at: String? = null
 )
 
@@ -159,6 +160,7 @@ class SupabaseSync(
             if (friendRow.user_name.isNotBlank()) {
                 prefsManager.setPartnerName(friendRow.user_name)
             }
+            prefsManager.setPartnerPhotoUri(friendRow.profile_photo_url ?: "")
             prefsManager.setConnectionMutual(true)
 
             Log.d(TAG, "Mutual connection confirmed with $partnerCode")
@@ -260,7 +262,9 @@ class SupabaseSync(
                     rawBy == friendName -> partnerCode
                     else -> myCode
                 }
-                DatePlanEntity(date = date, memo = memo, createdBy = resolvedBy)
+                val responseObj = obj["response"] as? kotlinx.serialization.json.JsonObject
+                val response = responseObj?.get(myCode)?.let { (it as? JsonPrimitive)?.content } ?: ""
+                DatePlanEntity(date = date, memo = memo, createdBy = resolvedBy, response = response)
             }
             repo.syncDatePlans(remotePlans, myCode)
 
@@ -383,6 +387,57 @@ class SupabaseSync(
         }
     }
 
+    suspend fun sendDatePlanResponsePush(date: String, responseType: String) {
+        try {
+            val partnerCode = prefsManager.partnerCode.first()
+            if (partnerCode.isBlank()) return
+            if (!prefsManager.connectionMutual.first()) return
+
+            val partnerRow = client?.from(TABLE)
+                ?.select { filter { eq("user_code", partnerCode) } }
+                ?.decodeList<ScheduleRow>()
+                ?.firstOrNull()
+
+            val partnerToken = partnerRow?.fcm_token
+            if (partnerToken.isNullOrBlank()) return
+
+            val myName = prefsManager.myName.first().ifBlank { "상대방" }
+            val url = prefsManager.supabaseUrl.first()
+            val key = prefsManager.supabaseKey.first()
+
+            val body = when (responseType) {
+                "accepted" -> "${myName}님이 만나요를 수락했어요! 💕"
+                "thinking" -> "${myName}님이 생각해본다고 해요 💭"
+                else -> "${myName}님이 만나요에 응답했어요"
+            }
+
+            val functionUrl = url.replace(".supabase.co", ".supabase.co/functions/v1/send-push")
+            val payload = buildJsonObject {
+                put("fcm_token", partnerToken)
+                put("title", "💕 만나요 응답")
+                put("body", body)
+                put("data", buildJsonObject {
+                    put("type", "date_plan_response")
+                    put("sender_name", myName)
+                    put("date", date)
+                    put("response", responseType)
+                })
+            }
+
+            val httpClient = HttpClient(OkHttp)
+            val resp = httpClient.request(functionUrl) {
+                method = HttpMethod.Post
+                contentType(ContentType.Application.Json)
+                header("Authorization", "Bearer $key")
+                setBody(payload.toString())
+            }
+            Log.d(TAG, "Response push sent, status=${resp.status}")
+            httpClient.close()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send date plan response push", e)
+        }
+    }
+
     private suspend fun restoreOwnDataIfEmpty(myCode: String) {
         try {
             val localShifts = repo.getAllShifts()
@@ -419,7 +474,9 @@ class SupabaseSync(
                 val obj = value as? JsonObject ?: return@forEach
                 val memo = (obj["memo"] as? JsonPrimitive)?.content ?: ""
                 val by = (obj["by"] as? JsonPrimitive)?.content ?: ""
-                repo.setDatePlan(java.time.LocalDate.parse(date), memo, by)
+                val responseObj = obj["response"] as? kotlinx.serialization.json.JsonObject
+                val resp = responseObj?.entries?.firstOrNull()?.value?.let { (it as? JsonPrimitive)?.content } ?: ""
+                repo.setDatePlan(java.time.LocalDate.parse(date), memo, by, resp)
             }
 
             Log.d(TAG, "Restored ${myRow.shifts.size} shifts, ${myRow.moods.size} moods, ${myRow.date_plans.size} plans")
@@ -492,12 +549,18 @@ class SupabaseSync(
                 }
             }
 
+            val myCode2 = myCode
             val allDatePlans = repo.getAllDatePlans()
             val datePlansJson = buildJsonObject {
                 allDatePlans.forEach { plan ->
                     put(plan.date, buildJsonObject {
                         put("memo", plan.memo)
                         put("by", plan.createdBy)
+                        if (plan.response.isNotBlank()) {
+                            put("response", buildJsonObject {
+                                put(myCode2, plan.response)
+                            })
+                        }
                     })
                 }
             }
@@ -515,6 +578,7 @@ class SupabaseSync(
             }
 
             val fcmToken = prefsManager.fcmToken.first().ifBlank { null }
+            val myPhotoUrl = prefsManager.myPhotoUri.first().ifBlank { null }
 
             val row = ScheduleRow(
                 user_code = myCode,
@@ -529,7 +593,8 @@ class SupabaseSync(
                 todos = todosJson,
                 date_plans = datePlansJson,
                 shift_types = shiftTypesJson,
-                fcm_token = fcmToken
+                fcm_token = fcmToken,
+                profile_photo_url = myPhotoUrl
             )
 
             client?.from(TABLE)?.upsert(row)

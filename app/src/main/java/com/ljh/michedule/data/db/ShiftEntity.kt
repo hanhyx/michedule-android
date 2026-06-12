@@ -11,6 +11,9 @@ data class ShiftEntity(
     val hasAlba: Boolean = false,
     val extraShifts: String = ""
 ) {
+    fun getMemoList(): List<String> =
+        memo?.split("|||")?.filter { it.isNotBlank() } ?: emptyList()
+
     fun getExtraShiftList(): List<String> =
         extraShifts.split(",").filter { it.isNotBlank() }
 

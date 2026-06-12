@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,6 +35,7 @@ import com.ljh.michedule.data.db.EventEntity
 import com.ljh.michedule.data.db.DatePlanEntity
 import com.ljh.michedule.data.db.FriendShiftEntity
 import com.ljh.michedule.data.db.ShiftTypeConfig
+import com.ljh.michedule.data.db.TodoEntity
 import com.ljh.michedule.data.ocr.OcrCandidate
 import com.ljh.michedule.data.ocr.ScheduleOcr
 import com.ljh.michedule.data.ocr.ScheduleParser
@@ -230,7 +232,8 @@ fun CalendarScreen(
                 partnerName = uiState.partnerName,
                 datePlan = uiState.currentDatePlan,
                 onDatePlanSet = { memo -> viewModel.setDatePlan(uiState.selectedDate, memo) },
-                onDatePlanDelete = { viewModel.deleteDatePlan(uiState.selectedDate) }
+                onDatePlanDelete = { viewModel.deleteDatePlan(uiState.selectedDate) },
+                onDatePlanRespond = { response -> viewModel.respondToDatePlan(uiState.selectedDate, response) }
             )
         }
     }
@@ -714,7 +717,6 @@ private fun MonthlyCalendarGrid(
 
                         if (uiState.viewingPartner) {
                             val partnerTodos = friendShiftEntity?.getTodoList() ?: emptyList()
-                            val partnerTodoCount = partnerTodos.size.takeIf { it > 0 } ?: (friendShiftEntity?.todoCount ?: 0)
                             SoloCell(
                                 day = dayNum,
                                 shiftConfig = friendShiftEntity?.type?.takeIf { it.isNotBlank() }?.let { stm.getByIdForPartner(it) },
@@ -725,8 +727,7 @@ private fun MonthlyCalendarGrid(
                                 memo = friendShiftEntity?.memo,
                                 mood = friendShiftEntity?.mood,
                                 moodNote = friendShiftEntity?.moodNote,
-                                todoCount = partnerTodoCount,
-                                todoFirstTitle = partnerTodos.firstOrNull()?.first,
+                                partnerTodosForCell = partnerTodos,
                                 events = emptyList(),
                                 datePlan = datePlan,
                                 isToday = date == today,
@@ -737,7 +738,7 @@ private fun MonthlyCalendarGrid(
                                 modifier = Modifier.weight(1f).fillMaxHeight()
                             )
                         } else {
-                            val myTodosForDate = uiState.todos.filter { it.date == dateStr }
+                            val myTodosForDate = uiState.monthlyTodos[dateStr] ?: emptyList()
                             SoloCell(
                                 day = dayNum,
                                 shiftConfig = shiftEntity?.type?.takeIf { it.isNotBlank() }?.let { stm.getById(it) },
@@ -747,8 +748,7 @@ private fun MonthlyCalendarGrid(
                                 memo = shiftEntity?.memo,
                                 mood = mood?.emoji,
                                 moodNote = mood?.note,
-                                todoCount = myTodosForDate.size,
-                                todoFirstTitle = myTodosForDate.firstOrNull()?.title,
+                                todosForCell = myTodosForDate,
                                 events = uiState.events[dateStr] ?: emptyList(),
                                 datePlan = datePlan,
                                 isToday = date == today,
@@ -768,6 +768,10 @@ private fun MonthlyCalendarGrid(
     }
 }
 
+private data class TodoDisplayItem(val title: String, val isDone: Boolean)
+
+private fun List<TodoEntity>.toDisplayItems() = map { TodoDisplayItem(it.title, it.isDone) }
+
 // ══════════════════════════════════════════════
 //  SOLO CELL (unified full-width cell)
 // ══════════════════════════════════════════════
@@ -785,8 +789,8 @@ private fun SoloCell(
     memo: String?,
     mood: String?,
     moodNote: String? = null,
-    todoCount: Int,
-    todoFirstTitle: String? = null,
+    todosForCell: List<TodoEntity> = emptyList(),
+    partnerTodosForCell: List<Pair<String, Boolean>> = emptyList(),
     events: List<EventEntity> = emptyList(),
     datePlan: DatePlanEntity? = null,
     isToday: Boolean,
@@ -838,14 +842,35 @@ private fun SoloCell(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(3.dp))
-                    .background(Color(0xFFEC4899).copy(alpha = 0.2f))
+                    .background(
+                        when (datePlan.response) {
+                            "accepted" -> Color(0xFF34D399).copy(alpha = 0.2f)
+                            "thinking" -> Color(0xFFFBBF24).copy(alpha = 0.2f)
+                            else -> Color(0xFFEC4899).copy(alpha = 0.2f)
+                        }
+                    )
                     .padding(horizontal = 3.dp, vertical = 1.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("💕", fontSize = 8.sp, lineHeight = 10.sp)
-                if (datePlan.memo.isNotBlank()) {
+                val planIcon = when (datePlan.response) {
+                    "accepted" -> "💕"
+                    "thinking" -> "💭"
+                    else -> "💕"
+                }
+                val planLabel = when (datePlan.response) {
+                    "accepted" -> "확정!"
+                    "thinking" -> "생각 중"
+                    else -> datePlan.memo
+                }
+                val planColor = when (datePlan.response) {
+                    "accepted" -> Color(0xFF34D399)
+                    "thinking" -> Color(0xFFFBBF24)
+                    else -> Color(0xFFF9A8D4)
+                }
+                Text(planIcon, fontSize = 8.sp, lineHeight = 10.sp)
+                if (planLabel.isNotBlank()) {
                     Spacer(modifier = Modifier.width(2.dp))
-                    Text(datePlan.memo, fontSize = 7.sp, color = Color(0xFFF9A8D4), maxLines = 1, overflow = TextOverflow.Ellipsis, lineHeight = 9.sp)
+                    Text(planLabel, fontSize = 7.sp, color = planColor, maxLines = 1, overflow = TextOverflow.Ellipsis, lineHeight = 9.sp)
                 }
             }
         }
@@ -893,7 +918,13 @@ private fun SoloCell(
 
         // 메모
         if (!memo.isNullOrBlank()) {
-            Text("💬$memo", fontSize = 8.sp, color = Color(0xFF93C5FD), maxLines = 1, overflow = TextOverflow.Ellipsis, lineHeight = 10.sp, modifier = Modifier.padding(top = 1.dp))
+            val memos = memo.split("|||").filter { it.isNotBlank() }
+            memos.take(2).forEach { m ->
+                Text("📝$m", fontSize = 8.sp, color = Color(0xFF93C5FD), maxLines = 1, overflow = TextOverflow.Ellipsis, lineHeight = 10.sp, modifier = Modifier.padding(top = 1.dp))
+            }
+            if (memos.size > 2) {
+                Text("+${memos.size - 2}", fontSize = 7.sp, color = TextMuted, lineHeight = 9.sp)
+            }
         }
 
         // 이벤트
@@ -902,10 +933,21 @@ private fun SoloCell(
         }
 
         // 할일
-        if (todoCount == 1 && !todoFirstTitle.isNullOrBlank()) {
-            Text("📋$todoFirstTitle", fontSize = 8.sp, color = Color(0xFF6EE7B7), maxLines = 1, overflow = TextOverflow.Ellipsis, lineHeight = 10.sp)
-        } else if (todoCount > 1) {
-            Text("📋$todoCount", fontSize = 8.sp, color = Color(0xFF6EE7B7), lineHeight = 10.sp)
+        val todoItems: List<TodoDisplayItem>? = todosForCell.toDisplayItems().ifEmpty { null }
+            ?: partnerTodosForCell.map { (title, done) -> TodoDisplayItem(title, done) }.ifEmpty { null }
+        todoItems?.take(3)?.forEach { item ->
+            Text(
+                text = "✅${item.title}",
+                fontSize = 8.sp,
+                color = if (item.isDone) TextMuted else Color(0xFF6EE7B7),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                lineHeight = 10.sp,
+                textDecoration = if (item.isDone) TextDecoration.LineThrough else TextDecoration.None
+            )
+        }
+        if ((todoItems?.size ?: 0) > 3) {
+            Text("+${todoItems!!.size - 3}", fontSize = 7.sp, color = TextMuted, lineHeight = 9.sp)
         }
     }
 }

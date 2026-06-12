@@ -12,12 +12,19 @@ import com.ljh.michedule.data.repository.ChatRepository
 import com.ljh.michedule.data.repository.ScheduleRepository
 import com.ljh.michedule.data.sync.SupabaseSync
 import com.ljh.michedule.model.ShiftType
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.request.*
+import io.ktor.http.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class MicheduleApp : Application() {
+
+    @Volatile
+    var isChatScreenActive = false
 
     lateinit var database: AppDatabase
         private set
@@ -113,20 +120,36 @@ class MicheduleApp : Application() {
         }
     }
 
-    fun saveProfilePhoto(sourceUri: Uri, isPartner: Boolean = false) {
+    fun saveMyProfilePhoto(sourceUri: Uri) {
         appScope.launch {
             try {
-                val fileName = if (isPartner) "partner_profile.jpg" else "my_profile.jpg"
-                val file = java.io.File(filesDir, fileName)
+                val file = java.io.File(filesDir, "my_profile.jpg")
                 contentResolver.openInputStream(sourceUri)?.use { input ->
                     file.outputStream().use { output -> input.copyTo(output) }
                 }
-                val savedUri = Uri.fromFile(file).toString()
-                if (isPartner) {
-                    prefsManager.setPartnerPhotoUri(savedUri)
-                } else {
-                    prefsManager.setMyPhotoUri(savedUri)
+                val localUri = Uri.fromFile(file).toString()
+                prefsManager.setMyPhotoUri(localUri)
+
+                val myCode = prefsManager.ensureMyCode()
+                val url = prefsManager.supabaseUrl.first()
+                val key = prefsManager.supabaseKey.first()
+                val storagePath = "profiles/$myCode.jpg"
+                val uploadUrl = "$url/storage/v1/object/chat-images/$storagePath"
+
+                val bytes = file.readBytes()
+                val httpClient = HttpClient(OkHttp)
+                httpClient.request(uploadUrl) {
+                    method = HttpMethod.Post
+                    header("Authorization", "Bearer $key")
+                    header("apikey", key)
+                    contentType(ContentType.Image.JPEG)
+                    setBody(bytes)
                 }
+                httpClient.close()
+
+                val publicUrl = "$url/storage/v1/object/public/chat-images/$storagePath"
+                prefsManager.setMyPhotoUri(publicUrl)
+                triggerUpload()
             } catch (e: Exception) {
                 Log.e("MicheduleApp", "Failed to save profile photo", e)
             }
@@ -145,6 +168,12 @@ class MicheduleApp : Application() {
     fun sendDatePlanPush(date: String, memo: String) {
         appScope.launch {
             supabaseSync?.sendDatePlanPush(date, memo)
+        }
+    }
+
+    fun sendDatePlanResponsePush(date: String, response: String) {
+        appScope.launch {
+            supabaseSync?.sendDatePlanResponsePush(date, response)
         }
     }
 

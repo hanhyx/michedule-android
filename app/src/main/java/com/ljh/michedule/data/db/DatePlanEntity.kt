@@ -8,7 +8,8 @@ data class DatePlanEntity(
     @PrimaryKey val date: String,
     val memo: String = "",
     val createdBy: String = "",
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val response: String = ""
 )
 
 @Dao
@@ -18,6 +19,9 @@ interface DatePlanDao {
 
     @Query("SELECT * FROM date_plans WHERE date = :date LIMIT 1")
     fun getPlanForDate(date: String): Flow<DatePlanEntity?>
+
+    @Query("SELECT * FROM date_plans WHERE date = :date LIMIT 1")
+    suspend fun getPlanOnce(date: String): DatePlanEntity?
 
     @Query("SELECT * FROM date_plans ORDER BY date")
     suspend fun getAllPlans(): List<DatePlanEntity>

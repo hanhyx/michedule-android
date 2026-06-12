@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.toMutableStateList
 import com.ljh.michedule.data.ShiftTypeManager
 import com.ljh.michedule.data.db.*
 import com.ljh.michedule.model.ShiftType
@@ -62,10 +63,12 @@ fun DayDetailSheet(
     myCode: String = "",
     partnerName: String = "",
     onDatePlanSet: (String) -> Unit = {},
-    onDatePlanDelete: () -> Unit = {}
+    onDatePlanDelete: () -> Unit = {},
+    onDatePlanRespond: (String) -> Unit = {}
 ) {
     val allTypes by shiftTypeManager.allTypes.collectAsState()
-    var memoText by remember(date, shift) { mutableStateOf(shift?.memo ?: "") }
+    val memoList = remember(date, shift) { (shift?.getMemoList() ?: emptyList()).toMutableStateList() }
+    var newMemoText by remember(date) { mutableStateOf("") }
     val currentShiftId = shift?.type?.takeIf { it.isNotBlank() }
     var editingShiftType by remember { mutableStateOf<ShiftType?>(null) }
 
@@ -84,10 +87,7 @@ fun DayDetailSheet(
     val keyboardController = LocalSoftwareKeyboardController.current
 
     ModalBottomSheet(
-        onDismissRequest = {
-            if (memoText != (shift?.memo ?: "")) onMemoChange(memoText.ifBlank { null })
-            onDismiss()
-        },
+        onDismissRequest = { onDismiss() },
         containerColor = DarkCard,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         dragHandle = {
@@ -105,201 +105,217 @@ fun DayDetailSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .padding(horizontal = 20.dp, vertical = 16.dp)
                 .navigationBarsPadding()
                 .imePadding()
         ) {
-            // Date header
             Text(
                 text = date.format(DateTimeFormatter.ofPattern("M월 d일 (E)")),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // ── 1. 추가 근무 토글 (복수 선택) ──
+            // ── 1. 추가 근무 ──
             val extraTypes by shiftTypeManager.extraTypes.collectAsState()
             val rawExtras = shift?.getExtraShiftList() ?: emptyList()
             val activeExtras = if (rawExtras.isEmpty() && shift?.hasAlba == true) listOf("alba") else rawExtras
 
             if (extraTypes.isNotEmpty()) {
-                Text(
-                    "추가 근무",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = TextMuted,
-                    modifier = Modifier.padding(bottom = 6.dp)
-                )
-                extraTypes.forEach { extra ->
-                    val isActive = extra.id in activeExtras
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 3.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable { onExtraShiftToggle(extra.id) },
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (isActive) extra.color.copy(alpha = 0.15f) else DarkSurface,
-                        border = BorderStroke(1.dp, if (isActive) extra.color else DarkBorder)
-                    ) {
-                        Row(
+                SectionCard(icon = "💼", title = "추가 근무") {
+                    extraTypes.forEach { extra ->
+                        val isActive = extra.id in activeExtras
+                        Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(vertical = 2.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable { onExtraShiftToggle(extra.id) },
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isActive) extra.color.copy(alpha = 0.15f) else DarkBg,
+                            border = BorderStroke(1.dp, if (isActive) extra.color else DarkBorder)
                         ) {
-                            Text(extra.emoji, fontSize = 20.sp)
-                            Spacer(Modifier.width(10.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(extra.label, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                                    color = if (isActive) extra.color else TextPrimary)
-                                Text(
-                                    text = extra.defaultTimeRange,
-                                    fontSize = 11.sp,
-                                    color = if (isActive) extra.color.copy(alpha = 0.7f) else TextMuted
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(extra.emoji, fontSize = 18.sp)
+                                Spacer(Modifier.width(8.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(extra.label, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
+                                        color = if (isActive) extra.color else TextPrimary)
+                                    Text(extra.defaultTimeRange, fontSize = 10.sp,
+                                        color = if (isActive) extra.color.copy(alpha = 0.7f) else TextMuted)
+                                }
+                                Switch(
+                                    checked = isActive,
+                                    onCheckedChange = { onExtraShiftToggle(extra.id) },
+                                    modifier = Modifier.height(24.dp),
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = extra.color,
+                                        uncheckedThumbColor = TextMuted,
+                                        uncheckedTrackColor = DarkBorder
+                                    )
                                 )
                             }
-                            Switch(
-                                checked = isActive,
-                                onCheckedChange = { onExtraShiftToggle(extra.id) },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = extra.color,
-                                    uncheckedThumbColor = TextMuted,
-                                    uncheckedTrackColor = DarkBorder
-                                )
-                            )
                         }
                     }
                 }
-
-                HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
             // ── 2. 메모 ──
-            Text("📝 메모", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
-            Spacer(modifier = Modifier.height(6.dp))
-            OutlinedTextField(
-                value = memoText,
-                onValueChange = { memoText = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("메모를 입력하세요", color = TextMuted) },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Purple80, unfocusedBorderColor = DarkBorder,
-                    cursorColor = Purple80, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
-                ),
-                shape = RoundedCornerShape(12.dp),
-                maxLines = 3,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = {
-                    onMemoChange(memoText.ifBlank { null })
-                    keyboardController?.hide()
-                    focusManager.clearFocus()
-                })
-            )
-            if (memoText != (shift?.memo ?: "")) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Button(
-                    onClick = {
-                        onMemoChange(memoText.ifBlank { null })
-                        keyboardController?.hide()
-                        focusManager.clearFocus()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Purple40),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.align(Alignment.End)
-                ) { Text("저장") }
-            }
-
-            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
-
-            // ── 3. 우리 만나요 ──
-            DatePlanSection(datePlan = datePlan, myName = myName, myCode = myCode, partnerName = partnerName, onDatePlanSet = onDatePlanSet, onDatePlanDelete = onDatePlanDelete)
-
-            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
-
-            // ── 4. 할 일 ──
-            TodoSection(todos, onAddTodo, onToggleTodo, onDeleteTodo)
-
-            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
-
-            // ── 5. 일정 ──
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("📅 일정", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
-                IconButton(onClick = onAddEvent, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Add, "추가", tint = Purple80)
-                }
-            }
-            if (events.isEmpty()) {
-                Text("등록된 일정이 없습니다", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
-            } else {
-                events.forEach { event ->
+            SectionCard(icon = "📝", title = "메모") {
+                memoList.forEachIndexed { index, memo ->
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(DarkBg)
+                            .padding(horizontal = 10.dp, vertical = 7.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(Modifier.size(8.dp).clip(CircleShape).background(Color(event.color)))
-                        Spacer(Modifier.width(8.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(event.title, style = MaterialTheme.typography.bodyMedium)
-                            if (event.startTime != null) {
-                                Text("${event.startTime}${event.endTime?.let { " - $it" } ?: ""}",
-                                    style = MaterialTheme.typography.bodySmall, color = TextMuted)
+                        Text(memo, color = TextPrimary, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, fontSize = 13.sp)
+                        Icon(
+                            Icons.Default.Close, contentDescription = "삭제", tint = TextMuted,
+                            modifier = Modifier.size(16.dp).clickable {
+                                memoList.removeAt(index)
+                                val combined = memoList.joinToString("|||").ifBlank { null }
+                                onMemoChange(combined)
                             }
-                        }
-                        IconButton(onClick = { onDeleteEvent(event.id) }, Modifier.size(24.dp)) {
-                            Icon(Icons.Default.Delete, "삭제", Modifier.size(14.dp), tint = TextMuted)
-                        }
+                        )
                     }
                 }
-            }
-
-            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
-
-            // ── 6. 오늘의 감정 ──
-            MoodSection(mood = mood, onMoodSelect = onMoodSelect)
-
-            HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(vertical = 10.dp))
-
-            // ── 7. 근무 유형 설정 (최하단) ──
-            Text("근무 유형", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                "꾹 눌러서 시간 수정",
-                style = MaterialTheme.typography.bodySmall,
-                color = TextMuted,
-                fontSize = 10.sp
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                allTypes.filter { it.id != "alba" }.forEach { config ->
-                    val builtInType = ShiftType.fromString(config.id)
-                    ShiftConfigButton(
-                        config = config,
-                        isActive = currentShiftId == config.id,
-                        onClick = {
-                            if (builtInType != null) onShiftSelect(builtInType)
-                            else onShiftSelectById(config.id)
-                        },
-                        onLongClick = {
-                            if (builtInType != null) editingShiftType = builtInType
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = newMemoText,
+                        onValueChange = { newMemoText = it },
+                        modifier = Modifier.weight(1f).heightIn(min = 40.dp),
+                        placeholder = { Text("메모 추가", color = TextMuted, fontSize = 13.sp) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Purple80, unfocusedBorderColor = DarkBorder,
+                            cursorColor = Purple80, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        singleLine = true,
+                        textStyle = LocalTextStyle.current.copy(fontSize = 13.sp),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = {
+                            if (newMemoText.isNotBlank()) {
+                                memoList.add(newMemoText.trim())
+                                onMemoChange(memoList.joinToString("|||").ifBlank { null })
+                                newMemoText = ""
+                            }
+                            keyboardController?.hide(); focusManager.clearFocus()
+                        })
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(
+                        Icons.Default.AddCircle, contentDescription = "추가",
+                        tint = if (newMemoText.isNotBlank()) Purple80 else TextMuted,
+                        modifier = Modifier.size(28.dp).clickable {
+                            if (newMemoText.isNotBlank()) {
+                                memoList.add(newMemoText.trim())
+                                onMemoChange(memoList.joinToString("|||").ifBlank { null })
+                                newMemoText = ""
+                                keyboardController?.hide(); focusManager.clearFocus()
+                            }
                         }
                     )
                 }
             }
-            TextButton(onClick = onShiftClear, modifier = Modifier.align(Alignment.End)) {
-                Icon(Icons.Default.Clear, null, Modifier.size(14.dp), tint = TextMuted)
-                Spacer(Modifier.width(4.dp))
-                Text("초기화", color = TextMuted, fontSize = 12.sp)
-            }
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // ── Shift History ──
-            if (shiftHistory.isNotEmpty()) {
-                ShiftHistorySection(shiftHistory)
+            // ── 3. 할 일 ──
+            SectionCard(icon = "✅", title = "할 일", trailing = {
+                val doneCount = todos.count { it.isDone }
+                if (todos.isNotEmpty()) {
+                    Text("$doneCount/${todos.size}", style = MaterialTheme.typography.bodySmall,
+                        color = if (doneCount == todos.size) ShiftOff else TextMuted)
+                }
+            }) {
+                TodoSectionContent(todos, onAddTodo, onToggleTodo, onDeleteTodo)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ── 4. 우리 만나요 ──
+            SectionCard(icon = "💕", title = "우리 만나요") {
+                DatePlanSectionContent(datePlan = datePlan, myName = myName, myCode = myCode, partnerName = partnerName, onDatePlanSet = onDatePlanSet, onDatePlanDelete = onDatePlanDelete, onDatePlanRespond = onDatePlanRespond)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ── 5. 오늘의 감정 ──
+            SectionCard(icon = "😊", title = "오늘의 감정") {
+                MoodSectionContent(mood = mood, onMoodSelect = onMoodSelect)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ── 6. 일정 ──
+            SectionCard(icon = "📅", title = "일정", trailing = {
+                Icon(
+                    Icons.Default.AddCircle, contentDescription = "추가", tint = Purple80,
+                    modifier = Modifier.size(24.dp).clickable { onAddEvent() }
+                )
+            }) {
+                if (events.isEmpty()) {
+                    Text("등록된 일정이 없습니다", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+                } else {
+                    events.forEach { event ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(Modifier.size(8.dp).clip(CircleShape).background(Color(event.color)))
+                            Spacer(Modifier.width(8.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(event.title, style = MaterialTheme.typography.bodyMedium, fontSize = 13.sp)
+                                if (event.startTime != null) {
+                                    Text("${event.startTime}${event.endTime?.let { " - $it" } ?: ""}",
+                                        style = MaterialTheme.typography.bodySmall, color = TextMuted, fontSize = 11.sp)
+                                }
+                            }
+                            Icon(Icons.Default.Close, "삭제", Modifier.size(16.dp).clickable { onDeleteEvent(event.id) }, tint = TextMuted)
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ── 7. 근무 유형 ──
+            SectionCard(icon = "⏰", title = "근무 유형", trailing = {
+                Text("꾹 눌러 시간 수정", fontSize = 9.sp, color = TextMuted)
+            }) {
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    allTypes.filter { it.id != "alba" }.forEach { config ->
+                        val builtInType = ShiftType.fromString(config.id)
+                        ShiftConfigButton(
+                            config = config,
+                            isActive = currentShiftId == config.id,
+                            onClick = {
+                                if (builtInType != null) onShiftSelect(builtInType)
+                                else onShiftSelectById(config.id)
+                            },
+                            onLongClick = {
+                                if (builtInType != null) editingShiftType = builtInType
+                            }
+                        )
+                    }
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onShiftClear, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
+                        Icon(Icons.Default.Clear, null, Modifier.size(12.dp), tint = TextMuted)
+                        Spacer(Modifier.width(4.dp))
+                        Text("초기화", color = TextMuted, fontSize = 11.sp)
+                    }
+                }
+                if (shiftHistory.isNotEmpty()) {
+                    ShiftHistorySection(shiftHistory)
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -307,17 +323,46 @@ fun DayDetailSheet(
     }
 }
 
+// ── Section Card ──
+
+@Composable
+private fun SectionCard(
+    icon: String,
+    title: String,
+    trailing: @Composable (() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = DarkSurface,
+        border = BorderStroke(1.dp, DarkBorder)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(icon, fontSize = 16.sp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = TextSecondary)
+                Spacer(modifier = Modifier.weight(1f))
+                trailing?.invoke()
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            content()
+        }
+    }
+}
+
 // ── Mood Section ──
 
 @Composable
-private fun MoodSection(mood: MoodEntity?, onMoodSelect: (String, String) -> Unit) {
+private fun MoodSectionContent(mood: MoodEntity?, onMoodSelect: (String, String) -> Unit) {
     val quickEmojis = listOf("😊", "🥰", "😐", "😢", "😤", "😴", "🤩", "😰", "🥲", "😎")
     var selectedEmoji by remember(mood) { mutableStateOf(mood?.emoji ?: "") }
     var moodNote by remember(mood) { mutableStateOf(mood?.note ?: "") }
     var customEmoji by remember { mutableStateOf("") }
-
-    Text("오늘의 감정", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
-    Spacer(modifier = Modifier.height(8.dp))
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -440,7 +485,7 @@ private fun ShiftHistorySection(history: List<ShiftHistoryEntity>) {
 // ── Todo Section ──
 
 @Composable
-private fun TodoSection(
+private fun TodoSectionContent(
     todos: List<TodoEntity>,
     onAdd: (String, String?, Boolean) -> Unit,
     onToggle: (Long, Boolean) -> Unit,
@@ -448,69 +493,60 @@ private fun TodoSection(
 ) {
     var newTodoText by remember { mutableStateOf("") }
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text("할 일", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
-        val doneCount = todos.count { it.isDone }
-        if (todos.isNotEmpty()) {
-            Text("$doneCount/${todos.size}", style = MaterialTheme.typography.bodySmall,
-                color = if (doneCount == todos.size) ShiftOff else TextMuted)
-        }
-    }
-    Spacer(modifier = Modifier.height(6.dp))
-
     todos.forEach { todo ->
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 2.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(if (todo.isDone) DarkSurface.copy(alpha = 0.5f) else DarkSurface)
+                .background(if (todo.isDone) DarkBg.copy(alpha = 0.5f) else DarkBg)
                 .clickable { onToggle(todo.id, !todo.isDone) }
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 if (todo.isDone) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                null, tint = if (todo.isDone) ShiftOff else TextMuted, modifier = Modifier.size(18.dp)
+                null, tint = if (todo.isDone) ShiftOff else TextMuted, modifier = Modifier.size(16.dp)
             )
             Spacer(Modifier.width(8.dp))
             Text(
                 text = (if (todo.isHabit) "🔄 " else "") + todo.title,
                 style = MaterialTheme.typography.bodyMedium,
+                fontSize = 13.sp,
                 color = if (todo.isDone) TextMuted else TextPrimary,
                 textDecoration = if (todo.isDone) TextDecoration.LineThrough else TextDecoration.None,
                 modifier = Modifier.weight(1f)
             )
-            IconButton(onClick = { onDelete(todo.id) }, Modifier.size(20.dp)) {
-                Icon(Icons.Default.Close, "삭제", Modifier.size(12.dp), tint = TextMuted)
-            }
+            Icon(Icons.Default.Close, "삭제", Modifier.size(14.dp).clickable { onDelete(todo.id) }, tint = TextMuted)
         }
     }
 
-    Spacer(modifier = Modifier.height(6.dp))
+    Spacer(modifier = Modifier.height(4.dp))
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         OutlinedTextField(
             value = newTodoText,
             onValueChange = { newTodoText = it },
-            modifier = Modifier.weight(1f),
-            placeholder = { Text("할 일 추가...", color = TextMuted) },
+            modifier = Modifier.weight(1f).heightIn(min = 40.dp),
+            placeholder = { Text("할 일 추가", color = TextMuted, fontSize = 13.sp) },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Purple80, unfocusedBorderColor = DarkBorder,
                 cursorColor = Purple80, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
             ),
-            shape = RoundedCornerShape(12.dp),
-            singleLine = true
+            shape = RoundedCornerShape(10.dp),
+            singleLine = true,
+            textStyle = LocalTextStyle.current.copy(fontSize = 13.sp)
         )
-        IconButton(onClick = {
-            if (newTodoText.isNotBlank()) {
-                onAdd(newTodoText.trim(), null, false)
-                newTodoText = ""
+        Spacer(modifier = Modifier.width(6.dp))
+        Icon(
+            Icons.Default.AddCircle, contentDescription = "추가",
+            tint = if (newTodoText.isNotBlank()) Purple80 else TextMuted,
+            modifier = Modifier.size(28.dp).clickable {
+                if (newTodoText.isNotBlank()) {
+                    onAdd(newTodoText.trim(), null, false)
+                    newTodoText = ""
+                }
             }
-        }) { Icon(Icons.Default.Add, "추가", tint = Purple80) }
+        )
     }
 }
 
@@ -893,43 +929,48 @@ fun PartnerDayDetailSheet(
 }
 
 @Composable
-private fun DatePlanSection(
+private fun DatePlanSectionContent(
     datePlan: DatePlanEntity?,
     myName: String,
     myCode: String = "",
     partnerName: String = "",
     onDatePlanSet: (String) -> Unit,
-    onDatePlanDelete: () -> Unit
+    onDatePlanDelete: () -> Unit,
+    onDatePlanRespond: (String) -> Unit = {}
 ) {
     var planMemo by remember(datePlan) { mutableStateOf(datePlan?.memo ?: "") }
     val heartColor = Color(0xFFEC4899)
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("💕", fontSize = 18.sp)
-        Spacer(modifier = Modifier.width(6.dp))
-        Text("우리 만나요", style = MaterialTheme.typography.labelLarge, color = heartColor)
-    }
-    Spacer(modifier = Modifier.height(8.dp))
-
     if (datePlan != null) {
-        val canCancel = datePlan.createdBy == myCode || datePlan.createdBy == myName || datePlan.createdBy == "나"
+        val isMine = datePlan.createdBy == myCode || datePlan.createdBy == myName || datePlan.createdBy == "나"
         val displayName = when (datePlan.createdBy) {
             myCode -> myName.ifBlank { "나" }
             "나" -> myName.ifBlank { "나" }
             else -> partnerName.ifBlank { datePlan.createdBy }
         }
 
+        val statusText = when (datePlan.response) {
+            "accepted" -> "💕 확정!"
+            "thinking" -> "💭 생각 중..."
+            else -> "💕 데이트 예정!"
+        }
+        val statusColor = when (datePlan.response) {
+            "accepted" -> Color(0xFF34D399)
+            "thinking" -> Color(0xFFFBBF24)
+            else -> heartColor
+        }
+
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(10.dp),
-            color = heartColor.copy(alpha = 0.1f),
-            border = BorderStroke(1.dp, heartColor.copy(alpha = 0.3f))
+            color = statusColor.copy(alpha = 0.1f),
+            border = BorderStroke(1.dp, statusColor.copy(alpha = 0.3f))
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("💕 데이트 예정!", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = heartColor)
+                    Text(statusText, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = statusColor)
                     Spacer(modifier = Modifier.weight(1f))
-                    if (canCancel) {
+                    if (isMine) {
                         Text(
                             "취소",
                             fontSize = 12.sp,
@@ -945,6 +986,39 @@ private fun DatePlanSection(
                 if (displayName.isNotBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text("by $displayName", fontSize = 10.sp, color = TextMuted)
+                }
+
+                if (!isMine && datePlan.response.isBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { onDatePlanRespond("accepted") },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF34D399)),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) { Text("좋아! 💕", fontSize = 13.sp) }
+                        OutlinedButton(
+                            onClick = { onDatePlanRespond("thinking") },
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, Color(0xFFFBBF24)),
+                            modifier = Modifier.weight(1f)
+                        ) { Text("생각해볼게 💭", fontSize = 13.sp, color = Color(0xFFFBBF24)) }
+                    }
+                }
+
+                if (isMine && datePlan.response.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    val respText = when (datePlan.response) {
+                        "accepted" -> "상대가 수락했어요!"
+                        "thinking" -> "상대가 생각 중이에요"
+                        else -> ""
+                    }
+                    if (respText.isNotBlank()) {
+                        Text(respText, fontSize = 11.sp, color = statusColor, fontWeight = FontWeight.Medium)
+                    }
                 }
             }
         }

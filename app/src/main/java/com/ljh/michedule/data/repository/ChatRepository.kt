@@ -52,9 +52,32 @@ class ChatRepository(
     fun getMessages(roomCode: String): Flow<List<ChatMessageEntity>> =
         dao.getMessages(roomCode)
 
+    fun getUnreadCount(roomCode: String, myCode: String, lastReadAt: Long): Flow<Int> =
+        dao.getUnreadCount(roomCode, myCode, lastReadAt)
+
     fun getRoomCode(myCode: String, partnerCode: String): String {
         val sorted = listOf(myCode, partnerCode).sorted()
         return "${sorted[0]}_${sorted[1]}"
+    }
+
+    suspend fun insertMessageFromPush(
+        msgId: String,
+        roomCode: String,
+        senderCode: String,
+        content: String,
+        messageType: String = "text",
+        createdAt: Long = System.currentTimeMillis()
+    ) {
+        val entity = ChatMessageEntity(
+            id = msgId,
+            roomCode = roomCode,
+            senderCode = senderCode,
+            messageType = messageType,
+            content = content,
+            createdAt = createdAt
+        )
+        dao.upsert(entity)
+        Log.d(TAG, "Inserted push message locally: $msgId")
     }
 
     suspend fun ensureClient(): SupabaseClient? {
@@ -69,7 +92,9 @@ class ChatRepository(
         return client
     }
 
-    suspend fun sendMessage(roomCode: String, myCode: String, content: String, type: String = "text", imageUrl: String? = null) {
+    data class SentMessage(val id: String, val createdAt: Long)
+
+    suspend fun sendMessage(roomCode: String, myCode: String, content: String, type: String = "text", imageUrl: String? = null): SentMessage {
         val msgId = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
 
@@ -85,7 +110,7 @@ class ChatRepository(
         dao.upsert(localEntity)
 
         try {
-            val supabase = ensureClient() ?: return
+            val supabase = ensureClient() ?: return SentMessage(msgId, now)
             val row = ChatMessageRow(
                 id = msgId,
                 room_code = roomCode,
@@ -99,11 +124,12 @@ class ChatRepository(
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send message to Supabase", e)
         }
+        return SentMessage(msgId, now)
     }
 
-    suspend fun sendImage(roomCode: String, myCode: String, imageUri: Uri) {
+    suspend fun sendImage(roomCode: String, myCode: String, imageUri: Uri): SentMessage? {
         try {
-            val resized = resizeImage(imageUri) ?: return
+            val resized = resizeImage(imageUri) ?: return null
             val fileName = "${roomCode}/${UUID.randomUUID()}.jpg"
 
             val url = prefsManager.supabaseUrl.first()
@@ -122,14 +148,16 @@ class ChatRepository(
 
             if (response.status.isSuccess()) {
                 val publicUrl = "$url/storage/v1/object/public/chat-images/$fileName"
-                sendMessage(roomCode, myCode, "", "image", publicUrl)
+                val sent = sendMessage(roomCode, myCode, "", "image", publicUrl)
                 Log.d(TAG, "Image uploaded: $publicUrl")
+                return sent
             } else {
                 Log.e(TAG, "Image upload failed: ${response.status}")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send image", e)
         }
+        return null
     }
 
     suspend fun addReaction(messageId: String, roomCode: String, emoji: String, userCode: String) {
@@ -195,11 +223,20 @@ class ChatRepository(
         }
     }
 
+    private var pollingJob: Job? = null
+
     fun subscribeToChat(roomCode: String, scope: CoroutineScope) {
         subscribeJob?.cancel()
+        pollingJob?.cancel()
+
         subscribeJob = scope.launch {
+            var realtimeActive = false
             try {
-                val supabase = ensureClient() ?: return@launch
+                val supabase = ensureClient() ?: run {
+                    Log.w(TAG, "Supabase client unavailable, falling back to polling")
+                    startPolling(roomCode, scope)
+                    return@launch
+                }
                 chatChannel = supabase.realtime.channel("chat-$roomCode")
 
                 chatChannel?.let { ch ->
@@ -207,17 +244,41 @@ class ChatRepository(
                         table = CHAT_TABLE
                     }
                     ch.subscribe()
+                    realtimeActive = true
+                    Log.d(TAG, "Realtime subscribed for room: $roomCode")
 
                     changeFlow.collect { action ->
                         when (action) {
                             is PostgresAction.Insert,
-                            is PostgresAction.Update -> syncHistory(roomCode)
+                            is PostgresAction.Update -> {
+                                Log.d(TAG, "Realtime event received, syncing...")
+                                syncHistory(roomCode)
+                            }
                             else -> {}
                         }
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Chat subscription failed", e)
+                Log.e(TAG, "Chat subscription failed, falling back to polling", e)
+                if (!realtimeActive) {
+                    startPolling(roomCode, scope)
+                }
+            }
+        }
+
+        startPolling(roomCode, scope)
+    }
+
+    private fun startPolling(roomCode: String, scope: CoroutineScope) {
+        pollingJob?.cancel()
+        pollingJob = scope.launch {
+            while (isActive) {
+                delay(5000)
+                try {
+                    syncHistory(roomCode)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Polling sync failed", e)
+                }
             }
         }
     }
@@ -225,10 +286,12 @@ class ChatRepository(
     fun unsubscribe() {
         subscribeJob?.cancel()
         subscribeJob = null
+        pollingJob?.cancel()
+        pollingJob = null
         chatChannel = null
     }
 
-    suspend fun sendChatPush(partnerCode: String, senderName: String, content: String, messageType: String) {
+    suspend fun sendChatPush(partnerCode: String, senderName: String, content: String, messageType: String, msgId: String = "", createdAt: Long = 0L) {
         try {
             val isMutual = prefsManager.connectionMutual.first()
             if (!isMutual) return
@@ -246,7 +309,8 @@ class ChatRepository(
             val key = prefsManager.supabaseKey.first()
             val functionUrl = "$url/functions/v1/send-push"
 
-            val body = if (messageType == "image") "$senderName: 사진" else "$senderName: $content"
+            val myCode = prefsManager.ensureMyCode()
+            val roomCode = getRoomCode(myCode, partnerCode)
             val payload = buildJsonObject {
                 put("fcm_token", partnerToken)
                 put("title", "💬 $senderName")
@@ -254,7 +318,12 @@ class ChatRepository(
                 put("data", buildJsonObject {
                     put("type", "chat")
                     put("sender_name", senderName)
+                    put("sender_code", myCode)
+                    put("room_code", roomCode)
                     put("content", content.take(100))
+                    put("message_type", messageType)
+                    if (msgId.isNotBlank()) put("msg_id", msgId)
+                    if (createdAt > 0) put("created_at", createdAt.toString())
                 })
             }
 

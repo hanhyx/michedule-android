@@ -29,7 +29,8 @@ import java.time.format.DateTimeFormatter
 fun AddEventScreen(
     initialDate: String,
     onSave: (EventEntity) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var title by remember { mutableStateOf("") }
     var date by remember { mutableStateOf(initialDate) }
@@ -48,6 +49,7 @@ fun AddEventScreen(
     )
 
     Scaffold(
+        modifier = modifier,
         containerColor = DarkBg,
         topBar = {
             TopAppBar(

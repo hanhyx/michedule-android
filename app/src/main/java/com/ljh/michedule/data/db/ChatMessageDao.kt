@@ -19,4 +19,7 @@ interface ChatMessageDao {
 
     @Query("DELETE FROM chat_messages WHERE roomCode = :roomCode")
     suspend fun clearRoom(roomCode: String)
+
+    @Query("SELECT COUNT(*) FROM chat_messages WHERE roomCode = :roomCode AND senderCode != :myCode AND createdAt > :lastReadAt")
+    fun getUnreadCount(roomCode: String, myCode: String, lastReadAt: Long): Flow<Int>
 }

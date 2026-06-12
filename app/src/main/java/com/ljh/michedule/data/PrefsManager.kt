@@ -33,6 +33,10 @@ class PrefsManager(private val context: Context) {
         private val KEY_FCM_TOKEN = stringPreferencesKey("fcm_token")
         private val KEY_MY_PHOTO_URI = stringPreferencesKey("my_photo_uri")
         private val KEY_PARTNER_PHOTO_URI = stringPreferencesKey("partner_photo_uri")
+        private val KEY_CHAT_LAST_READ_AT = longPreferencesKey("chat_last_read_at")
+        private val KEY_PUSH_CHAT_ENABLED = booleanPreferencesKey("push_chat_enabled")
+        private val KEY_PUSH_DATE_PLAN_ENABLED = booleanPreferencesKey("push_date_plan_enabled")
+        private val KEY_PUSH_DATE_PLAN_RESPONSE_ENABLED = booleanPreferencesKey("push_date_plan_response_enabled")
 
         private fun generateCode(): String {
             val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -56,6 +60,10 @@ class PrefsManager(private val context: Context) {
     val fcmToken: Flow<String> = context.dataStore.data.map { it[KEY_FCM_TOKEN] ?: "" }
     val myPhotoUri: Flow<String> = context.dataStore.data.map { it[KEY_MY_PHOTO_URI] ?: "" }
     val partnerPhotoUri: Flow<String> = context.dataStore.data.map { it[KEY_PARTNER_PHOTO_URI] ?: "" }
+    val chatLastReadAt: Flow<Long> = context.dataStore.data.map { it[KEY_CHAT_LAST_READ_AT] ?: 0L }
+    val pushChatEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PUSH_CHAT_ENABLED] ?: true }
+    val pushDatePlanEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PUSH_DATE_PLAN_ENABLED] ?: true }
+    val pushDatePlanResponseEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PUSH_DATE_PLAN_RESPONSE_ENABLED] ?: true }
 
     suspend fun ensureMyCode(): String {
         var code = ""
@@ -130,6 +138,22 @@ class PrefsManager(private val context: Context) {
 
     suspend fun setPartnerPhotoUri(uri: String) {
         context.dataStore.edit { it[KEY_PARTNER_PHOTO_URI] = uri }
+    }
+
+    suspend fun setChatLastReadAt(timestamp: Long) {
+        context.dataStore.edit { it[KEY_CHAT_LAST_READ_AT] = timestamp }
+    }
+
+    suspend fun setPushChatEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_PUSH_CHAT_ENABLED] = enabled }
+    }
+
+    suspend fun setPushDatePlanEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_PUSH_DATE_PLAN_ENABLED] = enabled }
+    }
+
+    suspend fun setPushDatePlanResponseEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_PUSH_DATE_PLAN_RESPONSE_ENABLED] = enabled }
     }
 
     suspend fun clearPartner() {

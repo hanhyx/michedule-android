@@ -9,6 +9,8 @@ import com.ljh.michedule.data.db.ChatMessageEntity
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+
+
 data class ChatUiState(
     val messages: List<ChatMessageEntity> = emptyList(),
     val myCode: String = "",
@@ -78,6 +80,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
             chatRepo.getMessages(roomCode).collect { msgs ->
                 _uiState.update { it.copy(messages = msgs) }
+                if (msgs.isNotEmpty() && app.isChatScreenActive) {
+                    prefs.setChatLastReadAt(msgs.first().createdAt)
+                }
             }
         }
     }
@@ -86,8 +91,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val state = _uiState.value
         if (content.isBlank() || state.roomCode.isBlank()) return
         viewModelScope.launch {
-            chatRepo.sendMessage(state.roomCode, state.myCode, content)
-            chatRepo.sendChatPush(state.partnerCode, state.myName.ifBlank { "상대방" }, content, "text")
+            val sent = chatRepo.sendMessage(state.roomCode, state.myCode, content)
+            chatRepo.sendChatPush(state.partnerCode, state.myName.ifBlank { "상대방" }, content, "text", sent.id, sent.createdAt)
         }
     }
 
@@ -95,8 +100,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val state = _uiState.value
         if (state.roomCode.isBlank()) return
         viewModelScope.launch {
-            chatRepo.sendImage(state.roomCode, state.myCode, uri)
-            chatRepo.sendChatPush(state.partnerCode, state.myName.ifBlank { "상대방" }, "", "image")
+            val sent = chatRepo.sendImage(state.roomCode, state.myCode, uri)
+            if (sent != null) {
+                chatRepo.sendChatPush(state.partnerCode, state.myName.ifBlank { "상대방" }, "", "image", sent.id, sent.createdAt)
+            }
         }
     }
 
