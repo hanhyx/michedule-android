@@ -133,60 +133,77 @@ private fun WeekWidgetContent(
     weekMoods: Map<String, String> = emptyMap(),
     partnerName: String = ""
 ) {
-    val darkBg = Color(0xFF13131E)
-    val cardBg = Color(0xFF1C1C2E)
+    val baseBg = Color(0xFF0F0F1A)
     val accent = Color(0xFFB794F6)
     val muted = Color(0xFF4B5563)
-    val textPrimary = Color(0xFFE8E8ED)
+    val white = Color(0xFFFFFFFF)
     val sundayRed = Color(0xFFF87171)
     val saturdayBlue = Color(0xFF60A5FA)
-    val todayBg = Color(0xFF2D2640)
-    val dividerColor = Color(0xFF2E2E42)
-    val memoColor = Color(0xFF7DD3FC)
-    val todoColor = Color(0xFF6EE7B7)
-    val partnerBg = Color(0xFF1A1A2E)
+    val todayRing = Color(0xFFB794F6)
+    val emptyCellBg = Color(0xFF1A1A28)
     val dayNames = listOf("일", "월", "화", "수", "목", "금", "토")
-
     val hasPartner = partnerName.isNotBlank() || partnerShifts.isNotEmpty()
 
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(ColorProvider(darkBg, darkBg))
+            .background(ColorProvider(baseBg, baseBg))
             .cornerRadius(20.dp)
             .clickable(actionStartActivity<MainActivity>())
-            .padding(3.dp)
+            .padding(4.dp)
     ) {
         Column(modifier = GlanceModifier.fillMaxSize()) {
 
-            // ═══ 내 영역 ═══
+            // ── 요일 헤더 ──
+            Row(modifier = GlanceModifier.fillMaxWidth().padding(bottom = 2.dp)) {
+                for (i in 0..6) {
+                    val date = weekStart.plusDays(i.toLong())
+                    val isToday = date == today
+                    val headerColor = when {
+                        isToday -> accent
+                        i == 0 -> sundayRed; i == 6 -> saturdayBlue
+                        else -> muted
+                    }
+                    Box(modifier = GlanceModifier.defaultWeight(), contentAlignment = Alignment.Center) {
+                        Text(
+                            "${dayNames[i]} ${date.dayOfMonth}",
+                            style = TextStyle(
+                                fontSize = 8.sp,
+                                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                                color = ColorProvider(headerColor, headerColor)
+                            )
+                        )
+                    }
+                }
+            }
+
+            // ── 메인 그리드: 7일 셀 ──
             Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
                 for (i in 0..6) {
                     val date = weekStart.plusDays(i.toLong())
                     val dateStr = date.toString()
                     val isToday = date == today
-                    val dayColor = when {
-                        isToday -> accent
-                        i == 0 -> sundayRed; i == 6 -> saturdayBlue
-                        else -> muted
-                    }
 
                     val myInfo = myShifts[dateStr]
+                    val myBgColor = myInfo?.config?.color ?: myInfo?.type?.color
                     val myEmoji = myInfo?.config?.emoji ?: myInfo?.type?.emoji ?: ""
                     val myLabel = myInfo?.config?.shortLabel ?: myInfo?.type?.shortLabel ?: ""
-                    val myColor = myInfo?.config?.fontColor ?: myInfo?.config?.color ?: myInfo?.type?.color ?: muted
-                    val mood = weekMoods[dateStr]
-                    val memos = weekMemos[dateStr]?.split("|||")?.filter { it.isNotBlank() } ?: emptyList()
-                    val todos = weekTodos[dateStr] ?: emptyList()
+                    val myFontColor = myInfo?.config?.fontColor ?: white
 
-                    // 추가근무
                     val myExtras = myInfo?.getExtraShiftList() ?: emptyList()
                     val myExtraConfig = if (myExtras.isNotEmpty()) myTypeMap[myExtras.first()] else null
-                    val myExtraEmoji = myExtraConfig?.emoji ?: ""
-                    val myExtraLabel = myExtraConfig?.shortLabel ?: ""
-                    val myExtraColor = (myExtraConfig?.fontColor ?: myExtraConfig?.color ?: muted).copy(alpha = 0.7f)
 
-                    val cellBg = if (isToday) todayBg else cardBg
+                    val mood = weekMoods[dateStr]
+                    val hasMemo = weekMemos[dateStr]?.isNotBlank() == true
+                    val todos = weekTodos[dateStr] ?: emptyList()
+
+                    val pInfo = partnerShifts[dateStr]
+                    val pBgColor = pInfo?.config?.color ?: pInfo?.type?.color
+                    val pEmoji = pInfo?.config?.emoji ?: pInfo?.type?.emoji ?: ""
+                    val pLabel = pInfo?.config?.shortLabel ?: pInfo?.type?.shortLabel ?: ""
+
+                    val cellBg = myBgColor?.copy(alpha = 0.25f) ?: emptyCellBg
+                    val todayBorder = if (isToday) todayRing.copy(alpha = 0.5f) else Color.Transparent
 
                     Column(
                         modifier = GlanceModifier
@@ -194,112 +211,95 @@ private fun WeekWidgetContent(
                             .fillMaxHeight()
                             .padding(horizontal = 1.dp)
                     ) {
+                        // 오늘 하이라이트 테두리 효과
                         Column(
                             modifier = GlanceModifier
                                 .fillMaxWidth()
                                 .fillMaxHeight()
-                                .cornerRadius(8.dp)
-                                .background(ColorProvider(cellBg, cellBg))
-                                .padding(vertical = 2.dp, horizontal = 1.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                                .cornerRadius(10.dp)
+                                .background(ColorProvider(todayBorder, todayBorder))
+                                .padding(if (isToday) 1.dp else 0.dp)
                         ) {
-                            // 요일
-                            Text(dayNames[i], style = TextStyle(
-                                fontSize = 8.sp, color = ColorProvider(dayColor, dayColor)
-                            ))
-                            // 날짜
-                            Text("${date.dayOfMonth}", style = TextStyle(
-                                fontSize = 9.sp,
-                                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                                color = ColorProvider(if (isToday) accent else textPrimary, if (isToday) accent else textPrimary)
-                            ))
-                            Spacer(modifier = GlanceModifier.height(1.dp))
-                            // 주요 근무
-                            if (myEmoji.isNotBlank()) {
-                                Text(myEmoji, style = TextStyle(fontSize = 12.sp))
-                            }
-                            if (myLabel.isNotBlank()) {
-                                Text(myLabel, style = TextStyle(fontSize = 9.sp, fontWeight = FontWeight.Bold, color = ColorProvider(myColor, myColor)), maxLines = 1)
-                            }
-                            // 추가근무
-                            if (myExtraEmoji.isNotBlank() || myExtraLabel.isNotBlank()) {
+                            Column(
+                                modifier = GlanceModifier
+                                    .fillMaxWidth()
+                                    .fillMaxHeight()
+                                    .cornerRadius(if (isToday) 9.dp else 10.dp)
+                                    .background(ColorProvider(cellBg, cellBg))
+                                    .padding(vertical = 3.dp, horizontal = 2.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                // 내 근무 이모지
+                                Text(myEmoji.ifBlank { "·" }, style = TextStyle(fontSize = 14.sp))
+                                // 내 근무 약자
                                 Text(
-                                    "${myExtraEmoji}${myExtraLabel}",
-                                    style = TextStyle(fontSize = 7.sp, color = ColorProvider(myExtraColor, myExtraColor)),
+                                    myLabel.ifBlank { "-" },
+                                    style = TextStyle(
+                                        fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                                        color = ColorProvider(
+                                            if (myLabel.isNotBlank()) myFontColor else muted.copy(alpha = 0.3f),
+                                            if (myLabel.isNotBlank()) myFontColor else muted.copy(alpha = 0.3f)
+                                        )
+                                    ),
                                     maxLines = 1
                                 )
-                            }
-                            // 메모/할일/감정 아이콘 Row
-                            val icons = buildList {
-                                if (mood != null) add(mood)
-                                if (memos.isNotEmpty()) add("📝")
-                                if (todos.isNotEmpty()) {
-                                    val allDone = todos.all { it.startsWith("✅") }
-                                    add(if (allDone) "✅" else "⬜")
+                                // 추가근무
+                                if (myExtraConfig != null) {
+                                    val exEmoji = myExtraConfig.emoji
+                                    val exLabel = myExtraConfig.shortLabel
+                                    Text(
+                                        "+${exEmoji}${exLabel}",
+                                        style = TextStyle(fontSize = 7.sp, color = ColorProvider(
+                                            myExtraConfig.color.copy(alpha = 0.85f),
+                                            myExtraConfig.color.copy(alpha = 0.85f)
+                                        )),
+                                        maxLines = 1
+                                    )
                                 }
-                            }
-                            if (icons.isNotEmpty()) {
-                                Row(
-                                    modifier = GlanceModifier.fillMaxWidth(),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    icons.forEach { icon ->
-                                        Text(icon, style = TextStyle(fontSize = 7.sp))
+                                // 아이콘 표시 (감정/메모/할일)
+                                val icons = buildString {
+                                    if (mood != null) append(mood)
+                                    if (hasMemo) append("📝")
+                                    if (todos.isNotEmpty()) {
+                                        append(if (todos.all { it.startsWith("✅") }) "✅" else "⬜")
                                     }
                                 }
-                            }
-                        }
-                    }
-                }
-            }
+                                if (icons.isNotBlank()) {
+                                    Text(icons, style = TextStyle(fontSize = 7.sp), maxLines = 1)
+                                }
 
-            Spacer(modifier = GlanceModifier.height(2.dp))
+                                Spacer(modifier = GlanceModifier.defaultWeight())
 
-            // ═══ 구분선 + 상대 이름 ═══
-            if (hasPartner) {
-                Box(modifier = GlanceModifier.fillMaxWidth().height(1.dp).background(ColorProvider(dividerColor, dividerColor))) {}
-                Spacer(modifier = GlanceModifier.height(1.dp))
-                Text(
-                    "💕 ${partnerName.ifBlank { "상대" }}",
-                    style = TextStyle(fontSize = 7.sp, fontWeight = FontWeight.Bold, color = ColorProvider(accent, accent))
-                )
-                Spacer(modifier = GlanceModifier.height(1.dp))
-            }
-
-            // ═══ 상대 영역 ═══
-            if (hasPartner) {
-                Row(
-                    modifier = GlanceModifier.fillMaxWidth()
-                        .defaultWeight()
-                        .background(ColorProvider(partnerBg, partnerBg))
-                        .cornerRadius(6.dp)
-                        .padding(vertical = 1.dp)
-                ) {
-                    for (i in 0..6) {
-                        val dateStr = weekStart.plusDays(i.toLong()).toString()
-                        val pInfo = partnerShifts[dateStr]
-                        val pEmoji = pInfo?.config?.emoji ?: pInfo?.type?.emoji ?: ""
-                        val pLabel = pInfo?.config?.shortLabel ?: pInfo?.type?.shortLabel ?: ""
-                        val pColor = (pInfo?.config?.color ?: pInfo?.type?.color)?.copy(alpha = 0.85f) ?: muted.copy(alpha = 0.3f)
-
-                        val pExtras = pInfo?.getExtraShiftList() ?: emptyList()
-                        val pExtraConfig = if (pExtras.isNotEmpty()) partnerTypeMap[pExtras.first()] else null
-                        val pExtraEmoji = pExtraConfig?.emoji ?: ""
-                        val pExtraLabel = pExtraConfig?.shortLabel ?: ""
-                        val pExtraColor = (pExtraConfig?.color ?: muted).copy(alpha = 0.7f)
-
-                        Column(
-                            modifier = GlanceModifier.defaultWeight().fillMaxHeight().padding(horizontal = 1.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(pEmoji.ifBlank { "·" }, style = TextStyle(fontSize = 10.sp))
-                            Text(pLabel.ifBlank { "-" }, style = TextStyle(fontSize = 8.sp, fontWeight = FontWeight.Bold, color = ColorProvider(pColor, pColor)), maxLines = 1)
-                            if (pExtraEmoji.isNotBlank() || pExtraLabel.isNotBlank()) {
-                                Text(
-                                    "${pExtraEmoji}${pExtraLabel}",
-                                    style = TextStyle(fontSize = 7.sp, color = ColorProvider(pExtraColor, pExtraColor)),
-                                    maxLines = 1
-                                )
+                                // 상대 근무 (셀 하단에 컬러 스트립)
+                                if (hasPartner && (pEmoji.isNotBlank() || pLabel.isNotBlank())) {
+                                    val pStripBg = pBgColor?.copy(alpha = 0.35f) ?: Color.Transparent
+                                    val pFontColor = pBgColor?.copy(alpha = 0.9f) ?: muted
+                                    Box(
+                                        modifier = GlanceModifier
+                                            .fillMaxWidth()
+                                            .cornerRadius(4.dp)
+                                            .background(ColorProvider(pStripBg, pStripBg))
+                                            .padding(vertical = 1.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            "${pEmoji}${pLabel}",
+                                            style = TextStyle(fontSize = 7.sp, fontWeight = FontWeight.Bold, color = ColorProvider(pFontColor, pFontColor)),
+                                            maxLines = 1
+                                        )
+                                    }
+                                } else if (hasPartner) {
+                                    Box(
+                                        modifier = GlanceModifier
+                                            .fillMaxWidth()
+                                            .cornerRadius(4.dp)
+                                            .background(ColorProvider(emptyCellBg, emptyCellBg))
+                                            .padding(vertical = 1.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("·", style = TextStyle(fontSize = 7.sp, color = ColorProvider(muted.copy(alpha = 0.3f), muted.copy(alpha = 0.3f))))
+                                    }
+                                }
                             }
                         }
                     }
