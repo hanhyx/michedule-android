@@ -32,6 +32,7 @@ import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.ljh.michedule.MicheduleApp
+import com.ljh.michedule.data.KoreanHolidays
 import com.ljh.michedule.data.ShiftTypeManager
 import com.ljh.michedule.data.db.EventEntity
 import com.ljh.michedule.data.db.DatePlanEntity
@@ -723,6 +724,7 @@ private fun MonthlyCalendarGrid(
                         val mood = uiState.moods[dateStr]
 
                         val datePlan = uiState.datePlans[dateStr]
+                        val holiday = KoreanHolidays.getHoliday(date)
 
                         if (uiState.viewingPartner) {
                             val partnerTodos = friendShiftEntity?.getTodoList() ?: emptyList()
@@ -742,6 +744,7 @@ private fun MonthlyCalendarGrid(
                                 isToday = date == today,
                                 isSunday = col == 0,
                                 isSaturday = col == 6,
+                                holidayName = holiday?.name,
                                 onClick = { onShiftCycle(date) },
                                 onLongClick = { onDateLongPress(date) },
                                 modifier = Modifier.weight(1f).fillMaxHeight()
@@ -763,6 +766,7 @@ private fun MonthlyCalendarGrid(
                                 isToday = date == today,
                                 isSunday = col == 0,
                                 isSaturday = col == 6,
+                                holidayName = holiday?.name,
                                 onClick = { onShiftCycle(date) },
                                 onLongClick = { onDateLongPress(date) },
                                 modifier = Modifier.weight(1f).fillMaxHeight()
@@ -805,6 +809,7 @@ private fun SoloCell(
     isToday: Boolean,
     isSunday: Boolean,
     isSaturday: Boolean,
+    holidayName: String? = null,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -823,10 +828,10 @@ private fun SoloCell(
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 3.dp, vertical = 2.dp)
     ) {
-        // 날짜 + 감정 이모지 (가로)
+        val isHoliday = holidayName != null
         val dayColor = when {
             isToday -> Purple80
-            isSunday -> Color(0xFFF87171)
+            isHoliday || isSunday -> Color(0xFFF87171)
             isSaturday -> Color(0xFF60A5FA)
             else -> TextPrimary
         }
@@ -842,6 +847,16 @@ private fun SoloCell(
                 Spacer(modifier = Modifier.width(2.dp))
                 Text(mood, fontSize = 10.sp, lineHeight = 12.sp)
             }
+        }
+        if (isHoliday) {
+            Text(
+                holidayName!!,
+                fontSize = 7.sp,
+                color = Color(0xFFF87171),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                lineHeight = 9.sp
+            )
         }
 
         // 만나요 배너 (날짜 바로 아래, 가로)
