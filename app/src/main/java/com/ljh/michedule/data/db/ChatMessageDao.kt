@@ -17,6 +17,9 @@ interface ChatMessageDao {
     @Query("SELECT MAX(createdAt) FROM chat_messages WHERE roomCode = :roomCode")
     suspend fun getLatestTimestamp(roomCode: String): Long?
 
+    @Query("DELETE FROM chat_messages WHERE id = :id")
+    suspend fun deleteById(id: String)
+
     @Query("DELETE FROM chat_messages WHERE roomCode = :roomCode")
     suspend fun clearRoom(roomCode: String)
 

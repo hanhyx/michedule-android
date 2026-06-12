@@ -382,7 +382,7 @@ private fun ProfileTab(prefsManager: PrefsManager, app: MicheduleApp) {
                                     .border(2.dp, DarkBorder, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("💜", fontSize = 18.sp)
+                                Text("👤", fontSize = 18.sp)
                             }
                         }
                         Spacer(modifier = Modifier.width(12.dp))
@@ -757,6 +757,10 @@ private fun OtherTab(app: MicheduleApp, onClearMonth: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = TextMuted
             )
+        }
+
+        if (com.ljh.michedule.BuildConfig.DEBUG) {
+            DebugToolsSection(app)
         }
 
         Spacer(modifier = Modifier.height(80.dp))
@@ -1484,5 +1488,89 @@ private fun PushToggleRow(
                 uncheckedTrackColor = DarkSurface
             )
         )
+    }
+}
+
+// ── Debug Tools (debug build only) ──
+
+@Composable
+private fun DebugToolsSection(app: MicheduleApp) {
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var copyCode by remember { mutableStateOf("") }
+    var isCopying by remember { mutableStateOf(false) }
+
+    SettingsCard(title = "🛠 개발자 도구 (DEBUG)") {
+        Text(
+            "디버그 빌드: user_schedules_dev 테이블 사용 중",
+            style = MaterialTheme.typography.bodySmall,
+            color = Color(0xFFFBBF24)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text("프로덕션 데이터 복사", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = copyCode,
+                onValueChange = { copyCode = it.uppercase().take(6) },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("user_code", color = TextMuted) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Purple80, unfocusedBorderColor = DarkBorder,
+                    cursorColor = Purple80, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
+                ),
+                shape = RoundedCornerShape(10.dp),
+                singleLine = true,
+                textStyle = LocalTextStyle.current.copy(fontSize = 13.sp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(
+                onClick = {
+                    if (copyCode.isNotBlank() && !isCopying) {
+                        isCopying = true
+                        scope.launch {
+                            val result = app.supabaseSync?.copyFromProduction(copyCode.trim())
+                            isCopying = false
+                            result?.onSuccess {
+                                Toast.makeText(context, "$copyCode 데이터 복사 완료 ($it 건)", Toast.LENGTH_SHORT).show()
+                            }?.onFailure {
+                                Toast.makeText(context, "복사 실패: ${it.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                },
+                enabled = copyCode.isNotBlank() && !isCopying,
+                colors = ButtonDefaults.buttonColors(containerColor = Purple40),
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(if (isCopying) "복사 중..." else "복사", fontSize = 12.sp)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedButton(
+            onClick = {
+                if (!isCopying) {
+                    isCopying = true
+                    scope.launch {
+                        val result = app.supabaseSync?.copyAllFromProduction()
+                        isCopying = false
+                        result?.onSuccess {
+                            Toast.makeText(context, "전체 프로덕션 데이터 복사 완료 ($it 건)", Toast.LENGTH_SHORT).show()
+                        }?.onFailure {
+                            Toast.makeText(context, "복사 실패: ${it.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            },
+            enabled = !isCopying,
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("전체 프로덕션 데이터 복사", fontSize = 12.sp, color = TextSecondary)
+        }
     }
 }

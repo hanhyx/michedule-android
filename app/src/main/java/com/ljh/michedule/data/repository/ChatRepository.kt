@@ -190,14 +190,33 @@ class ChatRepository(
         }
     }
 
-    suspend fun syncHistory(roomCode: String) {
+    suspend fun deleteMessage(messageId: String, roomCode: String) {
+        try {
+            dao.deleteById(messageId)
+            val supabase = ensureClient() ?: return
+            supabase.from(CHAT_TABLE).delete { filter { eq("id", messageId) } }
+            Log.d(TAG, "Message deleted: $messageId")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete message", e)
+        }
+    }
+
+    suspend fun syncHistory(roomCode: String, fullSync: Boolean = false) {
         try {
             val supabase = ensureClient() ?: return
+            val latestLocal = if (!fullSync) dao.getLatestTimestamp(roomCode) else null
+            val sinceIso = latestLocal?.let {
+                java.time.Instant.ofEpochMilli(it).toString()
+            }
+
             val rows = supabase.from(CHAT_TABLE)
                 .select {
-                    filter { eq("room_code", roomCode) }
+                    filter {
+                        eq("room_code", roomCode)
+                        if (sinceIso != null) gt("created_at", sinceIso)
+                    }
                     order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
-                    limit(200)
+                    limit(if (fullSync) 200 else 50)
                 }
                 .decodeList<ChatMessageRow>()
 
@@ -214,10 +233,16 @@ class ChatRepository(
                     createdAt = ts
                 )
             }
+            if (fullSync) {
+                val remoteIds = entities.map { it.id }.toSet()
+                val localMessages = dao.getMessages(roomCode).first()
+                val toDelete = localMessages.filter { it.id !in remoteIds }
+                toDelete.forEach { dao.deleteById(it.id) }
+            }
             if (entities.isNotEmpty()) {
                 dao.upsertAll(entities)
             }
-            Log.d(TAG, "Synced ${entities.size} messages for $roomCode")
+            Log.d(TAG, "Synced ${entities.size} messages for $roomCode (incremental=${sinceIso != null})")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to sync history", e)
         }
@@ -228,6 +253,8 @@ class ChatRepository(
     fun subscribeToChat(roomCode: String, scope: CoroutineScope) {
         subscribeJob?.cancel()
         pollingJob?.cancel()
+
+        scope.launch { syncHistory(roomCode, fullSync = true) }
 
         subscribeJob = scope.launch {
             var realtimeActive = false
@@ -247,12 +274,18 @@ class ChatRepository(
                     realtimeActive = true
                     Log.d(TAG, "Realtime subscribed for room: $roomCode")
 
+                    startPolling(roomCode, scope, intervalMs = 10000)
+
                     changeFlow.collect { action ->
                         when (action) {
                             is PostgresAction.Insert,
                             is PostgresAction.Update -> {
                                 Log.d(TAG, "Realtime event received, syncing...")
                                 syncHistory(roomCode)
+                            }
+                            is PostgresAction.Delete -> {
+                                Log.d(TAG, "Realtime delete event, full syncing...")
+                                syncHistory(roomCode, fullSync = true)
                             }
                             else -> {}
                         }
@@ -261,19 +294,17 @@ class ChatRepository(
             } catch (e: Exception) {
                 Log.e(TAG, "Chat subscription failed, falling back to polling", e)
                 if (!realtimeActive) {
-                    startPolling(roomCode, scope)
+                    startPolling(roomCode, scope, intervalMs = 3000)
                 }
             }
         }
-
-        startPolling(roomCode, scope)
     }
 
-    private fun startPolling(roomCode: String, scope: CoroutineScope) {
+    private fun startPolling(roomCode: String, scope: CoroutineScope, intervalMs: Long = 3000) {
         pollingJob?.cancel()
         pollingJob = scope.launch {
             while (isActive) {
-                delay(5000)
+                delay(intervalMs)
                 try {
                     syncHistory(roomCode)
                 } catch (e: Exception) {

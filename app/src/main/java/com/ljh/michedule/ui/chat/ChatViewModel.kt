@@ -115,6 +115,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun deleteMessage(messageId: String) {
+        val state = _uiState.value
+        if (state.roomCode.isBlank()) return
+        viewModelScope.launch {
+            chatRepo.deleteMessage(messageId, state.roomCode)
+        }
+    }
+
     override fun onCleared() {
         chatRepo.unsubscribe()
         super.onCleared()

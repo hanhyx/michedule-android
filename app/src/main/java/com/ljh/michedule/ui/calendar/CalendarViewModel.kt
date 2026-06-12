@@ -198,6 +198,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     fun navigateMonth(delta: Int) {
         _uiState.update { it.copy(currentMonth = it.currentMonth.plusMonths(delta.toLong())) }
+        app.refreshPartnerData()
     }
 
     fun selectDate(date: LocalDate) {

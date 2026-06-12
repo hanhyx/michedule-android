@@ -30,7 +30,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 
 private const val TAG = "SupabaseSync"
-private const val TABLE = "user_schedules"
+private const val TABLE_PROD = "user_schedules"
+private val TABLE = if (com.ljh.michedule.BuildConfig.DEBUG) "user_schedules_dev" else TABLE_PROD
 
 @Serializable
 data class ScheduleRow(
@@ -108,6 +109,17 @@ class SupabaseSync(
         channel = null
         client = null
         _connected.value = false
+    }
+
+    suspend fun refreshPartnerData() {
+        val partnerCode = prefsManager.partnerCode.first()
+        if (partnerCode.isBlank() || client == null) return
+        try {
+            handleRemoteChange(partnerCode)
+            Log.d(TAG, "Partner data refreshed")
+        } catch (e: Exception) {
+            Log.e(TAG, "Partner refresh failed", e)
+        }
     }
 
     private suspend fun subscribeToPartner(partnerCode: String) {
@@ -285,8 +297,31 @@ class SupabaseSync(
             lastKnownFriendShifts = newShiftsMap
 
             repo.syncFriendShifts(friendShifts)
+            updateWidgets()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to process remote change", e)
+        }
+    }
+
+    private fun updateWidgets() {
+        val ctx = appContext ?: return
+        try {
+            val wm = android.appwidget.AppWidgetManager.getInstance(ctx)
+            listOf(
+                com.ljh.michedule.widget.TodayWidgetReceiver::class.java,
+                com.ljh.michedule.widget.WeekWidgetReceiver::class.java
+            ).forEach { receiverClass ->
+                val cn = android.content.ComponentName(ctx, receiverClass)
+                val ids = wm.getAppWidgetIds(cn)
+                if (ids.isNotEmpty()) {
+                    val intent = android.content.Intent(ctx, receiverClass)
+                        .setAction(android.appwidget.AppWidgetManager.ACTION_APPWIDGET_UPDATE)
+                        .putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+                    ctx.sendBroadcast(intent)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Widget update failed", e)
         }
     }
 
@@ -602,8 +637,49 @@ class SupabaseSync(
 
             client?.from(TABLE)?.upsert(row)
             Log.d(TAG, "Uploaded data for $myCode")
+            updateWidgets()
         } catch (e: Exception) {
             Log.e(TAG, "Upload failed", e)
+        }
+    }
+
+    suspend fun copyFromProduction(userCode: String): Result<Int> {
+        if (!com.ljh.michedule.BuildConfig.DEBUG) return Result.failure(Exception("Only available in debug"))
+        return try {
+            val supabase = client ?: return Result.failure(Exception("Not connected"))
+            val rows = supabase.from(TABLE_PROD)
+                .select { filter { eq("user_code", userCode) } }
+                .decodeList<ScheduleRow>()
+
+            if (rows.isEmpty()) return Result.failure(Exception("No data found for $userCode"))
+
+            rows.forEach { row ->
+                supabase.from(TABLE).upsert(row)
+            }
+            Log.d(TAG, "Copied ${rows.size} row(s) from production for $userCode")
+            Result.success(rows.size)
+        } catch (e: Exception) {
+            Log.e(TAG, "Copy from production failed", e)
+            Result.failure(e)
+        }
+    }
+
+    suspend fun copyAllFromProduction(): Result<Int> {
+        if (!com.ljh.michedule.BuildConfig.DEBUG) return Result.failure(Exception("Only available in debug"))
+        return try {
+            val supabase = client ?: return Result.failure(Exception("Not connected"))
+            val rows = supabase.from(TABLE_PROD)
+                .select()
+                .decodeList<ScheduleRow>()
+
+            rows.forEach { row ->
+                supabase.from(TABLE).upsert(row)
+            }
+            Log.d(TAG, "Copied all ${rows.size} row(s) from production")
+            Result.success(rows.size)
+        } catch (e: Exception) {
+            Log.e(TAG, "Copy all from production failed", e)
+            Result.failure(e)
         }
     }
 }

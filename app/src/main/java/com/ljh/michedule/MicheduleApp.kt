@@ -50,7 +50,7 @@ class MicheduleApp : Application() {
         chatRepository = ChatRepository(database.chatMessageDao(), prefsManager, this)
 
         appScope.launch {
-            setupDebugAccountIfNeeded()
+            cleanupForcedDebugAccount()
             prefsManager.ensureMyCode()
         }
         startSync()
@@ -117,6 +117,12 @@ class MicheduleApp : Application() {
         appScope.launch {
             if (prefsManager.syncPaused.first()) return@launch
             supabaseSync?.uploadCurrentData()
+        }
+    }
+
+    fun refreshPartnerData() {
+        appScope.launch {
+            supabaseSync?.refreshPartnerData()
         }
     }
 
@@ -190,19 +196,24 @@ class MicheduleApp : Application() {
         }
     }
 
-    private suspend fun setupDebugAccountIfNeeded() {
+    private suspend fun cleanupForcedDebugAccount() {
         if (!BuildConfig.DEBUG) return
-        val currentCode = prefsManager.ensureMyCode()
-        if (currentCode == "I33J1S") return
         val prefs = getSharedPreferences("michedule_init", MODE_PRIVATE)
-        if (prefs.getBoolean("debug_account_set_v1", false)) return
-        prefsManager.setMyCode("I33J1S")
-        prefsManager.setMyName("송도여신")
-        prefsManager.setPartnerCode("0BBT88")
-        prefsManager.setPartnerName("부천왕자")
-        prefsManager.setConnectionMutual(true)
-        prefs.edit().putBoolean("debug_account_set_v1", true).apply()
-        Log.d("MicheduleApp", "Debug account set to 송도여신 (I33J1S)")
+        if (prefs.getBoolean("debug_account_cleaned_v1", false)) return
+        val currentCode = prefsManager.ensureMyCode()
+        if (currentCode == "I33J1S") {
+            prefsManager.setMyCode("")
+            prefsManager.setMyName("")
+            prefsManager.setPartnerCode("")
+            prefsManager.setPartnerName("")
+            prefsManager.setConnectionMutual(false)
+            repository.clearAllFriendData()
+            Log.d("MicheduleApp", "Cleaned up forced debug account (I33J1S)")
+        }
+        prefs.edit()
+            .putBoolean("debug_account_cleaned_v1", true)
+            .remove("debug_account_set_v1")
+            .apply()
     }
 
     private fun migrateCreatedByToCode() {

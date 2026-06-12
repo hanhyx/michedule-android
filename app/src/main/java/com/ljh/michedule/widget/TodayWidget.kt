@@ -41,6 +41,7 @@ data class WidgetDayDetail(
     val shift: WidgetShiftInfo,
     val memo: String? = null,
     val mood: String? = null,
+    val moodNote: String? = null,
     val todoTexts: List<String> = emptyList(),
     val name: String = "",
     val typeConfigMap: Map<String, ShiftTypeConfig> = emptyMap()
@@ -79,7 +80,8 @@ class TodayWidget : GlanceAppWidget() {
                 ),
                 memo = myEntity?.memo,
                 mood = myMood?.emoji,
-                todoTexts = myTodos.take(3).map { (if (it.isDone) "✅ " else "☐ ") + it.title },
+                moodNote = myMood?.note?.takeIf { it.isNotBlank() },
+                todoTexts = myTodos.take(4).map { (if (it.isDone) "✅ " else "☐ ") + it.title },
                 typeConfigMap = typeConfigs
             )
 
@@ -124,6 +126,7 @@ private fun TodayWidgetContent(
     val divider = Color(0xFF2E2E42)
     val memoColor = Color(0xFF7DD3FC)
     val todoColor = Color(0xFF6EE7B7)
+    val moodColor = Color(0xFFFBBF24)
 
     val myConfig = myDetail.shift.config
     val myShift = myDetail.shift.type
@@ -221,14 +224,37 @@ private fun TodayWidgetContent(
 
                 Spacer(modifier = GlanceModifier.height(4.dp))
 
-                // 메모
-                if (!myDetail.memo.isNullOrBlank()) {
+                // 감정 메모
+                if (myDetail.moodNote != null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("📝", style = TextStyle(fontSize = 9.sp))
+                        Text(myDetail.mood ?: "💭", style = TextStyle(fontSize = 9.sp))
                         Spacer(modifier = GlanceModifier.width(3.dp))
                         Text(
-                            myDetail.memo.take(20),
-                            style = TextStyle(color = ColorProvider(memoColor, memoColor), fontSize = 9.sp)
+                            myDetail.moodNote.take(20),
+                            style = TextStyle(color = ColorProvider(moodColor, moodColor), fontSize = 9.sp)
+                        )
+                    }
+                    Spacer(modifier = GlanceModifier.height(2.dp))
+                }
+
+                // 메모 (|||로 분리)
+                if (!myDetail.memo.isNullOrBlank()) {
+                    val memos = myDetail.memo.split("|||").filter { it.isNotBlank() }
+                    memos.take(2).forEach { m ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("📝", style = TextStyle(fontSize = 9.sp))
+                            Spacer(modifier = GlanceModifier.width(3.dp))
+                            Text(
+                                m.trim().take(20),
+                                style = TextStyle(color = ColorProvider(memoColor, memoColor), fontSize = 9.sp)
+                            )
+                        }
+                        Spacer(modifier = GlanceModifier.height(1.dp))
+                    }
+                    if (memos.size > 2) {
+                        Text(
+                            "+${memos.size - 2}개 더",
+                            style = TextStyle(color = ColorProvider(muted, muted), fontSize = 8.sp)
                         )
                     }
                     Spacer(modifier = GlanceModifier.height(2.dp))
@@ -237,7 +263,7 @@ private fun TodayWidgetContent(
                 // 할일
                 myDetail.todoTexts.forEach { todo ->
                     Text(
-                        todo.take(18),
+                        todo.take(20),
                         style = TextStyle(color = ColorProvider(todoColor, todoColor), fontSize = 9.sp)
                     )
                 }

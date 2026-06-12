@@ -66,6 +66,11 @@ fun CalendarScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    LaunchedEffect(Unit) {
+        val app = context.applicationContext as MicheduleApp
+        app.refreshPartnerData()
+    }
+
     var showOcrSheet by remember { mutableStateOf(false) }
     var ocrProcessing by remember { mutableStateOf(false) }
     var ocrCandidates by remember { mutableStateOf<List<OcrCandidate>>(emptyList()) }
@@ -157,8 +162,6 @@ fun CalendarScreen(
             .fillMaxSize()
             .background(DarkBg)
     ) {
-        TodayHeroBanner(uiState, stm)
-
         Box(
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
@@ -563,7 +566,7 @@ private fun PartnerViewToggle(
             name = partnerName,
             photoUri = partnerPhotoUri,
             isSelected = viewingPartner,
-            defaultEmoji = "💜",
+            defaultEmoji = "👤",
             onClick = { if (!viewingPartner) onToggle() }
         )
     }

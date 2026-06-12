@@ -70,8 +70,11 @@ class PrefsManager(private val context: Context) {
     suspend fun ensureMyCode(): String {
         var code = ""
         context.dataStore.edit { prefs ->
-            code = prefs[KEY_MY_CODE] ?: generateCode().also { newCode ->
-                prefs[KEY_MY_CODE] = newCode
+            val existing = prefs[KEY_MY_CODE]
+            code = if (existing.isNullOrBlank()) {
+                generateCode().also { newCode -> prefs[KEY_MY_CODE] = newCode }
+            } else {
+                existing
             }
         }
         return code
