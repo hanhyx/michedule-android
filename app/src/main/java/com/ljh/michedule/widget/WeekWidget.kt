@@ -158,7 +158,7 @@ private fun WeekWidgetContent(
     ) {
         Column(modifier = GlanceModifier.fillMaxSize()) {
 
-            // ═══ 내 영역 (70%) ═══
+            // ═══ 내 영역 ═══
             Row(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
                 for (i in 0..6) {
                     val date = weekStart.plusDays(i.toLong())
@@ -188,11 +188,18 @@ private fun WeekWidgetContent(
                             .padding(horizontal = 1.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("${dayNames[i]}${date.dayOfMonth}", style = TextStyle(
-                            fontSize = 8.sp,
+                        // 요일
+                        Text(dayNames[i], style = TextStyle(
+                            fontSize = 8.sp, color = ColorProvider(dayColor, dayColor)
+                        ))
+                        // 날짜
+                        Text("${date.dayOfMonth}", style = TextStyle(
+                            fontSize = 9.sp,
                             fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
                             color = ColorProvider(dayColor, dayColor)
                         ))
+                        Spacer(modifier = GlanceModifier.height(2.dp))
+                        // 내 근무
                         if (myEmoji.isNotBlank()) {
                             Text(myEmoji, style = TextStyle(fontSize = 11.sp))
                         }
@@ -223,12 +230,14 @@ private fun WeekWidgetContent(
                 )
             }
 
-            // ═══ 상대 영역 (30%) ═══
+            // ═══ 상대 영역 (확대) ═══
             if (hasPartner) {
                 Row(
                     modifier = GlanceModifier.fillMaxWidth()
+                        .defaultWeight()
                         .background(ColorProvider(partnerBg, partnerBg))
                         .cornerRadius(6.dp)
+                        .padding(vertical = 1.dp)
                 ) {
                     for (i in 0..6) {
                         val dateStr = weekStart.plusDays(i.toLong()).toString()
@@ -237,12 +246,27 @@ private fun WeekWidgetContent(
                         val pLabel = pInfo?.config?.shortLabel ?: pInfo?.type?.shortLabel ?: ""
                         val pColor = (pInfo?.config?.color ?: pInfo?.type?.color)?.copy(alpha = 0.85f) ?: muted.copy(alpha = 0.3f)
 
+                        // 추가근무
+                        val extraList = pInfo?.getExtraShiftList() ?: emptyList()
+                        val extraConfig = if (extraList.isNotEmpty()) partnerTypeMap[extraList.first()] else null
+                        val extraEmoji = extraConfig?.emoji ?: ""
+                        val extraLabel = extraConfig?.shortLabel ?: ""
+                        val extraColor = (extraConfig?.color ?: muted).copy(alpha = 0.7f)
+
                         Column(
-                            modifier = GlanceModifier.defaultWeight(),
+                            modifier = GlanceModifier.defaultWeight().fillMaxHeight().padding(horizontal = 1.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(pEmoji.ifBlank { "·" }, style = TextStyle(fontSize = 9.sp))
+                            // 주요 근무
+                            Text(pEmoji.ifBlank { "·" }, style = TextStyle(fontSize = 10.sp))
                             Text(pLabel.ifBlank { "-" }, style = TextStyle(fontSize = 8.sp, fontWeight = FontWeight.Bold, color = ColorProvider(pColor, pColor)), maxLines = 1)
+                            // 추가 근무
+                            if (extraEmoji.isNotBlank()) {
+                                Text(extraEmoji, style = TextStyle(fontSize = 8.sp))
+                            }
+                            if (extraLabel.isNotBlank()) {
+                                Text(extraLabel, style = TextStyle(fontSize = 7.sp, color = ColorProvider(extraColor, extraColor)), maxLines = 1)
+                            }
                         }
                     }
                 }
