@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.ljh.michedule.data.db.*
+import com.ljh.michedule.data.repository.UploadState
 import com.ljh.michedule.ui.theme.LocalAppColors
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -276,6 +277,8 @@ private fun TimelineDetailScreen(
     val stickers by viewModel.stickers.collectAsStateWithLifecycle()
     val currentLocation by viewModel.currentLocation.collectAsStateWithLifecycle()
     val locationLoading by viewModel.locationLoading.collectAsStateWithLifecycle()
+    val uploadState by viewModel.uploadState.collectAsStateWithLifecycle()
+    val uploadError by viewModel.uploadError.collectAsStateWithLifecycle()
 
     var showAddPlaceDialog by remember { mutableStateOf(false) }
     var showStickerPicker by remember { mutableStateOf(false) }
@@ -294,7 +297,35 @@ private fun TimelineDetailScreen(
 
     val tl = timeline ?: return
 
-    Column(modifier = modifier.fillMaxSize().background(colors.background)) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(uploadError) {
+        uploadError?.let {
+            snackbarHostState.showSnackbar(it, duration = SnackbarDuration.Short)
+            viewModel.clearUploadError()
+        }
+    }
+
+    Scaffold(
+        snackbarHost = {
+            SnackbarHost(snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = Color(0xFFEF4444),
+                    contentColor = Color.White
+                )
+            }
+        },
+        containerColor = colors.background
+    ) { innerPadding ->
+    Column(modifier = modifier.fillMaxSize().padding(innerPadding).background(colors.background)) {
+        if (uploadState == UploadState.UPLOADING) {
+            LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth(),
+                color = colors.accent,
+                trackColor = colors.border
+            )
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -383,6 +414,7 @@ private fun TimelineDetailScreen(
             }
         }
     }
+    } // Scaffold
 
     if (showAddPlaceDialog) {
         AddPlaceDialog(

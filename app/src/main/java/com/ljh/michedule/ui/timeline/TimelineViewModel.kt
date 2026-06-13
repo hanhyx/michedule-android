@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.ljh.michedule.MicheduleApp
 import com.ljh.michedule.data.db.*
 import com.ljh.michedule.data.repository.TimelineRepository
+import com.ljh.michedule.data.repository.UploadState
 import com.ljh.michedule.util.LocationHelper
 import com.ljh.michedule.util.LocationResult
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -30,6 +31,10 @@ class TimelineViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _locationLoading = MutableStateFlow(false)
     val locationLoading: StateFlow<Boolean> = _locationLoading.asStateFlow()
+
+    val uploadState: StateFlow<UploadState> = repo.uploadState
+    val uploadError: StateFlow<String?> = repo.uploadError
+    fun clearUploadError() = repo.clearUploadError()
 
     val timelines: StateFlow<List<TimelineEntity>> = _roomCode
         .filter { it.isNotBlank() }

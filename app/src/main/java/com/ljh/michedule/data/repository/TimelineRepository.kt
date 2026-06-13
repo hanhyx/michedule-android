@@ -12,13 +12,15 @@ import io.github.jan.supabase.postgrest.from
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.request.*
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.*
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import java.util.UUID
+
+enum class UploadState { IDLE, UPLOADING, SUCCESS, ERROR }
 
 class TimelineRepository(
     private val dao: TimelineDao,
@@ -35,6 +37,14 @@ class TimelineRepository(
     }
 
     private var client: SupabaseClient? = null
+
+    private val _uploadState = MutableStateFlow(UploadState.IDLE)
+    val uploadState: StateFlow<UploadState> = _uploadState.asStateFlow()
+
+    private val _uploadError = MutableStateFlow<String?>(null)
+    val uploadError: StateFlow<String?> = _uploadError.asStateFlow()
+
+    fun clearUploadError() { _uploadError.value = null; _uploadState.value = UploadState.IDLE }
 
     private suspend fun ensureClient(): SupabaseClient? {
         if (client != null) return client
@@ -83,8 +93,15 @@ class TimelineRepository(
     }
 
     suspend fun addPhoto(placeId: String, timelineId: String, imageUri: Uri, sortOrder: Int): TimelinePhotoEntity? {
+        _uploadState.value = UploadState.UPLOADING
+        _uploadError.value = null
         return try {
-            val imageUrl = uploadImage(imageUri) ?: return null
+            val imageUrl = uploadImage(imageUri)
+            if (imageUrl == null) {
+                _uploadState.value = UploadState.ERROR
+                if (_uploadError.value == null) _uploadError.value = "이미지 업로드 실패"
+                return null
+            }
             val photo = TimelinePhotoEntity(
                 id = UUID.randomUUID().toString(),
                 placeId = placeId,
@@ -94,9 +111,12 @@ class TimelineRepository(
             )
             dao.insertPhoto(photo)
             syncPhotoToRemote(photo)
+            _uploadState.value = UploadState.SUCCESS
             photo
         } catch (e: Exception) {
             Log.e(TAG, "Failed to add photo", e)
+            _uploadState.value = UploadState.ERROR
+            _uploadError.value = "사진 추가 실패: ${e.message}"
             null
         }
     }
@@ -174,16 +194,28 @@ class TimelineRepository(
 
     private suspend fun uploadImage(uri: Uri): String? {
         return try {
+            Log.d(TAG, "Starting image upload for uri: $uri")
             val bytes = withContext(Dispatchers.IO) {
                 appContext.contentResolver.openInputStream(uri)?.readBytes()
-            } ?: return null
+            }
+            if (bytes == null) {
+                Log.e(TAG, "Failed to read image bytes from uri: $uri")
+                _uploadError.value = "이미지를 읽을 수 없습니다"
+                return null
+            }
+            Log.d(TAG, "Image bytes read: ${bytes.size} bytes")
 
             val url = prefsManager.supabaseUrl.first()
             val key = prefsManager.supabaseKey.first()
-            if (url.isBlank() || key.isBlank()) return null
+            if (url.isBlank() || key.isBlank()) {
+                Log.e(TAG, "Supabase URL or key is blank")
+                _uploadError.value = "Supabase 설정이 없습니다"
+                return null
+            }
 
             val fileName = "timeline_${UUID.randomUUID()}.jpg"
             val uploadUrl = "$url/storage/v1/object/$STORAGE_BUCKET/$fileName"
+            Log.d(TAG, "Uploading to: $uploadUrl")
 
             val httpClient = HttpClient(OkHttp)
             val response = httpClient.request(uploadUrl) {
@@ -193,16 +225,23 @@ class TimelineRepository(
                 contentType(ContentType.Image.JPEG)
                 setBody(bytes)
             }
-            httpClient.close()
 
+            val statusCode = response.status.value
             if (response.status.isSuccess()) {
-                "$url/storage/v1/object/public/$STORAGE_BUCKET/$fileName"
+                httpClient.close()
+                val publicUrl = "$url/storage/v1/object/public/$STORAGE_BUCKET/$fileName"
+                Log.d(TAG, "Upload success: $publicUrl")
+                publicUrl
             } else {
-                Log.e(TAG, "Image upload failed: ${response.status}")
+                val body = try { response.bodyAsText() } catch (_: Exception) { "(no body)" }
+                httpClient.close()
+                Log.e(TAG, "Image upload failed: HTTP $statusCode - $body")
+                _uploadError.value = "업로드 실패 (HTTP $statusCode)"
                 null
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to upload image", e)
+            _uploadError.value = "업로드 에러: ${e.message?.take(50)}"
             null
         }
     }
