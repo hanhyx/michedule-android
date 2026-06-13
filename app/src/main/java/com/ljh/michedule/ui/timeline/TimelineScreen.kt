@@ -1,5 +1,6 @@
 package com.ljh.michedule.ui.timeline
 
+import android.Manifest
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -273,11 +274,23 @@ private fun TimelineDetailScreen(
     val places by viewModel.places.collectAsStateWithLifecycle()
     val photos by viewModel.photos.collectAsStateWithLifecycle()
     val stickers by viewModel.stickers.collectAsStateWithLifecycle()
+    val currentLocation by viewModel.currentLocation.collectAsStateWithLifecycle()
+    val locationLoading by viewModel.locationLoading.collectAsStateWithLifecycle()
 
     var showAddPlaceDialog by remember { mutableStateOf(false) }
     var showStickerPicker by remember { mutableStateOf(false) }
     var stickerTargetPlaceId by remember { mutableStateOf<String?>(null) }
     var stickerTargetPhotoId by remember { mutableStateOf<String?>(null) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        val granted = results.values.any { it }
+        if (granted) {
+            viewModel.fetchCurrentLocation()
+        }
+        showAddPlaceDialog = true
+    }
 
     val tl = timeline ?: return
 
@@ -305,7 +318,17 @@ private fun TimelineDetailScreen(
             IconButton(onClick = { showStickerPicker = true; stickerTargetPlaceId = null; stickerTargetPhotoId = null }) {
                 Text("🎨", fontSize = 22.sp)
             }
-            IconButton(onClick = { showAddPlaceDialog = true }) {
+            IconButton(onClick = {
+                if (viewModel.locationHelper.hasLocationPermission()) {
+                    viewModel.fetchCurrentLocation()
+                    showAddPlaceDialog = true
+                } else {
+                    permissionLauncher.launch(arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    ))
+                }
+            }) {
                 Icon(Icons.Default.AddLocation, contentDescription = "장소 추가", tint = colors.accent)
             }
         }
@@ -367,7 +390,10 @@ private fun TimelineDetailScreen(
             onAdd = { name, time, memo ->
                 viewModel.addPlace(name, time, memo)
                 showAddPlaceDialog = false
-            }
+            },
+            defaultTime = viewModel.getCurrentTimeFormatted(),
+            detectedPlaceName = currentLocation?.placeName,
+            isLoadingLocation = locationLoading
         )
     }
 
@@ -594,12 +620,28 @@ fun DraggableSticker(
 @Composable
 private fun AddPlaceDialog(
     onDismiss: () -> Unit,
-    onAdd: (name: String, time: String, memo: String) -> Unit
+    onAdd: (name: String, time: String, memo: String) -> Unit,
+    defaultTime: String = "",
+    detectedPlaceName: String? = null,
+    isLoadingLocation: Boolean = false
 ) {
     val colors = LocalAppColors.current
-    var name by remember { mutableStateOf("") }
-    var time by remember { mutableStateOf("") }
+    var name by remember(detectedPlaceName) { mutableStateOf(detectedPlaceName ?: "") }
+    var time by remember { mutableStateOf(defaultTime) }
     var memo by remember { mutableStateOf("") }
+    val tfColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = colors.accent,
+        unfocusedBorderColor = colors.border,
+        cursorColor = colors.accent,
+        focusedTextColor = colors.textPrimary,
+        unfocusedTextColor = colors.textPrimary
+    )
+
+    LaunchedEffect(detectedPlaceName) {
+        if (detectedPlaceName != null && name.isBlank()) {
+            name = detectedPlaceName
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -609,28 +651,33 @@ private fun AddPlaceDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    placeholder = { Text("장소 이름", color = colors.textMuted) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = colors.accent,
-                        unfocusedBorderColor = colors.border,
-                        cursorColor = colors.accent,
-                        focusedTextColor = colors.textPrimary,
-                        unfocusedTextColor = colors.textPrimary
-                    ),
+                    placeholder = {
+                        if (isLoadingLocation) Text("📍 위치 감지 중...", color = colors.accent)
+                        else Text("장소 이름", color = colors.textMuted)
+                    },
+                    leadingIcon = {
+                        if (isLoadingLocation) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = colors.accent
+                            )
+                        } else {
+                            Icon(Icons.Default.LocationOn, contentDescription = null, tint = colors.accent, modifier = Modifier.size(20.dp))
+                        }
+                    },
+                    colors = tfColors,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = time,
                     onValueChange = { time = it },
-                    placeholder = { Text("시간 (예: 14:00)", color = colors.textMuted) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = colors.accent,
-                        unfocusedBorderColor = colors.border,
-                        cursorColor = colors.accent,
-                        focusedTextColor = colors.textPrimary,
-                        unfocusedTextColor = colors.textPrimary
-                    ),
+                    placeholder = { Text("시간", color = colors.textMuted) },
+                    leadingIcon = {
+                        Icon(Icons.Default.Schedule, contentDescription = null, tint = colors.accent, modifier = Modifier.size(20.dp))
+                    },
+                    colors = tfColors,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -638,13 +685,10 @@ private fun AddPlaceDialog(
                     value = memo,
                     onValueChange = { memo = it },
                     placeholder = { Text("메모 (선택)", color = colors.textMuted) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = colors.accent,
-                        unfocusedBorderColor = colors.border,
-                        cursorColor = colors.accent,
-                        focusedTextColor = colors.textPrimary,
-                        unfocusedTextColor = colors.textPrimary
-                    ),
+                    leadingIcon = {
+                        Icon(Icons.Default.Edit, contentDescription = null, tint = colors.textMuted, modifier = Modifier.size(20.dp))
+                    },
+                    colors = tfColors,
                     modifier = Modifier.fillMaxWidth()
                 )
             }

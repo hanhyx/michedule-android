@@ -7,18 +7,29 @@ import androidx.lifecycle.viewModelScope
 import com.ljh.michedule.MicheduleApp
 import com.ljh.michedule.data.db.*
 import com.ljh.michedule.data.repository.TimelineRepository
+import com.ljh.michedule.util.LocationHelper
+import com.ljh.michedule.util.LocationResult
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TimelineViewModel(app: Application) : AndroidViewModel(app) {
     private val micheduleApp = app as MicheduleApp
     private val repo: TimelineRepository = micheduleApp.timelineRepository
     private val prefsManager = micheduleApp.prefsManager
+    val locationHelper = LocationHelper(app)
 
     private val _roomCode = MutableStateFlow("")
     val roomCode: StateFlow<String> = _roomCode
+
+    private val _currentLocation = MutableStateFlow<LocationResult?>(null)
+    val currentLocation: StateFlow<LocationResult?> = _currentLocation.asStateFlow()
+
+    private val _locationLoading = MutableStateFlow(false)
+    val locationLoading: StateFlow<Boolean> = _locationLoading.asStateFlow()
 
     val timelines: StateFlow<List<TimelineEntity>> = _roomCode
         .filter { it.isNotBlank() }
@@ -64,6 +75,29 @@ class TimelineViewModel(app: Application) : AndroidViewModel(app) {
 
     fun selectTimeline(id: String?) {
         _selectedTimelineId.value = id
+    }
+
+    fun getCurrentTimeFormatted(): String =
+        LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))
+
+    fun fetchCurrentLocation() {
+        if (_locationLoading.value) return
+        viewModelScope.launch {
+            _locationLoading.value = true
+            _currentLocation.value = locationHelper.getCurrentLocation()
+            _locationLoading.value = false
+        }
+    }
+
+    fun quickAddPlace(placeName: String? = null, time: String? = null, memo: String = "") {
+        val tlId = _selectedTimelineId.value ?: return
+        val name = placeName ?: _currentLocation.value?.placeName ?: "새 장소"
+        val t = time ?: getCurrentTimeFormatted()
+        viewModelScope.launch {
+            val currentCount = places.value.size
+            repo.addPlace(tlId, name, t, memo, currentCount)
+            _currentLocation.value = null
+        }
     }
 
     fun createTimeline(date: String, title: String) {

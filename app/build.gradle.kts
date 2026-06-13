@@ -15,8 +15,8 @@ android {
         applicationId = "com.ljh.michedule"
         minSdk = 26
         targetSdk = 35
-        versionCode = 85
-        versionName = "3.14.1"
+        versionCode = 86
+        versionName = "3.15.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -91,6 +91,7 @@ dependencies {
     implementation("com.google.mlkit:text-recognition-korean:16.0.1")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
     implementation(libs.coil.compose)
+    implementation(libs.play.services.location)
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
